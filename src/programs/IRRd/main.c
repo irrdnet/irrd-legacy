@@ -1,5 +1,5 @@
  /*
- * $Id: main.c,v 1.33 2001/08/07 17:09:16 ljb Exp $
+ * $Id: main.c,v 1.35 2002/02/04 20:53:56 ljb Exp $
  * originally Id: main.c,v 1.57 1998/08/03 17:29:08 gerald Exp 
  */
 
@@ -69,9 +69,7 @@ int main (int argc, char *argv[])
 "   [-f <irrd.conf file>]\n"
 "   [-g <groupname>]\n"
 "   [-l <username>]\n"
-"   [-m use memory mode indexing]\n"
 "   [-n do not daemonize]\n"
-"   [-r force rebuild of indices on bootstrap]\n"
 "   [-s <password>]\n"
 "   [-u don't allow privileged commands]\n"
 "   [-v verbose mode]\n"
@@ -94,8 +92,8 @@ int main (int argc, char *argv[])
     }
 #endif /* NT */
 
-    default_trace = New_Trace ();
-    IRR.submit_trace = New_Trace ();
+    default_trace = New_Trace2 ("irrd");
+    IRR.submit_trace = New_Trace2 ("irrd");
     set_trace (default_trace, TRACE_FLAGS, NORM, 0);
     atomic_trans = 0; /* default to off */
 
@@ -105,16 +103,11 @@ int main (int argc, char *argv[])
     IRR.max_connections = 25;
     IRR.mirror_interval = 60*10; /* mirror every ten minutes */
     IRR.irr_port = IRR_DEFAULT_PORT;
-    IRR.statusfile = InitStatusFile (strdup("/var/spool/database/IRRD_STATUS"));
     IRR.use_cache = 0; /* cache for "!gas queries */
     IRR.database_syntax = EMPTY_DB; /* determine syntax when loading db's */
-    IRR.rebuild_indicies = 0;/* don't rebuild disk indicies -- use what we have */
     IRR.tmp_dir = IRR_TMP_DIR;
-#if (defined(USE_GDBM) || defined(USE_DB1))
-    IRR.use_disk = 1;
     IRR.path = NULL;
-#endif /* USE_GDBM || USE_DB1 */
-    IRR.use_disk = 0;  /* default to index memory mode */
+    IRR.statusfile = NULL;
 
     while ((c = getopt (argc, argv, "w:axmrHhnkvf:ud:g:l:s:")) != -1)
 	switch (c) {
@@ -153,14 +146,8 @@ int main (int argc, char *argv[])
  	  }
 	  user_id = pw->pw_uid;
 	  break;
-	case 'm':	/* use only memory */
-	  IRR.use_disk = 0;
-	  break;
 	case 'n':		/* do not daemonize */
 	  daemon = 0;
-	  break;
-	case 'r':	/* by default, we use gdbm files already on disk */
-	  IRR.rebuild_indicies = 1;
 	  break;
 	case 's':
 	  password = strdup ((char *) optarg);
@@ -182,13 +169,15 @@ int main (int argc, char *argv[])
 	case 'x':
 	  x_flag = 0;
 	  break;
+	case 'm':	/* old command line options -- no longer do anything */
+	case 'r':
+	  break;
 	case 'H':
 	case 'h':
 	default:
-	    errors++;
-	    break;
+	  errors++;
+	  break;
 	}
-
 
     if (errors) {
 	fprintf (stderr, usage, name);
@@ -204,23 +193,8 @@ int main (int argc, char *argv[])
     init_mrt_reboot (argc, argv);
     init_uii (default_trace);
 
-    #if 0
-    /* JMH - someone commented this out using C++ commenting style */
-    if (UNPRIV_FLAG)
-      UII->initial_state = 1;
-    else 
-      UII->initial_state = 0;
-    #endif
-
     set_uii (UII, UII_PROMPT, UII_UNPREV, "Password: ", 0);
     set_uii (UII, UII_PROMPT, UII_NORMAL, "IRRd> ", 0);
-
-
-    /*uii_add_command2 (UII_UNPREV, COMMAND_MATCH_FIRST, "", uii_check_passwd,
-		      "Password");
-    set_uii (UII, UII_PROMPT, 0, "password> ", 0);
-    set_uii (UII, UII_PROMPT, 1, "IRRd> ", 0);
-	*/
 
     init_irrd_commands (UNPRIV_FLAG);
 
@@ -241,7 +215,6 @@ int main (int argc, char *argv[])
     /* initialize the mutex */
     pthread_mutex_init (&IRR.connections_mutex_lock, NULL);
 
-
     /*
      * read configuration here
      */
@@ -249,22 +222,22 @@ int main (int argc, char *argv[])
       config_create_default ();
     }
 
-
-    /* Sanity checks
-    if ((IRR.database_dir == NULL) && (LL_GetCount (IRR.ll_database) > 0)) {
-      printf ("Error -- irr_directory must be specified\n");
-      exit (0);
-    }
-    */
-
     /* default the cache if the user does not specify */
+    /* should also set default statusfile here? */
     if (IRR.database_dir == NULL) {
       IRR.database_dir = strdup (DEF_DBCACHE);
       default_cache = 1;
     }
-    
-    trace (NORM, default_trace, "JW: IRR.database_dir (%s)\n",IRR.database_dir );
 
+    if (IRR.statusfile == NULL) {
+      char statusfilename[512];
+
+      *statusfilename = 0;
+      strcat(statusfilename, IRR.database_dir);
+      strcat(statusfilename, "/IRRD_STATUS");
+      IRR.statusfile = InitStatusFile(statusfilename);
+    }
+    
     /* sort the databases alphabetically */
     irr_sort_database ();
   
@@ -433,7 +406,6 @@ static void daemonize ()
 	exit (0);
     }
 
-
 #ifdef HAVE_SETSID
     (void) setsid();
 #else
@@ -522,7 +494,7 @@ void init_irrd_commands (int UNPRIV_FLAG) {
 		      "Synchronize database with remote server, supply LAST");
 
     uii_add_command2 (UII_NORMAL, COMMAND_NORM, "dbclean %s", 
-		      (int (*)()) uii_irr_sync,
+		      (int (*)()) uii_irr_clean,
 		      "Clean database -- remove deleted entries on disk");
 
     uii_add_command2 (UII_NORMAL, COMMAND_NORM, "set serial %s %d", 
@@ -675,11 +647,11 @@ void init_irrd_commands (int UNPRIV_FLAG) {
      
   uii_add_command2 (UII_CONFIG, COMMAND_NORM, "irr_port %d", 
 		    (int (*)()) config_irr_port_2,
-		    "The \"IRRd\" telnet interface query port");
+		    "The \"IRRd\" whois interface query port");
 
   uii_add_command2 (UII_CONFIG, COMMAND_NORM, "irr_port %d access %d", 
 		    (int (*)()) config_irr_port,
-		    "The \"IRRd\" telnet interface query port");
+		    "The \"IRRd\" whois interface query port");
 
   uii_add_command2 (UII_CONFIG, COMMAND_NORM, "irr_mirror_interval %d", 
 		    (int (*)()) config_irr_mirror_interval,

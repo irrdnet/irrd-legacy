@@ -44,10 +44,7 @@ void show_database (uii_connection_t *uii) {
   }
   uii_add_bulk_output (uii, "\r\n");
 
-  if (IRR.use_disk == 1)
-    uii_add_bulk_output (uii, "Disk indexing\r\n");
-  else
-    uii_add_bulk_output (uii, "Memory-only indexing\r\n");
+  uii_add_bulk_output (uii, "Memory-only indexing\r\n");
 
   if (IRR.database_syntax == RIPE181) {
     uii_add_bulk_output (uii, "RIPE181 Syntax\r\n\r\n");
@@ -343,7 +340,6 @@ int uii_irr_irrdcacher (uii_connection_t *uii, char *name) {
   }
   fclose (pipeout);
 
-
   /* move the DB into our cache and reload */  
   if (regexec (&good_re, cmd, 0, NULL, 0)  == 0)
     ret_code = irr_reload_database (name, uii, tmp_dir);
@@ -410,15 +406,14 @@ void uii_export_database (uii_connection_t *uii, char *name) {
   return;
 }
 
-
-void uii_irr_sync (uii_connection_t *uii, char *name) {
+void uii_irr_clean (uii_connection_t *uii, char *name) {
   irr_database_t *db;
 
   db = find_database (name);
 
   if (db != NULL) {   
     uii_send_data (uii, "Cleaning %s database...\r\n", name);
-    irr_database_sync (db);
+    irr_database_clean (db);
     if (db->clean_timer != NULL)
       Timer_Reset_Time (db->clean_timer);
   }
@@ -429,16 +424,13 @@ void uii_irr_sync (uii_connection_t *uii, char *name) {
   return;
 }
 
-
 void uii_irr_mirror_last (uii_connection_t *uii, char *name) {
   uii_irr_mirror (uii, name, 0);
 }
 
-
 void uii_irr_mirror_serial (uii_connection_t *uii, char *name, int serial) {
   uii_irr_mirror (uii, name, serial);
 }
-
 
 void uii_irr_mirror (uii_connection_t *uii, char *name, int serial) {
   irr_database_t *database;
@@ -479,7 +471,6 @@ void uii_irr_mirror (uii_connection_t *uii, char *name, int serial) {
   return;
 }
 
-
 /* mainly for debugging, but would be nice to be able to set the serial number */
 void uii_set_serial (uii_connection_t *uii, char *name, int serial) {
   irr_database_t *database;
@@ -493,7 +484,6 @@ void uii_set_serial (uii_connection_t *uii, char *name, int serial) {
   uii_send_data (uii, "%s database not found\r\n", name);
   Delete (name);
 }
-
 
 void uii_show_ip (uii_connection_t *uii, prefix_t *prefix, int num, char *lessmore) {
   if (num == 0) {
@@ -513,14 +503,13 @@ void uii_show_ip (uii_connection_t *uii, prefix_t *prefix, int num, char *lessmo
   return;
 }
 
-
 void uii_fetch_irr_object (uii_connection_t *uii, 
 			   irr_database_t *database, u_long offset) {
   char buffer[BUFSIZE+1];
   
-  fseek (database->fd, offset, SEEK_SET);
+  fseek (database->db_fp, offset, SEEK_SET);
     
-  while (fgets (buffer, BUFSIZE, database->fd) != NULL) {
+  while (fgets (buffer, BUFSIZE, database->db_fp) != NULL) {
     buffer[strlen(buffer) -1] = '\0'; /* lose newline */
     if (strlen (buffer) < 2) break;
     uii_add_bulk_output (uii, "%s\r\n", buffer);
@@ -549,10 +538,8 @@ void uii_show_ip_exact (uii_connection_t *uii, prefix_t *prefix) {
     }
     irr_unlock (database);
   }    
-  
   uii_send_bulk_data (uii);
 }
-
 
 void uii_show_ip_less (uii_connection_t *uii, prefix_t *prefix, int flag) {
   radix_node_t *node;
@@ -576,7 +563,6 @@ void uii_show_ip_less (uii_connection_t *uii, prefix_t *prefix, int flag) {
 	uii_fetch_irr_object (uii, database, attr->offset);
       }
     }
-
     /* now check all less specific */
     while ((flag == 1 || node == NULL) && 
 	   (node = radix_search_best (database->radix, tmp_prefix, 0)) != NULL) {
@@ -594,10 +580,8 @@ void uii_show_ip_less (uii_connection_t *uii, prefix_t *prefix, int flag) {
     }
     irr_unlock (database);
   }
-  
   uii_send_bulk_data (uii);
 }
-
 
 /* Route searches. M - all more specific eg, !r199.208.0.0/16,M */ 
 /* Also does m - one level only more specific */ 
@@ -663,10 +647,8 @@ void uii_show_ip_more (uii_connection_t *uii, prefix_t *prefix) {
     }
     irr_unlock (database);
   }
-  
   uii_send_bulk_data (uii);
 }
-
 
 /* uii_delete_route
  * mainly for testing/debugging 
@@ -689,7 +671,6 @@ int uii_delete_route (uii_connection_t *uii, char *name, prefix_t *prefix, int a
   irr_object->name = prefix_toax (prefix);
   irr_object->origin = as;
 
-
   if ((irr_object = load_irr_object (db, irr_object)) == NULL) {
     uii_send_data (uii, "Could not find find %s...\r\n", prefix_toax (prefix));
     return (-1);
@@ -703,13 +684,11 @@ int uii_delete_route (uii_connection_t *uii, char *name, prefix_t *prefix, int a
   return (1);
 }
 
-
 int uii_read_update_file (uii_connection_t *uii, char *file, char *name) {
   irr_database_t *db;
   u_long new;
-  FILE *fd;
+  FILE *fp;
   
-
   db = find_database (name);
 
   if (db == NULL) {   
@@ -719,29 +698,22 @@ int uii_read_update_file (uii_connection_t *uii, char *file, char *name) {
   }
   Delete (name); 
 
-  if ((fd = fopen (file, "r")) == NULL) {
+  if ((fp = fopen (file, "r")) == NULL) {
     uii_send_data (uii, "Could not open %s\r\n", file);
     return (-1);
   }
 
   /* just kill of the start line */
-  valid_start_line (db, fd, &new);
+  valid_start_line (db, fp, &new);
 
-  irr_lock (db);
-#if (defined(USE_GDBM))
-  dbm_fast (db);
-#endif
-  if (scan_irr_file (db, "load", 2, fd) != NULL) {
+  irr_update_lock (db);
+  if (scan_irr_file (db, "load", 2, fp) != NULL) {
     trace (NORM, default_trace, 
 	   "Read of updates failed: serial number unchanged: %d\n",
 	   db->serial_number);
   }
-  irr_unlock (db);
-  
-  fclose (fd);
-#if (defined(USE_GDBM))
-  dbm_slow (db);
-#endif
+  irr_update_unlock (db);
+  fclose (fp);
 
   return (1);
 }
@@ -791,19 +763,21 @@ void run_cmd (char *cmd, FILE **in, FILE **out) {
   }
 }
 
-
 int kill_irrd (uii_connection_t *uii) {
-  irr_connection_t *irr;
 
   uii_send_data (uii, "Are you sure (yes/no)? ");
   if (uii_yes_no (uii)) {
     uii_send_data (uii, "Exit requested\n");
+    exit(0);
 
+    /* XXX this code does not work -ljb */
+    /* need to mutex_init(irr->lock_all_mutex_lock) ? */
+#ifdef notdef
     irr = New (irr_connection_t);
     irr->ll_database = IRR.ll_database;
     irr_lock_all (irr);
     mrt_set_force_exit (MRT_FORCE_EXIT);
+#endif
   }
   return (0);
 }
-

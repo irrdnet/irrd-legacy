@@ -1,6 +1,6 @@
 /* include/config.h.in.  Generated automatically from configure.in by autoheader.  */
 /* 
- * $Id: config.h.in,v 1.9 2001/08/14 16:40:26 ljb Exp $
+ * $Id: config.h.in,v 1.10 2001/12/03 20:08:16 ljb Exp $
  */
 
 
@@ -49,12 +49,6 @@
 
 /* Define if you have pthread library (-lpthread) */
 #undef HAVE_LIBPTHREAD
-
-/* Define if you are using gdbm */
-#undef USE_GDBM
-
-/* Define if you using berkeley db */
-#undef USE_DB1
 
 /* Define if you have pthread_attr_setscope */
 #undef HAVE_PTHREAD_ATTR_SETSCOPE
@@ -133,9 +127,6 @@
 
 /* Define if you have the thr_setconcurrency function.  */
 #undef HAVE_THR_SETCONCURRENCY
-
-/* Define if you have the <gdbm.h> header file.  */
-#undef HAVE_GDBM_H
 
 /* Define if you have the <pthread.h> header file.  */
 #undef HAVE_PTHREAD_H

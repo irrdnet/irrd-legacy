@@ -1,5 +1,5 @@
 /*
- * $Id: hash_spec.c,v 1.1.1.1 2000/02/29 22:28:30 labovit Exp $
+ * $Id: hash_spec.c,v 1.2 2002/02/04 20:53:55 ljb Exp $
  * originally Id: hash_spec.c,v 1.14 1998/07/20 01:22:03 labovit Exp 
  */
 
@@ -108,29 +108,14 @@ void store_hash_spec (irr_database_t *database, hash_spec_t *hash_item) {
   util_put_ll       (hash_item->ll_1, &cp);
   util_put_ll       (hash_item->ll_2, &cp);
 
-#if (defined(USE_GDBM) || defined(USE_DB1))
-  if (IRR.use_disk == 1) {
-    irr_dbm_store (database->dbm_spec, hash_item->key, buf, 
-                   str_size, database->name);
-    Delete (buf);
-  }
-#endif /* USE_GDBM || USE_DB1 */
-  if (IRR.use_disk == 0) {
-    hash_x = HASH_Lookup (database->hash_spec, hash_item->key);
-    if (hash_x != NULL) HASH_Remove (database->hash_spec, hash_x);
-    irr_spec_hash_store (database, hash_item->key, buf);
-  }
+  hash_x = HASH_Lookup (database->hash_spec, hash_item->key);
+  if (hash_x != NULL) HASH_Remove (database->hash_spec, hash_x);
+  irr_spec_hash_store (database, hash_item->key, buf);
 }
 
 void remove_hash_spec (irr_database_t *db, char *key) {
   /* printf("enter remove_hash_spec( key-(%s))\n",key); */
-#if (defined(USE_GDBM) || defined(USE_DB1))
-  if (IRR.use_disk == 1) 
-    irr_dbm_delete (db->dbm_spec, key, db->name);
-#endif /* USE_GDBM || USE_DB1 */
-  if (IRR.use_disk == 0)  {
-    HASH_RemoveByKey (db->hash_spec, key);
-}
+  HASH_RemoveByKey (db->hash_spec, key);
 }
 
 hash_spec_t *fetch_hash_spec (irr_database_t *database, char *key, 
@@ -140,14 +125,7 @@ hash_spec_t *fetch_hash_spec (irr_database_t *database, char *key,
   hash_item_t *hash_item = NULL;
   hash_spec_t *hash_sval = NULL;
 
-#if (defined(USE_GDBM) || defined(USE_DB1))
-  if (IRR.use_disk == 1) {
-    if (database->dbm_spec != NULL)
-      hash_item = irr_dbm_fetch (database->dbm_spec, key);    
-  }
-  else
-#endif /* USE_GDBM || USE_DB1 */
-    hash_item = HASH_Lookup (database->hash_spec, key);
+  hash_item = HASH_Lookup (database->hash_spec, key);
 
   if (hash_item) {
     cp = hash_item->value;
@@ -173,21 +151,8 @@ hash_spec_t *fetch_hash_spec (irr_database_t *database, char *key,
   else
     hash_sval = NULL;
 
-
-#if (defined(USE_GDBM) || defined(USE_DB1))
-  if (IRR.use_disk == 1 && hash_item != NULL) {
-    if (mode == UNPACK)
-      irr_hash_destroy (hash_item);
-    else { /* calling routine will free the value part */
-      Delete (hash_item->key);
-      Delete (hash_item);
-    }
-  }
-#endif /* USE_GDBM || USE_DB1 */
-
   return (hash_sval);
 }
-
 
 void memory_hash_spec_del (hash_spec_t *hash_value, enum SPEC_KEYS id, 
 		           char *blob_item) {
@@ -229,7 +194,6 @@ void memory_hash_spec_del (hash_spec_t *hash_value, enum SPEC_KEYS id,
       trace (ERROR, default_trace, "memory_hash_spec_del() error.  Got an unknown index id-type, cannot perform delete operation id-(%d)\n!", id);
       break;
   };
-
 }
 
 int memory_hash_spec_add (hash_spec_t *hash_value,  enum SPEC_KEYS id, 
@@ -333,7 +297,6 @@ int memory_hash_spec_remove (irr_database_t *db, char *key, enum SPEC_KEYS id,
   memory_hash_spec_del (hash_sval, id, blob_item);
   return (1);
 } 
-											  
 
 int memory_hash_spec_store (irr_database_t *db, char *key, enum SPEC_KEYS id,
                             LINKED_LIST *ll_1, LINKED_LIST *ll_2, 
@@ -358,7 +321,6 @@ int memory_hash_spec_store (irr_database_t *db, char *key, enum SPEC_KEYS id,
   memory_hash_spec_add (hash_sval, id, ll_1, ll_2, blob_item);
   return(1);
 } 
-											  
 
 /* this delete's the spec temp memory hash */
 void Delete_hash_spec (hash_spec_t *hash_item) {
@@ -375,16 +337,8 @@ void Delete_hash_spec (hash_spec_t *hash_item) {
   if (hash_item->ll_2)
     LL_Destroy (hash_item->ll_2);
 
-#if (defined(USE_GDBM) || defined(USE_DB1))
-  if (IRR.use_disk == 1) {
-    if (hash_item->unpacked_value)
-      Delete (hash_item->unpacked_value);
-  }
-#endif /* USE_GDBM || USE_DB1 */
-
   Delete (hash_item);
 }
-
 
 /* commit our mem index to our regular index for 2 reasons:
  * 1. the regular index is suitable for mem and disk storage
@@ -402,7 +356,6 @@ void commit_spec_hash (irr_database_t *db) {
     else 
       store_hash_spec (db, hash_tval); 
   }
-
 }
 
 
@@ -420,7 +373,6 @@ void make_spec_key (char *new_key, char *maint, char *set_name) {
   strcat (new_key, "|");
   strcat (new_key, set_name);
   convert_toupper (new_key);  
-  
 }
 
 /* routine expects an origin without the "as", eg "231" */

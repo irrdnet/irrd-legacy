@@ -1,5 +1,5 @@
 /*
- * $Id: rpsl_commands.c,v 1.7 2001/09/04 18:12:26 ljb Exp $
+ * $Id: rpsl_commands.c,v 1.8 2002/02/04 20:53:56 ljb Exp $
  * originally Id: rpsl_commands.c,v 1.22 1998/07/31 15:42:39 gerald Exp
  */
 
@@ -152,14 +152,7 @@ void search_autnum_members_of (irr_database_t *database, enum SPEC_KEYS id,
     }
   }
 
-  /* this is here for debugging only 
-  printf("JW: expanding ANY for-(%s)\n",set_name);
-  HASH_Iterate (database->hash_spec, hash_item) {
-    printf("JW: iterate hash(id,key)=(%d,%s)\n",hash_item->value->id,hash_item->key);
-  }
-*/
 }
-
 
 void update_members_list (char *range_op, int expand_flag, 
 			  LINKED_LIST *ll_member_examined, 

@@ -1,5 +1,5 @@
 /*
- * $Id: database.c,v 1.13 2001/07/13 19:15:39 ljb Exp $
+ * $Id: database.c,v 1.15 2002/02/04 20:53:55 ljb Exp $
  * originally Id: database.c,v 1.48 1998/07/30 20:48:29 labovit Exp 
  */
 
@@ -35,33 +35,6 @@ static int fetch_remote_db  (irr_database_t *, char *);
 void munge_buffer (char *buffer, irr_database_t *irr_database);
 int irr_check_serial_vs_journal (irr_database_t *database);
 
-
-/* radix_flush
- * Delete a radix tree. Called by database_clear
- */
-void radix_flush (radix_tree_t *radix_tree) {
-  radix_node_t *node = NULL;
-  radix_str_t tmp;
-
-  LINKED_LIST *ll_nodes;
-
-  ll_nodes = LL_Create (LL_Intrusive, True,
-			LL_NextOffset, LL_Offset (&tmp, &tmp.next),
-			LL_PrevOffset, LL_Offset (&tmp, &tmp.prev),
-			LL_DestroyFunction, delete_radix_str,
-			0);
-
-  RADIX_WALK_ALL (radix_tree->head, node) {
-    LL_Add (ll_nodes, new_radix_str (node));
-  }
-  RADIX_WALK_END;
-
-  LL_Destroy (ll_nodes);
-  Delete (radix_tree);
-}
-
-
-
 /* database_clear
  * delete all indicies associated with a database 
  */
@@ -80,47 +53,20 @@ void database_clear (irr_database_t *db) {
   for (i=0; i< IRR_MAX_KEYS; i++) 
     db->num_objects[i] = 0;
   
-  if (db->hash != NULL) {
-    trace (NORM, default_trace, "Clearing out db->gash\n");
+  radix_flush (db->radix);
+
+  if (db->hash)
     HASH_Clear (db->hash);
-  }
-  if (db->radix != NULL) {
-    trace (NORM, default_trace, "Clearing out db->radix\n");
-    radix_flush (db->radix);
-  }
-  if (db->hash_spec) {
-    trace (NORM, default_trace, "Clearing out db->hash_spec\n");
+
+  if (db->hash_spec)
     HASH_Clear (db->hash_spec);
-  }
 
-  trace (NORM, default_trace, "Creating new radix and closing db->fd\n");
   db->radix = New_Radix (128);
-  fclose (db->fd);
+  fclose (db->db_fp);
 
-  db->fd = NULL;
+  db->db_fp = NULL;
   db->db_syntax = EMPTY_DB;
-
-  if (IRR.use_disk == 1) {
-    trace (NORM, default_trace, "Closing gdb files\n");
-#ifdef USE_GDBM
-    trace (NORM, default_trace, "Closing IRRd GDBM files...\n");
-    gdbm_close (db->dbm);
-    gdbm_close (db->dbm_spec);
-#endif /* USE_GDBM */
-#ifdef USE_DB1
-    trace (NORM, default_trace, "Closing IRRd DB1 files...\n");
-    if (db->dbm->close(db->dbm))
-      trace (ERROR, default_trace,
-             "Could not close DB1 non-spec file: (%s)\n", strerror(errno));
-
-    if (db->dbm_spec->close(db->dbm_spec))
-      trace (ERROR, default_trace,
-             "Could not close DB1 spec file: (%s)\n", strerror(errno));
-
-#endif /* USE_DB1 */
-  }
 }
-
 
 
 /* Control the process of reloading database (name).
@@ -163,14 +109,13 @@ int irr_reload_database (char *name, uii_connection_t *uii, char *tmp_dir) {
   }
 
   /* if we are called for rollback then we already have the lock */
-  if (uii != NULL || 
-      tmp_dir != NULL)
-    irr_lock (database);
+  if (uii != NULL || tmp_dir != NULL)
+    irr_update_lock (database);
 
   /* atomically move the new DB into our cache area */
   if (tmp_dir != NULL) {
     if (!replace_cache_db (database, uii, tmp_dir)) {
-      irr_unlock (database);
+      irr_update_unlock (database);
       trace (ERROR, default_trace, "irr_reload_database (): reload (%s) aborted!\n",
 	     database->name);
       if (uii != NULL) 
@@ -194,9 +139,8 @@ int irr_reload_database (char *name, uii_connection_t *uii, char *tmp_dir) {
   irr_check_serial_vs_journal (database);
 
   /* if we are called for rollback then we already have the lock */
-  if (uii != NULL || 
-      tmp_dir != NULL)
-  irr_unlock (database);
+  if (uii != NULL || tmp_dir != NULL)
+    irr_update_unlock (database);
 
   if (uii != NULL) 
     uii_send_data (uii, "Successful operation\r\n");
@@ -205,41 +149,39 @@ int irr_reload_database (char *name, uii_connection_t *uii, char *tmp_dir) {
 }
 
 /*JW  add a \n to the end of the file to seperate objects */
-void append_blank_line (FILE *fd) {
+void append_blank_line (FILE *fp) {
   size_t num;
   long start_offset, tmp_pos;
   char buffer[4];
   
-  if ((fd == (void *) -11) || 
-      (fd == (void *) -1)  ||
-      (fd == NULL))
+  if ( fp == NULL )
     return;
 
-  start_offset = ftell (fd);
-  if (fseek (fd, 0, SEEK_END) < 0) 
+  start_offset = ftell (fp);
+  if (fseek (fp, 0, SEEK_END) < 0) 
     trace (NORM, default_trace, 
 	   "** ERROR ** fseek() failed in append_blank_line! [1]");
   
-  tmp_pos = ftell (fd);
+  tmp_pos = ftell (fp);
 
   if (tmp_pos > 1) {
-    if (fseek (fd, (long) tmp_pos - 2, SEEK_SET) < 0) 
+    if (fseek (fp, (long) tmp_pos - 2, SEEK_SET) < 0) 
       trace (NORM, default_trace, 
 	     "** ERROR ** fseek() failed in append_blank_line! [2]");
-    if ((num = fread (buffer, 1, 2, fd)) != 2)
+    if ((num = fread (buffer, 1, 2, fp)) != 2)
       return;
 
     buffer[2] = '\0';
     if (strcmp (buffer, "\n\n")) {
       buffer[0] = '\n';
       buffer[1] = '\n';
-      if (fseek (fd, 0, SEEK_END) < 0) 
+      if (fseek (fp, 0, SEEK_END) < 0) 
 	trace (NORM, default_trace, 
 	       "** ERROR ** fseek() failed in append_blank_line! [3]");
-      fwrite (buffer, 1, 2, fd);
+      fwrite (buffer, 1, 2, fp);
     }
     
-    if (fseek (fd, start_offset, SEEK_SET) < 0) 
+    if (fseek (fp, start_offset, SEEK_SET) < 0) 
       trace (NORM, default_trace, 
 	     "** ERROR ** fseek() failed in append_blank_line! [4]");
   }
@@ -268,29 +210,18 @@ void append_blank_line (FILE *fd) {
 int irr_load_data (int db_fetch_flag, int verbose) {
   int empty_dbs = 0, n = 0, i;
   irr_database_t *db;
-#ifdef USE_GDBM
-  int false = 0;
-#endif
 
   LL_Iterate (IRR.ll_database, db) {
 
     /* keep a count.  want to know if the user has not configured any DB's */
     n++;
 
-    irr_lock (db);
+    irr_update_lock (db);
 
-    /* forced rebuild or indicies do NOT already exist
-     * we have to build them */ 
-#ifdef USE_GDBM
-    if (IRR.rebuild_indicies         == 1  ||  
-	IRR.use_disk                 == 0  || 
-	irr_open_dbm_file (db) == 0) {
-#endif
-
-      /* load the DB and build the indicies.  if DB is not in our
-       * cache then attempt a remote irrdcacher fetch */
-      if (scan_irr_file (db, NULL, 0, NULL) != NULL) {
-	i = empty_dbs++;	
+    /* load the DB and build the indicies.  if DB is not in our
+     * cache then attempt a remote irrdcacher fetch */
+    if (scan_irr_file (db, NULL, 0, NULL) != NULL) {
+      i = empty_dbs++;	
 	
 #ifndef NT
 	/* did the user override our missing DB remote fetch behavior? 
@@ -308,27 +239,14 @@ int irr_load_data (int db_fetch_flag, int verbose) {
 	}
       }
       
-      /* initialize the serial file */
-      scan_irr_serial (db);
+    /* initialize the serial file */
+    scan_irr_serial (db);
       
-#ifdef USE_GDBM
-      if (IRR.use_disk == 1) {
-	if (db->dbm != NULL) {
-	  /* turn off fast indexing. We now ask GDBM to commit 
-	   * everything to disk */
-	  gdbm_setopt (db->dbm,      GDBM_FASTMODE, &false, sizeof(int));
-	  gdbm_setopt (db->dbm_spec, GDBM_FASTMODE, &false, sizeof(int));
-	}
-      }
-    }
-#endif
-
     /* TODO - Check return code and do something besides log the trace */
     irr_check_serial_vs_journal (db);
+    append_blank_line (db->db_fp);
 
-    append_blank_line (db->fd);
-
-    irr_unlock (db);
+    irr_update_unlock (db);
   }
 
   /* signal to caller that the user has not config'd any DB's */
@@ -339,32 +257,20 @@ int irr_load_data (int db_fetch_flag, int verbose) {
   return empty_dbs;
 }
 
-
-
-/* eventually seperate out dbm specific stuff and clean up code 
- * a bit
- */
-int open_existing_database (irr_database_t *database) {
-
-
-  return (1);
-}
-
-
 /* the database on disk contains "xx", or deleted objects. Our pointers
- * in memory point to new objects later. This routine create a new databse
- * and reloads memory with offsets of new database. The new database file
+ * in memory point to new objects later. This routine creates a new databse
+ * and reloads memory with offsets of the new database. The new database file
  * on disk is free of any "xx" objects.
  */
-int irr_database_sync (irr_database_t *database) {
-  char file[BUFSIZE], buffer[BUFSIZE], new[BUFSIZE];
-  extern key_label_t key_info[100][2];
-  FILE *fd;
-  u_long f;
-  int line, blank_line;
-  int i, skip = 0;
-
-  line = blank_line = 0;
+int irr_database_clean (irr_database_t *database) {
+  char dbfilename[MAXPATHLEN], cleanfilename[MAXPATHLEN];
+  char buffer[BUFSIZE];
+  char newdb[256];
+  FILE *clean_fp, *db_fp;
+  irr_database_t *cleaned_db;
+  int line = 0, blank_line = 1;
+  int long_line = 0;
+  int i, skip = 0, clean_flag = 0;
 
   /* database cleaning disabled */
   if (database->no_dbclean) {
@@ -373,96 +279,117 @@ int irr_database_sync (irr_database_t *database) {
     return (0);
   }
 
-  /* new database maybe? */
-  if (database->fd == NULL) {
-    trace (NORM, default_trace, "DBClean aborted -- NULL fd for %s\n", 
-	   database->name);
+  sprintf (dbfilename, "%s/%s.db", IRR.database_dir, database->name);
+  if ((db_fp = fopen (dbfilename, "r")) == NULL) {
+    trace (TR_ERROR, default_trace, "Could not open db file %s:%s\n", 
+	   dbfilename, strerror (errno));
     return (-1);
   }
 
-  sprintf (file, "%s/.%s.db.clean", IRR.database_dir, database->name);
+  irr_clean_lock(database);	/* clean_lock still allows queries of the db */
 
-  irr_lock (database);
-
-  /* read from beginning */
-  /* TODO - We need stronger error recovery here */
-  if (fseek (database->fd, 0, SEEK_SET) < 0) 
-    trace (NORM, default_trace, "** ERROR ** fseek() failed in irr_database_sync!");
-
-  if ((fd = fopen (file, "w")) == NULL) {
+  sprintf (cleanfilename, "%s/.%s.clean.db", IRR.database_dir, database->name);
+  if ((clean_fp = fopen (cleanfilename, "w+")) == NULL) {
     trace (TR_ERROR, default_trace, "Could not open temporary file %s:%s\n", 
-	   file, strerror (errno));
-    irr_unlock (database);
+	   cleanfilename, strerror (errno));
+    irr_clean_unlock (database);
     return (-1);
   }
 
   trace (NORM, default_trace, "Starting clean of %s\n", database->name);
 
-  while (fgets (buffer, sizeof (buffer)-1, database->fd) != NULL) {
+  while (fgets (buffer, BUFSIZE, db_fp) != NULL) {
     line++;
 
-    if ((strlen (buffer) < 2)) {
-      blank_line++;
-    }
-    else {
-      if ((skip != 0) && blank_line > 0) 
-        skip = 0;
-      blank_line = 0;
-    }
+    i = strlen(buffer);
 
-    if (!strncasecmp ("*xx", buffer, 3)) {
-      skip = 1;
-    }
-    
-    /* skip over comments */
-    if ((!strncasecmp ("#", buffer, 1)) && (line > 10)) {
-      skip = 1;
-    }
+    if (!long_line) {
+      if ((i < 2)) {
+        blank_line++;
+      } else {
+        if (blank_line > 0) {
+	  if (skip != 0)
+            skip = 0;
+          if ( !strncasecmp ("*xx", buffer, 3) )
+            skip = 1;
+          blank_line = 0;
+        }
+      }
 
-    if ((skip == 0) && (database->obj_filter)) {
-      for (i = 0; i < IRR_MAX_KEYS; i++) {  
-	f = (int) key_info[i][RIPE181].filter_val; 
-	if ((database->obj_filter & f)) { 
-	  if (!strncmp (key_info[i][RIPE181].name, buffer, 
-			key_info[i][RIPE181].len)) { 
-	    skip = 1; 
-	    break; 
-	  } 
-	}
-      } 
+      /* filter out comments if not at beginning of the database */
+      /* should we really do this? */
+      if ( (*buffer == '#') && (line > 42) ) {
+        skip = 1;
+        blank_line = 1; /* need to set in case object follows */
+      }
     }
+    long_line = (buffer[i-1] != '\n');
 
     if ((skip != 1)  && (blank_line < 2))
-      fwrite (buffer, 1, strlen (buffer), fd);
-    /*else
-      trace (TR_TRACE, default_trace, "Skipping %s", buffer);*/ 
+      fwrite (buffer, 1, i, clean_fp);
+    else {
+      clean_flag = 1;	/* mark that database has been modified */
+      /* trace (TR_TRACE, default_trace, "Skipping %s", buffer);*/ 
+    }
   }
 
-  fclose (fd);
-  trace (NORM, default_trace, "DBClean created %s temporary file\n", file);
-  
-  /* move .<database>.db.sync to <database>.db */
-  sprintf (new, "%s/%s.db", IRR.database_dir, database->name);
-  trace (NORM, default_trace, "Renaming tmp file %s -> %s\n", file, new);
+  fclose (db_fp);
 
-  if (rename (file, new) < 0) {
+  if (!clean_flag) {  /* if no changes to db file, we are done */
+    fclose(clean_fp);
+    unlink(cleanfilename);	/* clean up after ourselves */
+    irr_clean_unlock (database); /* remove the clean lock */
+    trace (NORM, default_trace, "Finished clean of %s; no changes\n", database->name);
+    return (1);
+  }
+
+  sprintf (newdb, ".%s.clean", database->name);
+  cleaned_db = new_database(newdb);
+  cleaned_db->db_fp = clean_fp;
+  cleaned_db->journal_fd = database->journal_fd;
+  cleaned_db->db_syntax = database->db_syntax;
+  cleaned_db->obj_filter = database->obj_filter;
+
+  scan_irr_file (cleaned_db, NULL, 0, NULL);
+
+  irr_lock(database);
+
+  radix_flush(database->radix);
+  database->radix = cleaned_db->radix;
+  if (database->hash)
+    HASH_Destroy(database->hash);
+  database->hash = cleaned_db->hash;
+  if (database->hash_spec)
+    HASH_Destroy(database->hash_spec);
+  database->hash_spec = cleaned_db->hash_spec;
+
+  /* clean up temporary database */
+  Delete(cleaned_db->name);
+  pthread_mutex_destroy (&cleaned_db->mutex_lock);
+  pthread_mutex_destroy (&cleaned_db->mutex_clean_lock);
+  Delete(cleaned_db);
+
+  fclose (clean_fp);
+  fclose (database->db_fp);	/* close old database file */
+
+  /* move .<database>.clean.db to <database>.db */
+  if (rename (cleanfilename, dbfilename) < 0) {
     trace (TR_ERROR, default_trace, "Could not rename file to %s:%s\n", 
-	   new, strerror (errno));
-    irr_unlock (database);
+	   dbfilename, strerror (errno));
+    irr_update_unlock (database);
     return (-1);
   }
 
-  trace (NORM, default_trace, "DBClean clearing old memory database for %s\n", 
-	 database->name);
-  database_clear (database);
+  if ((db_fp = fopen (dbfilename, "r+")) == NULL) {
+    trace (TR_ERROR, default_trace, "Could not open db file %s:%s\n", 
+	   dbfilename, strerror (errno));
+    irr_update_unlock (database);
+    return (-1);
+  }
 
-  scan_irr_file (database, NULL, 0, NULL);
-  scan_irr_serial (database);      
-
-  /* TODO - Check return code and do something besides log the trace */
-  irr_check_serial_vs_journal (database);
-
-  irr_unlock (database);
+  database->db_fp = db_fp;
+  irr_update_unlock (database);
+  trace (NORM, default_trace, "Finished clean of %s\n", database->name);
 
   return (1);
 
@@ -472,9 +399,8 @@ void irr_export_timer (mtimer_t *timer, irr_database_t *db) {
   irr_database_export (db);
 }
 
-
-void irr_sync_timer (mtimer_t *timer, irr_database_t *db) {
-  irr_database_sync (db);
+void irr_clean_timer (mtimer_t *timer, irr_database_t *db) {
+  irr_database_clean (db);
 }
 
 /* Given a DB as input determine it's syntax.
@@ -550,7 +476,6 @@ enum DB_SYNTAX get_database_syntax (FILE *fp) {
   return (db_syntax);
 }
 
-
 int irr_database_export (irr_database_t *database) {
   char file1[BUFSIZE], file2[BUFSIZE];
   char new[BUFSIZE], command[BUFSIZE];
@@ -562,8 +487,8 @@ int irr_database_export (irr_database_t *database) {
   }
 
   /* new database maybe? */
-  if (database->fd == NULL) {
-    trace (NORM, default_trace, "Export aborted -- NULL fd for %s\n", 
+  if (database->db_fp == NULL) {
+    trace (NORM, default_trace, "Export aborted -- NULL file pointer for %s\n", 
 	   database->name);
     return (-1);
   }
@@ -576,16 +501,15 @@ int irr_database_export (irr_database_t *database) {
     sprintf (file2, "%s/.%s.db.export", IRR.ftp_dir, database->name);
 
   /* copy to export area (or maybe tmp directory) _atomically_ */
-  irr_lock (database);
+  irr_clean_lock (database); /* clean lock still allows reads of database */
   serial = database->serial_number;
   if (irr_copy_file (file1, file2, 1) != 1) {
-    irr_unlock (database);
+    irr_clean_unlock (database);
     trace (TR_ERROR, default_trace, "Export failed! Aborting.\n");
     return (-1);
   }
-  irr_unlock (database);
+  irr_clean_unlock (database);
   /* -- done with atomic copy */
-
 
   /* TODO - gzipping is optional - this shouldn't be fatal .
      Additionally, the flags may be different and should come from configure. */
@@ -636,64 +560,62 @@ int irr_database_export (irr_database_t *database) {
 
 int irr_copy_file (char *infile, char *outfile, int add_eof_flag) {
   char buf[MIRROR_BUFFER];
-  FILE *fd1, *fd2;
+  FILE *fp1, *fp2;
   int n1 = 0, n2 = 0;
 
   trace (NORM, default_trace, "Starting copy of %s to %s\n", infile, outfile);
 
-
-  if ((fd1 = fopen (infile, "r")) == NULL) {
+  if ((fp1 = fopen (infile, "r")) == NULL) {
     trace (TR_ERROR, default_trace, "*ERROR* Could not open %s for reading: "
 	   " %s\n", infile, strerror (errno));
     return (-1);
   }
 
-  if ((fd2 = fopen (outfile, "w")) == NULL) {
+  if ((fp2 = fopen (outfile, "w")) == NULL) {
     trace (TR_ERROR, default_trace, "*ERROR* Could not open %s for writing: "
 	   " %s\n", outfile, strerror (errno));
-    fclose (fd1);
+    fclose (fp1);
     return (-1);
   }
 
-  while ((n1 = fread (buf, 1, MIRROR_BUFFER, fd1))) {
+  while ((n1 = fread (buf, 1, MIRROR_BUFFER, fp1))) {
     if (n1 < 0) {
       trace (TR_ERROR, default_trace, 
 	     "Encountered error copying (read failed) %s->%s (%d, %d): %s\n", 
 	     infile, outfile, n1, n2, strerror (errno));
-      fclose (fd1);
-      fclose (fd2);
+      fclose (fp1);
+      fclose (fp2);
       return (-1);
     }
 
-    if ((n2 = fwrite (buf, 1, n1, fd2)) != n1) {
+    if ((n2 = fwrite (buf, 1, n1, fp2)) != n1) {
       trace (TR_ERROR, default_trace, 
 	     "Encountered error copying %s->%s (%d, %d): %s\n", 
 	     infile, outfile, n1, n2, strerror (errno));
-      fclose (fd1);
-      fclose (fd2);
+      fclose (fp1);
+      fclose (fp2);
       return (-1);
     }
   }
 
   /* check feof and make sure no errors */
-  if (ferror (fd1)) {
+  if (ferror (fp1)) {
     trace (TR_ERROR, default_trace, "Encountered error copying %s: %s\n", 
 	   infile, strerror (errno));
-    fclose (fd1);
-    fclose (fd2);
+    fclose (fp1);
+    fclose (fp2);
     return (-1);
   }
-
 
   /* write #EOF tag for nice export */
   if (add_eof_flag) {
     char buffer[100];
     sprintf (buffer, "\n# EOF\n\n"); 
-    fwrite (buffer, 1, strlen (buffer), fd2); 
+    fwrite (buffer, 1, strlen (buffer), fp2); 
   }
 
-  fclose (fd1);
-  fclose (fd2);
+  fclose (fp1);
+  fclose (fp2);
   return (1);
 }
   
@@ -727,18 +649,17 @@ int irr_check_serial_vs_journal (irr_database_t *database) {
 return (1);
 }
 
-
 int reopen_DB (irr_database_t *db, char *dir) {
   char tname[BUFSIZE+1];
 
   /* reopen the DB */
   sprintf (tname, "%s/%s.db", dir, db->name);
-  return ((db->fd = fopen (tname, "r+")) != NULL);
+  return ((db->db_fp = fopen (tname, "r+")) != NULL);
 }
 
 int reopen_JOURNAL (irr_database_t *db, char *name) {
 
-  return ((db->journal_fd = open (name, O_RDWR|O_APPEND, 0774)) >= 0);
+  return ((db->journal_fd = open (name, O_RDWR|O_APPEND, 0664)) >= 0);
 }
 
 
@@ -761,9 +682,9 @@ int replace_cache_db (irr_database_t *db, uii_connection_t *uii, char *tmp_dir) 
     uii_send_data (uii, "DB fetched.  Performing atomic replace...\r\n");
 
   /* we are going to rename the DB so it must be closed */
-  db_open = (db->fd != NULL);
-  fclose (db->fd);
-  db->fd = NULL;
+  db_open = (db->db_fp != NULL);
+  fclose (db->db_fp);
+  db->db_fp = NULL;
 
   /* this is the name of the DB we are importing */
   sprintf (fname, "%s.db", db->name);
@@ -783,7 +704,6 @@ int replace_cache_db (irr_database_t *db, uii_connection_t *uii, char *tmp_dir) 
     return 0;
   }
 
-  
   /* if the DB is mirrored then we need to move the *.CURRENTSERIAL file 
    * to the cache area */
   if (db->mirror_prefix != NULL) {
@@ -797,7 +717,6 @@ int replace_cache_db (irr_database_t *db, uii_connection_t *uii, char *tmp_dir) 
 	       "replace_cache_db (): could reopen (%s). exit (0)\n", db->name);
 	exit (0);
       }
-
       return 0;
     }
   }
@@ -827,8 +746,6 @@ int replace_cache_db (irr_database_t *db, uii_connection_t *uii, char *tmp_dir) 
 	     "replace_cache_db (): could reopen (%s). exit (0)\n", db->name);
       exit (0);
     }
-
-
     return 0;
   }
 
@@ -838,7 +755,6 @@ int replace_cache_db (irr_database_t *db, uii_connection_t *uii, char *tmp_dir) 
 
   return 1;
 }
-
 
 #ifndef NT
 /* Control process of fetching (db->name) from a remote ftp site.
@@ -870,14 +786,14 @@ int fetch_remote_db (irr_database_t *db, char *ftp_url) {
   /* try fetching (db->name) from (db->remote_ftp_url) */
   if (db->remote_ftp_url != NULL) {
     
-    irr_unlock (db);
+    irr_update_unlock (db);
     if ((fetched = uii_irr_irrdcacher (NULL, strdup (db->name))))
       trace (NORM, default_trace, "Remote fetch successful (%s)\n",
 	     db->name);
     else
       trace (NORM, default_trace, "Remote fetch unsuccessful (%s)\n",
 	     db->name);
-    irr_lock (db);
+    irr_update_lock (db);
   }
 
   /* restore original value */

@@ -1,18 +1,11 @@
 /*
- * $Id: irrd.h,v 1.27 2001/08/06 17:33:59 ljb Exp $
+ * $Id: irrd.h,v 1.28 2002/02/04 20:53:56 ljb Exp $
  * originally Id: irrd.h,v 1.94 1998/08/03 17:29:07 gerald Exp 
  */
-
 
 #ifndef _IRRD_H
 #define _IRRD_H
 
-#ifdef USE_GDBM
-#include <gdbm.h> 
-#endif  /* USE_GDBM */
-#ifdef USE_DB1
-#include <db.h>
-#endif
 #include <radix.h>
 #include <dirent.h>
 #ifndef NT
@@ -27,10 +20,7 @@
 #include <irr_defs.h>
 #endif /* NT */
 
-#define IRRD_FAST_BUF_SIZE   1024*400
-
 #define MIRROR_TIMEOUT 600 /* 10 minutes */
-
 #define DEF_FTP_URL "ftp://ftp.radb.net/radb/dbase"
 
 enum SPEC_KEYS { /* these are used for id values in the special hash */
@@ -96,7 +86,6 @@ enum REMOTE_MIRROR_STATUS_T {
   MIRRORSTATUS_NO                 /* Not mirrorable, but we're going to say something */
 };
 
-
 typedef struct _irr_route_object_t {
   struct _irr_attr_t	*next, *prev;	/* linked_list -- multiple routes for prefix */
   u_short	origin;
@@ -105,26 +94,19 @@ typedef struct _irr_route_object_t {
   u_long        len;
 } irr_route_object_t;
 
-
 typedef struct _irr_database_t {
   struct _irr_database_t	*next, *prev;	/* for linked_list */
   char			*name;		/* radb, mci, whatever */  
-  FILE			*fd;		/* database.db file fd */
+  FILE			*db_fp;		/* database.db file pointer */
   int			journal_fd;     /* database.JOURNAL file fd */
   int			bytes;		/* bytes read so far */
   u_long		max_journal_bytes;  /* number of bytes in journal log */
   enum DB_SYNTAX        db_syntax;      /* empty, rpsl or ripe181 */
   u_long                obj_filter;     /* object bit-fields of 1 are filtered out */
 
-  char			*read_buf;
-  char			*read_cur_ptr;
-  char			*read_end_ptr;
-  char			last_char;
-  
-
   /* mirroring stuff */
   int			mirror_fd;	/* the temporary fd for remote mirroring */
-  FILE			*mirror_disk_fd; 
+  FILE			*mirror_disk_fp; 
   int			mirror_update_size;
   long			time_last_successful_mirror;
   u_long		serial_number;	/* serial number for mirroring */
@@ -158,17 +140,10 @@ typedef struct _irr_database_t {
   u_long		mirror_access_list;     /* restrict mirror -- refines access */
 
   pthread_mutex_t	mutex_lock;
+  pthread_mutex_t	mutex_clean_lock;	/* a special lock for cleaning */
   /*rwlock_t		rwlock;*/
   radix_tree_t		*radix;
   HASH_TABLE		*hash;		
-#ifdef USE_GDBM
-  GDBM_FILE		dbm;		/* disk hash (dbm files) */
-  GDBM_FILE             dbm_spec;       /* disk hash for special indexing */
-#endif /* USE_GDBM */
-#ifdef USE_DB1
-  DB                    *dbm;
-  DB                    *dbm_spec;
-#endif
   HASH_TABLE		*hash_spec;       /* hash for special queries */
   HASH_TABLE		*hash_spec_tmp;	  /* memory hash */
 
@@ -176,9 +151,7 @@ typedef struct _irr_database_t {
   mtimer_t		*mirror_timer;
   mtimer_t		*clean_timer;
   mtimer_t		*export_timer;
-
   char			*export_filename; /* database name if different */
-
   
   /* statistics */
   int			num_objects[IRR_MAX_KEYS +2];
@@ -195,7 +168,7 @@ typedef struct _irr_database_t {
 } irr_database_t;
 
 typedef struct _irr_answer_t {
-  FILE          *fd;
+  FILE          *fp;
   enum IRR_OBJECTS type;
   enum DB_SYNTAX db_syntax;
   u_long        offset;
@@ -203,12 +176,11 @@ typedef struct _irr_answer_t {
   char 		*blob;
 } irr_answer_t;
 
-
 /* a generic object so we don't have to write new code every time a new
  * object type is added 
  */
 typedef struct _irr_object_t {
-  FILE		*fd;		/* the file we were read from */
+  FILE		*fp;		/* the file we were read from */
   enum IRR_OBJECTS type;
   char		*name;		/* primary key */
   int		mode;		/* ADD, DELETE, UPDATE */
@@ -277,11 +249,9 @@ typedef struct _irr_t {
   int			mirror_interval;  /* Default seconds between getting mirrors */
   int			max_connections;  /* the max num of simultaneous RAWhoisd conn */
   int			connections;	  /* current number of connections */
-  int			use_disk;	  /* should we use dbm/gdbm files? */
   int			use_cache;	  /* cache gas answers */
   enum DB_SYNTAX	database_syntax;  /* ripe181 or rpsl */
   u_long		export_interval;  /* when should we export database */
-  int			rebuild_indicies; /* flag if we should rebuild dbm files */
   pthread_mutex_t	lock_all_mutex_lock;
   HASH_TABLE		*key_string_hash; /* fast key lookup (*rt, *am, etc) */
 
@@ -318,6 +288,9 @@ typedef struct _irr_connection_t {
   int			answer_len;
   /* stuff for recieving updates -- need to preserve state */
   int			state;
+  char			ue_test[8];	/* buffer to check for !ue command */
+  u_short		begin_line;	/* lines spanning multiple buffers */
+  u_short		line_cont;
   u_short		withdrawn;      /* include withdrawn routes? */
   u_short		short_fields;   /* short fields? (eg, *rt vs route ) */
   u_short		stay_open;	/* default to one-shot, !! to stay open */
@@ -325,7 +298,7 @@ typedef struct _irr_connection_t {
   u_int			ripe_flags;     /* list of flags for ripe commands */
   enum IRR_OBJECTS      ripe_type;      /* used for -t and -T ripe flags */
   char                  ripe_tmp[BUFSIZE];
-  FILE			*update_fd;
+  FILE			*update_fp;
   char			update_file_name[BUFSIZE];
   irr_database_t	*database;
   u_long		timeout;	/* seconds before idle connection times out */	
@@ -336,13 +309,11 @@ typedef struct _irr_connection_t {
   char                  *ENCODING;    /* the type of ENCODING: plain, gzip */
 } irr_connection_t;
 
-
 /* for scan.c quick matching of *rt, *am, etc */
 typedef struct _keystring_hash_t {
   char *key;
   int  num;
 } keystring_hash_t;
-
 
 typedef struct _hash_item_t {
   char *key;
@@ -399,7 +370,7 @@ extern trace_t *default_trace;
 #define IRR_DEFAULT_PORT	43
 #define IRR_TMP_DIR             "/var/tmp"
 #define IRR_EXIT		2
-
+#define IRR_MAXCMDLEN		384	/* max size for commands and queries */
 
 #define	MIRROR_BUFFER		1024*4
 

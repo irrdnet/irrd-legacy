@@ -32,6 +32,15 @@ User/Configuration Guide</title>
           default install location for binaries is now /usr/local/sbin
        </revremark>
    </revision>
+   <revision>
+     <revnumber>2.1.4</revnumber>
+       <date>2002-02-04</date>
+       <authorinitials>ljb</authorinitials>
+       <revremark>
+          provide better docs on !u command.  remove deprecated -m -and -r
+          option documentation for irrd.
+       </revremark>
+   </revision>
 </revhistory>
 <copyright>
 <year>1997</year>
@@ -39,6 +48,7 @@ User/Configuration Guide</title>
 <year>1999</year>
 <year>2000</year>
 <year>2001</year>
+<year>2002</year>
 <holder>
 The Regents of the University of Michigan ("The Regents") and
 Merit Network, Inc.  All rights reserved.</holder>
@@ -138,11 +148,16 @@ http://www.irrd.net
 <section>
 <title>System Requirements</title>
 <para>
-IRRd will run on most Unix operating systems. But for best performance, we recommend IRRd be used on a threads-capable operating systems, such as Linux or Solairs.  For optimal performance, we also recommend IRRd be used in memory-only mode (-m on the command line).  This assumes one has sufficient system memory to hold the database indexes.</para>
+IRRd will run on most Unix operating systems. But for best performance,
+we recommend IRRd be used on a threads-capable operating systems, such as
+Linux or Solairs.  IRRd maintains in-memory indexes of each database for
+improved performance.  Memory usage will depend on the number of objects
+in each local or mirrored database.  The resident set size for the IRRd
+daemon on Merit's whois IRR server currently runs at about 64M.</para>
 <para>
-IRRd is generally I/O bound and does not require significant CPU cycles (with the exception of the period during infrequent database reloads).</para>
+IRRd is generally I/O bound and does not require significant CPU cycles (with the exception of the period during infrequent database cleans to remove deleted objects).</para>
 <para>
-IRRd has been compiled and tested on various Unix platforms.  The target platforms for development are Linux, Solaris, and FreeBSD.</para>
+IRRd has been compiled and tested on a number of Unix platforms.  The target platforms for development are Linux, Solaris, and FreeBSD.</para>
 </section>
 <section>
 <title>Building and Installation Procedure</title>
@@ -235,9 +250,7 @@ If a password is specified in the configuration file, it must be supplied at the
 <arg>-f <replaceable>conf file</replaceable></arg>
 <arg>-g <replaceable>group name</replaceable></arg>
 <arg>-l <replaceable>user name</replaceable></arg><sbr>
-<arg>-m</arg>
 <arg>-n</arg>
-<arg>-r</arg>
 <arg>-s <replaceable>password</replaceable></arg>
 <arg>-u</arg>
 <arg>-v</arg>
@@ -274,16 +287,8 @@ If a password is specified in the configuration file, it must be supplied at the
 <entry><synopsis>Drop priveleges to given user name</synopsis></entry>
 </row>
 <row>
-<entry><option>-m</option></entry>
-<entry><synopsis>Memory only mode</synopsis></entry>
-</row>
-<row>
 <entry><option>-n</option></entry>
 <entry><synopsis>Do not daemonize</synopsis></entry>
-</row>
-<row>
-<entry><option>-r</option></entry>
-<entry><synopsis>Force re-indexing of databases</synopsis></entry>
 </row>
 <row>
 <entry><option>-s &lt;password></option></entry>
@@ -416,13 +421,13 @@ IRRd version 2.0 makes it possible to store additional state information for rem
 <para>
 When IRRd is started for the first time and no configuration file exists on disk, the programs will create a default configuration in volatile memory. This configuration may be modified in memory by issuing the "config" command from the UII telnet interface prompt.  Modifications to volatile memory may be saved to disk using the "write" command. Modifications not saved to disk will be lost if the daemon terminates or is rebooted.</para>
 <para>
-Upon startup, IRRd will search for the default configuration file for the daemon (usually /etc/&lt;irrd.conf&gt;). The user may also override the default configuration file by providing a "-f &lt;filename&gt;" flag on the command line of the daemon.</para>
+Upon startup, IRRd will search for the default configuration file for the daemon (usually /etc/irrd.conf). The user may also override the default configuration file by providing a "-f &lt;filename&gt;" flag on the command line of the daemon.</para>
 <para>
 IRRd supports the following configuration commands:</para>
 <para><command>
-password &lt;string> &lt;access-list number></command></para>
+password &lt;string> [&lt;access-list-num>]</command></para>
 <para>
-Sets a password &lt;string> for the telnet interface. Note that if a password is not set, access verification will not be performed and interactive user telnet connections will only be allowed from the localhost.  If &lt;access-list number> is specified, telnet connections will be restricted to IP addresses allowed by the access list.  See the access-list description below for more information.</para>
+Sets a password &lt;string> for the telnet interface. Note that if a password is not set, access verification will not be performed and interactive user telnet connections will only be allowed from the localhost.  If &lt;access-list-num> is specified, telnet connections will be restricted to IP addresses allowed by the access list.  See the access-list description below for more information.</para>
 <para><command>
 uii port &lt;number></command></para>
 <para>
@@ -505,8 +510,8 @@ The export option will atomically copy the database into the ftp_dir directory f
 <para>
 <command>irr_mirror_interval &lt;seconds></command></para>
 <para>The interval for obtaining mirror updates.  The default is 10 minutes.</para>
-<para><command>irr_port &lt;port></command></para>
-<para>The port to listen on for "RAWhoisd" style machine TCP connections</para>
+<para><command>irr_port &lt;port> [access &lt;num>]</command></para>
+<para>The port to listen on for "RAWhoisd" style machine TCP connections.  The optional access num specifies an access list to globally restrict incoming connections.</para>
 <para>
 <command>irr_max_connections &lt;number></command></para>
 <para>Limit the number of simultaneous queries.  The default is 25 connections.</para>
@@ -525,9 +530,9 @@ The following configuration commands control the behavior of the IRRd submission
 <para>
 The IRRd IP network address of the remote IRR server. Defaults to "localhost".</para>
 <para>
-<command>irr_port &lt;port></command></para>
+<command>irr_port &lt;port> [access &lt;num>]</command></para>
 <para>
-The IRRd command/query port.  The default is 43.</para>
+The IRRd command/query port and optional access list.  The default is 43.</para>
 <para>
 <command>override_cryptpw &lt;password></command></para>
 <para>The encrypted password used for overriding normal authentication checks.
@@ -765,7 +770,7 @@ pgp_dir &lt;your ~/.pgp path> ! example: /usr/users/joe/.pgp
 Execute IRRd.
 <blockquote><literallayout>
 (See Section 2 for instructions on building IRRd)
-   % /usr/local/sbin/irrd -m
+   % /usr/local/sbin/irrd
 </literallayout></blockquote>
 </para></listitem>
 <listitem><para>
@@ -1505,10 +1510,15 @@ e.g., !s-lc
 <entry><command>!u</command></entry>
 <entry>
 <synopsis>
-Update the database
-!us &lt;database>-start update
- &lt;ADD | DEL> &lt;OBJECT>
-!ue-end update
+Update a database directly.  Note that very little error checking
+is performed on objects submitted in this manner.  Normally objects
+are processed by irr_rpsl_submit before being added to a database.
+!us&lt;database>
+&lt;ADD | DEL>
+&lt;blank line>
+&lt;OBJECT>
+&lt;blank line>
+!ue
 </synopsis>
 </entry>
 </row>

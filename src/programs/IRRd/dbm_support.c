@@ -1,5 +1,5 @@
 /* 
- * $Id: dbm_support.c,v 1.3 2001/07/13 19:15:40 ljb Exp $
+ * $Id: dbm_support.c,v 1.4 2002/02/04 20:53:55 ljb Exp $
  * originally Id: dbm_support.c,v 1.11 1998/06/25 19:47:56 gerald Exp 
  */
 
@@ -127,7 +127,7 @@ int irr_open_dbm_file (irr_database_t *database) {
   GDBM_FILE db, db_spec;
   int time;
   struct stat sbuf;
-  FILE *fd;
+  FILE *fp;
   
   sprintf (file, "%s/%s.dbm", IRR.database_dir, database->name);
 
@@ -154,14 +154,14 @@ int irr_open_dbm_file (irr_database_t *database) {
 
   /* open database.db ASCII file */
   sprintf (file, "%s/%s.db", IRR.database_dir, database->name);
-  if ((fd = fopen (file, "r+")) == NULL) {
+  if ((fp = fopen (file, "r+")) == NULL) {
     trace (NORM, default_trace, "**** ERROR **** Could not open %s (%s)!\n", 
 	   file, strerror (errno));
     return (0);
   }
-  fseek (fd, 0, SEEK_SET);
+  fseek (fp, 0, SEEK_SET);
 
-  database->fd = fd;
+  database->db_fp = fp;
   database->dbm = db;
   database->dbm_spec = db_spec;
 
@@ -196,9 +196,9 @@ int irr_open_dbm_file (irr_database_t *database) {
 
   /* get the *.dbm last modification time as the 'last loaded' time */
   sprintf (file, "%s/%s.dbm", IRR.database_dir, database->name);
-  if ((fd = fopen (file, "r")) != NULL) {
+  if ((fp = fopen (file, "r")) != NULL) {
     char timebuf[32];
-    fstat(fileno (fd), &sbuf);
+    fstat(fileno (fp), &sbuf);
     database->time_loaded = sbuf.st_mtime;
 #ifdef HAVE_LIBPTHREAD
     ctime_r ( &database->time_loaded, timebuf);
@@ -207,7 +207,7 @@ int irr_open_dbm_file (irr_database_t *database) {
 #endif /* HAVE_LIBPTHREAD */
     timebuf[strlen (timebuf) -1] = '\0';
     trace (NORM, default_trace, "setting db creation time (%s)...\n", timebuf);
-    fclose (fd);
+    fclose (fp);
   }
   else
     trace (NORM, default_trace, "could not set db creation time :(\n");

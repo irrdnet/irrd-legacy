@@ -1,5 +1,5 @@
 /*
- * $Id: journal.c,v 1.7 2001/07/13 19:15:41 ljb Exp $
+ * $Id: journal.c,v 1.9 2002/02/04 20:53:56 ljb Exp $
  * originally Id: journal.c,v 1.13 1998/06/23 23:30:44 gerald Exp 
  */
 
@@ -26,7 +26,7 @@ void make_journal_name (char * dbname, int journal_ext, char * journal_name);
 /* JW this routine can be speeded up.  We know the offset and length
    of the object, lets read it and write it with two sys calls
 */
-void journal_write_serial (int mode, FILE *src_fd, int offset, irr_database_t *database) {
+void journal_write_serial (int mode, FILE *src_fp, int offset, irr_database_t *database) {
   char buffer[BUFSIZE+1];
   char *sadd = "ADD\n\n";
   char *sdelete = "DEL\n\n";
@@ -48,9 +48,9 @@ void journal_write_serial (int mode, FILE *src_fd, int offset, irr_database_t *d
     */
   }
 
-  fseek (src_fd, offset, SEEK_SET);
+  fseek (src_fp, offset, SEEK_SET);
     
-  while (fgets (buffer, BUFSIZE, src_fd) != NULL) {
+  while (fgets (buffer, BUFSIZE, src_fp) != NULL) {
     if (strlen (buffer) < 2) break;
     write (database->journal_fd, buffer, strlen (buffer));
   }
@@ -70,7 +70,7 @@ void journal_irr_update (irr_database_t *db, irr_object_t *object,
   db->serial_number++;
 
   /* until we have our syntax checker, just copy the serial as is */
-  journal_write_serial (mode, object->fd, object->offset, db);
+  journal_write_serial (mode, object->fp, object->offset, db);
 }
 
 /* journal_log_serial_number
@@ -105,7 +105,7 @@ void journal_maybe_rollover (irr_database_t *database) {
     close (database->journal_fd);
     rename(file_new, file_old);
 
-    if ((database->journal_fd = open (file_new, O_RDWR | O_CREAT, 0774)) < 0) 
+    if ((database->journal_fd = open (file_new, O_RDWR | O_CREAT, 0664)) < 0) 
       trace (NORM, default_trace, "**** ERROR **** Could not open %s (%s)!\n", 
 	     file_new, strerror (errno));
   }
@@ -119,14 +119,14 @@ void journal_maybe_rollover (irr_database_t *database) {
  */
 int find_oldest_serial (char *dbname, int journal_ext, u_long *oldestserial) {
   char file[BUFSIZE], buf[BUFSIZE];
-  FILE *fd;
+  FILE *fp;
 
   make_journal_name (dbname, journal_ext, file);
 
-  if ((fd = fopen (file, "r")) != NULL) {
-    while (fgets (buf, sizeof (buf) - 1, fd) != NULL) { 
+  if ((fp = fopen (file, "r")) != NULL) {
+    while (fgets (buf, sizeof (buf) - 1, fp) != NULL) { 
       if (sscanf (buf, "%% SERIAL %s", file) == 1) {
-	fclose (fd);
+	fclose (fp);
         if (convert_to_lu (file, oldestserial) < 0)
           return (0);
 	return (1);
@@ -134,8 +134,8 @@ int find_oldest_serial (char *dbname, int journal_ext, u_long *oldestserial) {
     }
   }
 
-  if (fd != NULL)
-    fclose (fd);
+  if (fp != NULL)
+    fclose (fp);
 
   return (0);
 }
@@ -148,19 +148,19 @@ int find_oldest_serial (char *dbname, int journal_ext, u_long *oldestserial) {
 int get_current_serial (char *dbname, u_long *currserial) {
   char tmp[BUFSIZE], file[BUFSIZE];
   int ret_val = -1;
-  FILE *fd;
+  FILE *fp;
 
   strcpy (tmp, dbname);
   convert_toupper(tmp);
 
   sprintf (file, "%s/%s.CURRENTSERIAL", IRR.database_dir, tmp);
 
-  if ((fd = fopen (file, "r")) != NULL) {
+  if ((fp = fopen (file, "r")) != NULL) {
     memset (tmp, 0, sizeof (tmp));
-    if (fgets (tmp, sizeof (tmp) - 1, fd) != NULL && 
+    if (fgets (tmp, sizeof (tmp) - 1, fp) != NULL && 
         convert_to_lu (tmp, currserial) > 0)
       ret_val = 1;
-    fclose (fd);
+    fclose (fp);
   }
 
   return (ret_val);

@@ -1,5 +1,5 @@
 /*
- * $Id: update.c,v 1.3 2001/07/13 19:15:43 ljb Exp $
+ * $Id: update.c,v 1.4 2002/02/04 20:53:57 ljb Exp $
  * originally Id: update.c,v 1.46 1998/07/29 21:15:18 gerald Exp 
  */
 
@@ -21,14 +21,14 @@ static int build_secondary_keys (irr_database_t *db, irr_object_t *object);
 void mark_deleted_irr_object (irr_database_t *database, u_long offset) {
   char *xx = "*xx";
 
-  if (fseek (database->fd, offset, SEEK_SET) < 0) {
+  if (fseek (database->db_fp, offset, SEEK_SET) < 0) {
     perror ("seek error");
     trace (NORM, default_trace, "** Error ** fseek failed in mark_deleted");
   }
-  if (fwrite (xx, 1, 3, database->fd) == 0) 
+  if (fwrite (xx, 1, 3, database->db_fp) == 0) 
     perror ("frwite failed");
 
-  fflush (database->fd);
+  fflush (database->db_fp);
 }
 
 
@@ -102,7 +102,6 @@ void add_spec_keys (irr_database_t *db, char *key, irr_object_t *object,
   }
 }
 
-
 /* load_irr_object
  * We need to find an object before we can delete it 
  * Basically, we need to fill in the object structure (with all of the old keys)
@@ -125,16 +124,15 @@ irr_object_t *load_irr_object (irr_database_t *database, irr_object_t *irr_objec
     return (NULL);
 
   /* JW: I'm wondering about locking?  Should we lock? */
-  if (fseek(database->fd, offset, SEEK_SET) < 0)
+  if (fseek(database->db_fp, offset, SEEK_SET) < 0)
     trace (NORM, default_trace, "** Error ** fseek failed in load_irr_obj");
-  old_irr_object = (irr_object_t *) scan_irr_file_main (database->fd, database, 
+  old_irr_object = (irr_object_t *) scan_irr_file_main (database->db_fp, database, 
 							0, SCAN_OBJECT);
   if (old_irr_object)
     old_irr_object->offset = offset;
 
   return (old_irr_object);
 }
-
 
 /* irr_special_indexing_store
  * store "special" keys, or keys that we cannot just dump into the
@@ -286,7 +284,6 @@ int build_secondary_keys (irr_database_t *db, irr_object_t *object) {
   return ret_code;
 }
 
-
 /* scan_process_object
  * We have scanned an entire object from the db, update, journal, whatever file
  * Now process the darn thing
@@ -298,7 +295,7 @@ int add_irr_object (irr_database_t *database, irr_object_t *irr_object) {
   /* if update (e.g. mirror or user update), save to end of main database */
   /* append the new object to the end of the db file */
   if (irr_object->mode == IRR_UPDATE) {
-    offset = copy_irr_object (irr_object->fd, (long) irr_object->offset, 
+    offset = copy_irr_object (irr_object->fp, (long) irr_object->offset, 
 			      database, irr_object->len);
     if (offset < 0) {
       trace (ERROR, default_trace, 
@@ -344,9 +341,6 @@ int add_irr_object (irr_database_t *database, irr_object_t *irr_object) {
 
   return ret_code;
 }
-
-
-
 
 /* delete_irr_object 
  * First, load the current version of the object. We need to check a) that it

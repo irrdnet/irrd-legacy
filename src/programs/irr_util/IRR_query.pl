@@ -11,8 +11,8 @@
 require "getopts.pl";
 
 # Defaults
-$SERVER = "zounds.merit.net";
-$PORT = 5006;
+$SERVER = "localhost";
+$PORT = 43;
 $ECHO = 0;
 
 

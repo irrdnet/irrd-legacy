@@ -1,5 +1,5 @@
 /*
- * $Id: trace.c,v 1.8 2001/08/09 19:57:12 ljb Exp $
+ * $Id: trace.c,v 1.9 2002/02/04 20:33:03 ljb Exp $
  */
 
 #include <mrt.h>
@@ -271,13 +271,18 @@ New_Trace2 (char *app_name)
      */
     tmp->logfile->logfile_name = strdup(log_name);
     tmp->logfile->prev_logfile = strdup("");
-    tmp->logfile->logfd = get_trace_fd (tmp);
     tmp->logfile->logsize = 0;
     tmp->logfile->bytes_since_open = 0;
     tmp->logfile->max_filesize = TR_DEFAULT_MAX_FILESIZE;
     tmp->logfile->append_flag = TRUE;
     tmp->flags = TR_DEFAULT_FLAGS;
     tmp->syslog_flag = TR_DEFAULT_SYSLOG;
+    tmp->logfile->logfd = get_trace_fd (tmp);
+    if (!tmp->logfile->logfd) {
+      fprintf(stderr, "MRT Trace Panic!  Unable to open logfile %s: %s!\n",
+		  tmp->logfile->logfile_name, strerror(errno));
+	  return (NULL);
+    }
     tmp->uii = NULL;
     tmp->prepend = NULL;
     tmp->error_list = NULL;
@@ -405,12 +410,12 @@ static FILE *get_trace_fd (trace_t * tr) {
 	    type = "w";
 	if ((tr->logfile->logfd = fopen (tr->logfile->logfile_name, type))) {
 
-    tr->logfile->logsize = 0;
-    tr->logfile->bytes_since_open = 0;
-    tr->logfile->max_filesize = TR_DEFAULT_MAX_FILESIZE;
+          tr->logfile->logsize = ftell(tr->logfile->logfd);
+          tr->logfile->bytes_since_open = 0;
+          tr->logfile->max_filesize = TR_DEFAULT_MAX_FILESIZE;
 
-	    if (error[0]) fprintf(tr->logfile->logfd, error);
-	    return (tr->logfile->logfd);
+	  if (error[0]) fprintf(tr->logfile->logfd, error);
+	  return (tr->logfile->logfd);
 	} /*else
 	  fprintf(stderr, "fopen %s:  %s\n", tr->logfile->logfile_name,
 		strerror(errno));*/
@@ -485,9 +490,6 @@ int set_trace (trace_t * tmp, int first,...) {
 	    }
 	    tmp->logfile->logfile_name = strdup (va_arg (ap, char *));
 	    tmp->logfile->logfd = get_trace_fd (tmp);
-    	    tmp->logfile->bytes_since_open = 0;
-    	    tmp->logfile->logsize = 0;
-    	    tmp->logfile->max_filesize = TR_DEFAULT_MAX_FILESIZE;
     	    pthread_mutex_unlock (&tmp->logfile->mutex_lock);
 	    break;
 	case TRACE_FLAGS:

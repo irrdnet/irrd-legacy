@@ -1,6 +1,6 @@
 
 /*
- * $Id: telnet.c,v 1.20 2001/09/28 19:39:26 ljb Exp $
+ * $Id: telnet.c,v 1.21 2002/02/04 20:53:57 ljb Exp $
  * originally Id: telnet.c,v 1.59 1998/08/03 17:29:10 gerald Exp 
  */
 
@@ -40,10 +40,6 @@ extern trace_t *default_trace;
 extern irr_t IRR;
 
 static int irr_read_command (irr_connection_t * irr);
-/* JW use now in commands.c to give user error feedback
-   in ripe whois mode.
-void irr_write  (irr_connection_t *irr, int fd, char *buf, int len);
-*/
 
 /* local yokel's */
 void irr_write_mem_answer (LINKED_LIST *, int, enum ANSWER_T, irr_connection_t *);
@@ -506,8 +502,6 @@ int irr_add_answer (irr_connection_t *irr, char *format, ...) {
   return (1);
 }
 
-void irr_write_nobuffer (irr_connection_t *irr, int fd, char *buf, int len);
-
 /* irr_send_bulk_data
  * A "more"  -- when we need to send pages of information (i.e. BGP table dumps)
  * out to the irr socket.
@@ -526,7 +520,7 @@ void irr_send_answer (irr_connection_t * irr) {
   cp = irr->answer;
   if (cp == NULL) {
     sprintf (tmp, "D\n");
-    irr_write_nobuffer (irr, irr->sockfd, tmp, strlen (tmp));
+    irr_write_nobuffer (irr, tmp, strlen (tmp));
     return;
   }
 
@@ -536,16 +530,16 @@ void irr_send_answer (irr_connection_t * irr) {
 
   /* add two bytes for terminating carrige return */
   sprintf (tmp, "A%d\n", irr->answer_len + no_eol); 
-  irr_write_nobuffer (irr, irr->sockfd, tmp, strlen (tmp));
-  irr_write_nobuffer (irr, irr->sockfd, irr->answer, irr->answer_len);
+  irr_write_nobuffer (irr, tmp, strlen (tmp));
+  irr_write_nobuffer (irr, irr->answer, irr->answer_len);
     
   if (no_eol) {
     sprintf (tmp, "\n");
-    irr_write_nobuffer (irr, irr->sockfd, tmp, strlen (tmp));
+    irr_write_nobuffer (irr, tmp, strlen (tmp));
   }
 
   sprintf (tmp, "C\n");
-  irr_write_nobuffer (irr, irr->sockfd, tmp, strlen (tmp));
+  irr_write_nobuffer (irr, tmp, strlen (tmp));
 
   Delete (irr->answer);
   irr->answer = NULL;
@@ -557,8 +551,9 @@ void irr_send_answer (irr_connection_t * irr) {
  * This routine actually writes out to the socket, feeding it final_answer
  * structures built during irr_write
  */
-void irr_write_buffer_flush (irr_connection_t *irr, int fd) {
+void irr_write_buffer_flush (irr_connection_t *irr) {
   int n, ret;
+  int fd = irr->sockfd;
   u_char *ptr;
   fd_set          write_fds;
   struct timeval  tv;
@@ -582,31 +577,30 @@ void irr_write_buffer_flush (irr_connection_t *irr, int fd) {
       tv.tv_sec = 30; /* 30 second timeout on trying to write to socket */
       tv.tv_usec = 0;
 
-      /* select call with timeout --- add me !!!!!!!  */
       ret = select (fd + 1, 0, &write_fds, 0, &tv);
       if (ret <= 0) {
 	trace (NORM, default_trace, "-- IRR Connection Timeout -- \n");
 	trace (NORM, default_trace,
 	       "ERROR on IRR select (before buffered write). Closing connection (%s)\n",
 	       strerror (errno));
+	LL_Destroy (irr->ll_final_answer);
 	irr->scheduled_for_deletion = 1;
 	return;
       }
 
 #ifdef NT
-	if ((n = send (fd, ptr, final_answer->ptr - ptr,0 )) < 0) {
+      if ((n = send (fd, ptr, final_answer->ptr - ptr,0 )) < 0) {
 #else
-	if ((n = write (fd, ptr, final_answer->ptr - ptr)) < 0) {
+      if ((n = write (fd, ptr, final_answer->ptr - ptr)) < 0) {
 #endif /* NT */
-	  irr->scheduled_for_deletion = 1;
-	  trace (NORM, default_trace, "Write error %s \n", strerror (errno));
-	  /* free ll_final_answer structs!!!! */
-	  LL_Destroy (irr->ll_final_answer);
-	  return;
-	}
-	ptr += n;
-
-	}
+	irr->scheduled_for_deletion = 1;
+	trace (NORM, default_trace, "Write error %s \n", strerror (errno));
+	/* free ll_final_answer structs!!!! */
+	LL_Destroy (irr->ll_final_answer);
+	return;
+      }
+      ptr += n;
+    }
   }
 
   /* free ll_final_answer structs!!!! Need to write a destroy routine */
@@ -615,8 +609,9 @@ void irr_write_buffer_flush (irr_connection_t *irr, int fd) {
   return;
 }
 
-void irr_write_nobuffer (irr_connection_t *irr, int fd, char *buf, int len) {
+void irr_write_nobuffer (irr_connection_t *irr, char *buf, int len) {
   int n, ret;
+  int fd = irr->sockfd;
   char *ptr;
   fd_set          write_fds;
   struct timeval  tv;
@@ -673,7 +668,7 @@ void delete_final_answer (final_answer_t *tmp) {
    on the way this is written, its not certain n is guaranteed to be set
    to a useful value.  For now, n is set to 0 and later we need to audit
    the code to see if we're guaranteed to get a useful value in here. */
-void irr_write (irr_connection_t *irr, int fd, char *buf, int len) {
+void irr_write (irr_connection_t *irr, char *buf, int len) {
   int bytes, n = 0;
   char *ptr;
   final_answer_t *final_answer;
@@ -725,7 +720,7 @@ void irr_write (irr_connection_t *irr, int fd, char *buf, int len) {
 void irr_send_okay (irr_connection_t * irr) {
   char tmp[20];
   sprintf (tmp, "C\n");
-  irr_write_nobuffer (irr, irr->sockfd, tmp, strlen (tmp));
+  irr_write_nobuffer (irr, tmp, strlen (tmp));
 }
 
 void irr_send_error (irr_connection_t * irr, char *msg) {
@@ -736,7 +731,7 @@ void irr_send_error (irr_connection_t * irr, char *msg) {
   else
     sprintf (tmp, "F\n");
 
-  irr_write_nobuffer (irr, irr->sockfd, tmp, strlen (tmp));
+  irr_write_nobuffer (irr, tmp, strlen (tmp));
   trace (NORM, default_trace, "Returned error: %s\n", tmp);
 }
 
@@ -772,7 +767,7 @@ void send_dbobjs_answer (irr_connection_t *irr, enum INDEX_T index,
     	sprintf (buffer, "D\n");
     else  /* later read this string from configs, ie make it customizable */
 	sprintf (buffer, "%%  No entries found for the selected source(s).\n");
-    irr_write (irr, irr->sockfd, buffer, strlen (buffer));
+    irr_write (irr, buffer, strlen (buffer));
     trace (NORM, default_trace, "Returned D -- no entries found\n");
     return;
   }
@@ -807,7 +802,7 @@ void send_dbobjs_answer (irr_connection_t *irr, enum INDEX_T index,
   }
   else { /* MEM_INDEX */
     if (cp != buffer) /* flush answer length */
-      irr_write (irr, irr->sockfd, buffer, cp - buffer);
+      irr_write (irr, buffer, cp - buffer);
     cp = buffer;
     irr_write_mem_answer (irr->ll_answer, irr->sockfd, answer_type, irr);
   }
@@ -818,7 +813,7 @@ void send_dbobjs_answer (irr_connection_t *irr, enum INDEX_T index,
    */
   if (mode == RAWHOISD_MODE) {
     if (space_left < 2) {
-      irr_write (irr, irr->sockfd, buffer, cp - buffer);
+      irr_write (irr, buffer, cp - buffer);
       cp = buffer;
     }
     sprintf (cp, "C\n");
@@ -827,7 +822,7 @@ void send_dbobjs_answer (irr_connection_t *irr, enum INDEX_T index,
 
   /* flush anything left in the buffer */
   if (irr->short_fields || db_syntax == RPSL) 
-    irr_write (irr, irr->sockfd, buffer, cp - buffer);
+    irr_write (irr, buffer, cp - buffer);
   else
     long_fields_output (irr, buffer, &cp);
 
@@ -843,9 +838,9 @@ void irr_write_mem_answer (LINKED_LIST *ll_answer, int sockfd,
 
   LL_ContIterate (ll_answer, irr_answer) {
     if (!first && answer_type == DB_OBJ)
-      irr_write (irr, sockfd, "\n", 1); 
+      irr_write (irr, "\n", 1); 
     first = 0;
-    irr_write (irr, sockfd, irr_answer->blob, irr_answer->len);
+    irr_write (irr, irr_answer->blob, irr_answer->len);
   }
 
 } /* irr_write_mem_answer () */
@@ -854,7 +849,7 @@ void irr_write_answer (char *buf, char **cp, int *space_left,
 		       irr_answer_t *irr_answer, irr_connection_t *irr) {
   int bytes_to_read;
 
-  if (fseek (irr_answer->fd, irr_answer->offset, SEEK_SET) < 0)
+  if (fseek (irr_answer->fp, irr_answer->offset, SEEK_SET) < 0)
     trace (NORM, default_trace, "** Error ** fseek failed in irr_write_answer");
 
   while (irr_answer->len > 0) {
@@ -863,13 +858,13 @@ void irr_write_answer (char *buf, char **cp, int *space_left,
     else
       bytes_to_read = *space_left;
 
-    fread(*cp, 1, bytes_to_read, irr_answer->fd);
+    fread(*cp, 1, bytes_to_read, irr_answer->fp);
     *cp += bytes_to_read;
     *space_left -= bytes_to_read;
 
     if (*space_left < 3) { /* calling routine assumes space for newline */
       if (irr->short_fields || irr_answer->db_syntax == RPSL) 
-      	irr_write (irr, irr->sockfd, buf, *cp - buf);      
+      	irr_write (irr, buf, *cp - buf);      
       else
 	long_fields_output (irr, buf, cp);
 	
@@ -887,7 +882,7 @@ int count_lines (irr_answer_t * irr_answer) {
   u_long len, bytes_to_read;
   int num_lines = 0;
 
-  if (fseek (irr_answer->fd, irr_answer->offset, SEEK_SET) < 0) 
+  if (fseek (irr_answer->fp, irr_answer->offset, SEEK_SET) < 0) 
     trace (NORM, default_trace, "** Error ** fseek failed in count_lines");
 
   len = irr_answer->len;
@@ -897,7 +892,7 @@ int count_lines (irr_answer_t * irr_answer) {
     else
       bytes_to_read = len;
 
-    fread(buf, 1, bytes_to_read, irr_answer->fd);
+    fread(buf, 1, bytes_to_read, irr_answer->fp);
     buf[bytes_to_read] = '\0';
 
     p = buf;
@@ -912,12 +907,12 @@ int count_lines (irr_answer_t * irr_answer) {
   return num_lines;
 }
 
-void irr_build_answer (irr_connection_t *irr, FILE *fd, enum IRR_OBJECTS type,
+void irr_build_answer (irr_connection_t *irr, FILE *fp, enum IRR_OBJECTS type,
 		       u_long offset, u_long len, char *blob, enum DB_SYNTAX syntax) {
   irr_answer_t *irr_answer;
 
   irr_answer = New (irr_answer_t);
-  irr_answer->fd = fd;
+  irr_answer->fp = fp;
   irr_answer->type = type;
   irr_answer->offset = offset;
   irr_answer->len = len;
@@ -926,7 +921,7 @@ void irr_build_answer (irr_connection_t *irr, FILE *fd, enum IRR_OBJECTS type,
   LL_Add (irr->ll_answer, irr_answer);
 } /* end irr_build_answer() */
 
-void irr_build_key_answer (irr_connection_t *irr, FILE *fd, char *dbname,
+void irr_build_key_answer (irr_connection_t *irr, FILE *fp, char *dbname,
 			   enum IRR_OBJECTS type, u_long offset, 
 			   u_short origin) {
   char buffer[BUFSIZE], str_orig[10];
@@ -936,7 +931,7 @@ void irr_build_key_answer (irr_connection_t *irr, FILE *fd, char *dbname,
 
   strcpy (buffer, dbname);
   strcat (buffer, " ");
-  if (get_prefix_from_disk (fd, offset, buffer) < 0)
+  if (get_prefix_from_disk (fp, offset, buffer) < 0)
     return;
   strcat (buffer, "-AS");
   sprintf (str_orig, "%d", origin);
@@ -1003,196 +998,196 @@ void long_fields_output (irr_connection_t * irr, char *buffer, char **cp) {
     q = strchr (p, '\n');
 
     if (!strncasecmp (p, "*rt:", 4)) {
-      irr_write (irr, irr->sockfd, rt, strlen (rt));
+      irr_write (irr, rt, strlen (rt));
       p +=4;
     } 
     else if (!strncasecmp (p, "*de:", 4)) {
-      irr_write (irr, irr->sockfd, de, strlen (de));
+      irr_write (irr, de, strlen (de));
       p +=4;
     }
     else if (!strncasecmp (p, "*so:", 4)) {
-      irr_write (irr, irr->sockfd, so, strlen (so));
+      irr_write (irr, so, strlen (so));
       p +=4;
     }     
     else if (!strncasecmp (p, "*ch:", 4)) {
-      irr_write (irr, irr->sockfd, ch, strlen (ch));
+      irr_write (irr, ch, strlen (ch));
       p +=4;
     }     
     else if (!strncasecmp (p, "*mt:", 4)) {
-      irr_write (irr, irr->sockfd, mt, strlen (mt));
+      irr_write (irr, mt, strlen (mt));
       p +=4;
     }     
     else if (!strncasecmp (p, "*or:", 4)) {
-      irr_write (irr, irr->sockfd, or, strlen (or));
+      irr_write (irr, or, strlen (or));
       p +=4;
     }     
     else if (!strncasecmp (p, "*ai:", 4)) {
-      irr_write (irr, irr->sockfd, ai, strlen (ai));
+      irr_write (irr, ai, strlen (ai));
       p +=4;
     }     
     else if (!strncasecmp (p, "*ao:", 4)) {
-      irr_write (irr, irr->sockfd, ao, strlen (ao));
+      irr_write (irr, ao, strlen (ao));
       p +=4;
     }     
     else if (!strncasecmp (p, "*an:", 4)) {
-      irr_write (irr, irr->sockfd, an, strlen (an));
+      irr_write (irr, an, strlen (an));
       p +=4;
     }     
     else if (!strncasecmp (p, "*tc:", 4)) {
-      irr_write (irr, irr->sockfd, tc, strlen (tc));
+      irr_write (irr, tc, strlen (tc));
       p +=4;
     }     
     else if (!strncasecmp (p, "*ac:", 4)) {
-      irr_write (irr, irr->sockfd, ac, strlen (ac));
+      irr_write (irr, ac, strlen (ac));
       p +=4;
     }     
     else if (!strncasecmp (p, "*ny:", 4)) {
-      irr_write (irr, irr->sockfd, ny, strlen (ny));
+      irr_write (irr, ny, strlen (ny));
       p +=4;
     }     
     else if (!strncasecmp (p, "*at:", 4)) {
-      irr_write (irr, irr->sockfd, at, strlen (at));
+      irr_write (irr, at, strlen (at));
       p +=4;
     }     
     else if (!strncasecmp (p, "*dt:", 4)) {
-      irr_write (irr, irr->sockfd, dt, strlen (dt));
+      irr_write (irr, dt, strlen (dt));
       p +=4;
     }     
     else if (!strncasecmp (p, "*mn:", 4)) {
-      irr_write (irr, irr->sockfd, mn, strlen (mn));
+      irr_write (irr, mn, strlen (mn));
       p +=4;
     }     
     else if (!strncasecmp (p, "*mb:", 4)) {
-      irr_write (irr, irr->sockfd, mb, strlen (mb));
+      irr_write (irr, mb, strlen (mb));
       p +=4;
     }     
     else if (!strncasecmp (p, "*av:", 4)) {
-      irr_write (irr, irr->sockfd, av, strlen (av));
+      irr_write (irr, av, strlen (av));
       p +=4;
     }     
     else if (!strncasecmp (p, "*rm:", 4)) {
-      irr_write (irr, irr->sockfd, rm, strlen (rm));
+      irr_write (irr, rm, strlen (rm));
       p +=4;
     }         
     else if (!strncasecmp (p, "*aa:", 4)) {
-      irr_write (irr, irr->sockfd, aa, strlen (aa));
+      irr_write (irr, aa, strlen (aa));
       p +=4;
     }        
     else if (!strncasecmp (p, "*gd:", 4)) {
-      irr_write (irr, irr->sockfd, gd, strlen (gd));
+      irr_write (irr, gd, strlen (gd));
       p +=4;
     }        
     else if (!strncasecmp (p, "*am:", 4)) {
-      irr_write (irr, irr->sockfd, am, strlen (am));
+      irr_write (irr, am, strlen (am));
       p +=4;
     }    
     else if (!strncasecmp (p, "*al:", 4)) {
-      irr_write (irr, irr->sockfd, al, strlen (al));
+      irr_write (irr, al, strlen (al));
       p +=4;
     }    
     else if (!strncasecmp (p, "*pn:", 4)) {
-      irr_write (irr, irr->sockfd, pn, strlen (pn));
+      irr_write (irr, pn, strlen (pn));
       p +=4;
     }
     else if (!strncasecmp (p, "*ad:", 4)) {
-      irr_write (irr, irr->sockfd, ad, strlen (ad));
+      irr_write (irr, ad, strlen (ad));
       p+=4;
     }
     else if (!strncasecmp (p, "*ph:", 4)) {
-      irr_write (irr, irr->sockfd, ph, strlen (ph));
+      irr_write (irr, ph, strlen (ph));
       p+=4;
     }
     else if (!strncasecmp (p, "*fx:", 4)) {
-      irr_write (irr, irr->sockfd, fx, strlen (fx));
+      irr_write (irr, fx, strlen (fx));
       p+=4;
     }
     else if (!strncasecmp (p, "*nh:", 4)) {
-      irr_write (irr, irr->sockfd, nh, strlen (nh));
+      irr_write (irr, nh, strlen (nh));
       p+=4;
     }
     else if (!strncasecmp (p, "*em:", 4)) {
-      irr_write (irr, irr->sockfd, em, strlen (em));
+      irr_write (irr, em, strlen (em));
       p+=4;
     }
     else if (!strncasecmp (p, "*df:", 4)) {
-      irr_write (irr, irr->sockfd, df, strlen (df));
+      irr_write (irr, df, strlen (df));
       p+=4;
     }
     else if (!strncasecmp (p, "*ir:", 4)) {
-      irr_write (irr, irr->sockfd, ir, strlen (ir));
+      irr_write (irr, ir, strlen (ir));
       p+=4;
     }
     else if (!strncasecmp (p, "*la:", 4)) {
-      irr_write (irr, irr->sockfd, la, strlen (la));
+      irr_write (irr, la, strlen (la));
       p+=4;
     }
     else if (!strncasecmp (p, "*if:", 4)) {
-      irr_write (irr, irr->sockfd, if2, strlen (if2));
+      irr_write (irr, if2, strlen (if2));
       p+=4;
     }
     else if (!strncasecmp (p, "*pe:", 4)) {
-      irr_write (irr, irr->sockfd, pe, strlen (pe));
+      irr_write (irr, pe, strlen (pe));
       p+=4;
     }
     else if (!strncasecmp (p, "*ri:", 4)) {
-      irr_write (irr, irr->sockfd, ri, strlen (ri));
+      irr_write (irr, ri, strlen (ri));
       p+=4;
     }
     else if (!strncasecmp (p, "*rx:", 4)) {
-      irr_write (irr, irr->sockfd, rx, strlen (rx));
+      irr_write (irr, rx, strlen (rx));
       p+=4;
     }
     else if (!strncasecmp (p, "*cp:", 4)) {
-      irr_write (irr, irr->sockfd, cp2, strlen (cp2));
+      irr_write (irr, cp2, strlen (cp2));
       p+=4;
     }
     else if (!strncasecmp (p, "*ne:", 4)) {
-      irr_write (irr, irr->sockfd, ne, strlen (ne));
+      irr_write (irr, ne, strlen (ne));
       p+=4;
     }
     else if (!strncasecmp (p, "*np:", 4)) {
-      irr_write (irr, irr->sockfd, np, strlen (np));
+      irr_write (irr, np, strlen (np));
       p+=4;
     }
     else if (!strncasecmp (p, "*rc:", 4)) {
-      irr_write (irr, irr->sockfd, rc, strlen (rc));
+      irr_write (irr, rc, strlen (rc));
       p+=4;
     }
     else if (!strncasecmp (p, "*rr:", 4)) {
-      irr_write (irr, irr->sockfd, rr, strlen (rr));
+      irr_write (irr, rr, strlen (rr));
       p+=4;
     }
     else if (!strncasecmp (p, "*ry:", 4)) {
-      irr_write (irr, irr->sockfd, ry, strlen (ry));
+      irr_write (irr, ry, strlen (ry));
       p+=4;
     }
     else if (!strncasecmp (p, "*cs:", 4)) {
-      irr_write (irr, irr->sockfd, cs, strlen (cs));
+      irr_write (irr, cs, strlen (cs));
       p+=4;
     }
     else if (!strncasecmp (p, "*cm:", 4)) {
-      irr_write (irr, irr->sockfd, cm, strlen (cm));
+      irr_write (irr, cm, strlen (cm));
       p+=4;
     }
     else if (!strncasecmp (p, "*cl:", 4)) {
-      irr_write (irr, irr->sockfd, cl, strlen (cl));
+      irr_write (irr, cl, strlen (cl));
       p+=4;
     }
     else if (!strncasecmp (p, "*au:", 4)) {
-      irr_write (irr, irr->sockfd, au, strlen (au));
+      irr_write (irr, au, strlen (au));
       p+=4;
     }
     else if (!strncasecmp (p, "*wd:", 4)) {
-      irr_write (irr, irr->sockfd, wd, strlen (wd));
+      irr_write (irr, wd, strlen (wd));
       p+=4;
     }
   
     if (q == NULL) { /* flush rest of buffer and exit */
-      irr_write (irr, irr->sockfd, p, *cp - p);
+      irr_write (irr, p, *cp - p);
       break;
     }
     else
-      irr_write (irr, irr->sockfd, p, q - p + 1);
+      irr_write (irr, p, q - p + 1);
 
   }
 }

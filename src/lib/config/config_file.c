@@ -1,5 +1,5 @@
 /*
- * $Id: config_file.c,v 1.2 2001/07/13 18:02:26 ljb Exp $
+ * $Id: config_file.c,v 1.3 2002/02/04 20:31:50 ljb Exp $
  */
 
 #include <mrt.h>
@@ -975,8 +975,6 @@ config_from_file2 (trace_t * tr, char *filename)
 	Delete (uii);
 	return (-1);
     }
-    trace (NORM, CONFIG.trace,
-	   "Opened the config file %s\n", filename);
 
     start_config (uii);
     CONFIG.line = 0;
@@ -1009,7 +1007,6 @@ config_from_file2 (trace_t * tr, char *filename)
     }
     return (1);
 }
-
 
 void 
 config_create_default (void)

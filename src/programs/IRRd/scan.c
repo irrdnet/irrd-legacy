@@ -1,5 +1,5 @@
 /* 
- * $Id: scan.c,v 1.22 2001/09/17 19:45:55 ljb Exp $
+ * $Id: scan.c,v 1.24 2002/02/04 20:53:57 ljb Exp $
  * originally Id: scan.c,v 1.87 1998/07/29 21:15:17 gerald Exp 
  */
 
@@ -27,14 +27,14 @@ static void pick_off_secondary_fields (char *buffer, int curr_f,
 void mark_deleted_irr_object (irr_database_t *database, u_long offset);
 static void add_field_items (char *buf, int curr_f, enum STATES state, 
 			     enum DB_SYNTAX db_syntax, LINKED_LIST **ll);
-static char *build_indexes (FILE *fd, irr_database_t *db, irr_object_t *object, 
-			    u_long fd_pos, int update_flag);
-int find_blank_line (FILE *fd, char *buf, int buf_size,
+static char *build_indexes (FILE *fp, irr_database_t *db, irr_object_t *object, 
+			    u_long fp_pos, int update_flag);
+int find_blank_line (FILE *fp, char *buf, int buf_size,
                      enum STATES state, enum STATES *p_save_state,
 		     u_long *position, u_long *offset,
 		     enum DB_SYNTAX db_syntax, irr_database_t *db);
 int dump_object_check (irr_object_t *object, enum STATES state, u_long mode, 
-		       int update_flag, irr_database_t *db, FILE *fd);
+		       int update_flag, irr_database_t *db, FILE *fp);
 void database_store_stats (irr_database_t *database);
 
 /* Note: it is not necessary to define every field, only
@@ -105,7 +105,7 @@ static char *str_syntax[] = {
  */
 int scan_irr_serial (irr_database_t *database) {
   char tmp[BUFSIZE], file[BUFSIZE];
-  FILE *fd;
+  FILE *fp;
   u_long serial = 0;
   int ret_code = 0;
 
@@ -113,11 +113,11 @@ int scan_irr_serial (irr_database_t *database) {
   convert_toupper (tmp);
 
   sprintf (file, "%s/%s.CURRENTSERIAL", IRR.database_dir, tmp);
-  fd = fopen (file, "r");
+  fp = fopen (file, "r");
 
-  if (fd != NULL) {
+  if (fp != NULL) {
     memset (tmp, 0, sizeof (tmp));
-    if (fgets (tmp, sizeof (tmp), fd) != NULL) {
+    if (fgets (tmp, sizeof (tmp), fp) != NULL) {
       if (convert_to_lu (tmp, &serial) == 1) {
 	database->serial_number = serial;
 	ret_code = 1;
@@ -125,7 +125,7 @@ int scan_irr_serial (irr_database_t *database) {
       else
         database->serial_number = 0;
     }
-    fclose (fd);
+    fclose (fp);
   }
 
   return ret_code;
@@ -138,16 +138,16 @@ int scan_irr_serial (irr_database_t *database) {
 int write_irr_serial_orig (irr_database_t *database) {
   int ret_code = 0;
   char db[BUFSIZE], file[BUFSIZE], serial[20];
-  FILE *fd;
+  FILE *fp;
 
   strcpy (db, database->name);
   convert_toupper (db);
 
   sprintf (file, "%s/%s.CURRENTSERIAL", IRR.database_dir, db);
-  if ((fd = fopen (file, "w")) != NULL) {
+  if ((fp = fopen (file, "w")) != NULL) {
     sprintf (serial, "%ld", database->serial_number);
-    fwrite (serial, 1, strlen (serial), fd);
-    fclose (fd);
+    fwrite (serial, 1, strlen (serial), fp);
+    fclose (fp);
     ret_code = 1;
   }
   else
@@ -210,7 +210,7 @@ int write_irr_serial (irr_database_t *db) {
 
 void write_irr_serial_export (u_long serial, irr_database_t *database) {
   char db[BUFSIZE], file[BUFSIZE], serial_out[20];
-  FILE *fd;
+  FILE *fp;
 
   if (database->export_filename != NULL) 
     strcpy (db, database->export_filename);
@@ -219,10 +219,10 @@ void write_irr_serial_export (u_long serial, irr_database_t *database) {
   convert_toupper(db);
 
   sprintf (file, "%s/%s.CURRENTSERIAL", IRR.ftp_dir, db);
-  if ((fd = fopen (file, "w")) != NULL) {
+  if ((fp = fopen (file, "w")) != NULL) {
     sprintf (serial_out, "%ld", serial);
-    fwrite (serial_out, 1, strlen (serial_out), fd);
-    fclose (fd);
+    fwrite (serial_out, 1, strlen (serial_out), fp);
+    fclose (fp);
   }
   SetStatusString (IRR.statusfile, db, "lastexport", serial_out);
 }
@@ -233,49 +233,28 @@ void write_irr_serial_export (u_long serial, irr_database_t *database) {
  * Determine the syntax (RIPE or RPSL)
  */
 char *scan_irr_file (irr_database_t *database, char *extension, 
-		     int update_flag, FILE *update_fd) {
+		     int update_flag, FILE *update_fp) {
   enum DB_SYNTAX syntax;
-  FILE *fd = update_fd;
+  FILE *fp = update_fp;
   char file[BUFSIZE], *p;
-#if (defined(USE_GDBM) || defined(USE_DB1))
-  char file_spec[BUFSIZE];
-#endif /* USE_GDBM || USE_DB1 */
 
   /* either an update or reading for the first time (a normal .db file) */
   if (update_flag)
     sprintf (file, "%s/.%s.%s", IRR.database_dir, database->name, extension);
   else {
     sprintf (file, "%s/%s.db", IRR.database_dir, database->name);
-    fd = database->fd;
-#if (defined(USE_GDBM) || defined(USE_DB1))
-    if (IRR.use_disk) {
-      trace (TRACE, default_trace, 
-	     "Calling irr_initialize_dbm_file () db->name (%s)\n", database->name);
-      if ((database->dbm = irr_initialize_dbm_file (database->name)) == NULL) {
-        trace (NORM, default_trace, 
-	       "**** ERROR **** Could not open dbm file %s)!\n", file);
-	trace (ERROR, default_trace, "Please check for file permissions and/or other disk/file problems.  Exit\n");
-        return "Could not open indexing dbm file!";
-      }
-      sprintf (file_spec, "%s_spec", database->name);
-      if ((database->dbm_spec = irr_initialize_dbm_file (file_spec)) == NULL) {
-        trace (NORM, default_trace, 
-	       "**** ERROR **** Could not open spec dbm file %s!\n", file);
-        return "Could not open special indexing dbm file";
-      }
-    }
-#endif /* USE_GDBM || USE_DB1 */
+    fp = database->db_fp;
   }
   
   /* CL: open file */
-  if (fd == NULL) {
+  if (fp == NULL) {
      trace (NORM, default_trace, "scan.c opening file %s\n", file);
-     if ((fd = fopen (file, "r+")) == NULL) {
+     if ((fp = fopen (file, "r+")) == NULL) {
        /* try creating it for the first time */
        trace (NORM, default_trace, "scan.c (%s) does not exist, creating it\n", file);
-        fd = fopen (file, "w+");
+        fp = fopen (file, "w+");
       
-       if (fd == NULL) {
+       if (fp == NULL) {
  	trace (ERROR, default_trace, "IRRd error: scan_irr_file () "
 	       "Could not open %s (%s)!\n", 
 	       file, strerror (errno));
@@ -284,13 +263,13 @@ char *scan_irr_file (irr_database_t *database, char *extension,
     }
     /* the following setvbuf consumes alot of memory, performance does not seem
        to be particularly improved by it.  comment out for now -LJB */
-    /* setvbuf (fd, NULL, _IOFBF, IRRD_FAST_BUF_SIZE+2);*/ /* big buffer */
+    /* setvbuf (fp, NULL, _IOFBF, IRRD_FAST_BUF_SIZE+2);*/ /* big buffer */
   }
 
   if (!update_flag)
-    database->fd = fd;
+    database->db_fp = fp;
 
-  if ((syntax = get_database_syntax (fd)) == UNRECOGNIZED) {
+  if ((syntax = get_database_syntax (fp)) == UNRECOGNIZED) {
       trace (ERROR, default_trace, "Unrecognized DB syntax, reload aborted!\n");
       trace (ERROR, default_trace, "**** DB-(%s)\n", database->name);
       return "Unrecognized DB syntax!";
@@ -321,7 +300,7 @@ char *scan_irr_file (irr_database_t *database, char *extension,
 
   if (!update_flag) {
     /* rewind */
-    if (fseek (database->fd, 0L, SEEK_SET) < 0) {
+    if (fseek (database->db_fp, 0L, SEEK_SET) < 0) {
       trace (ERROR, default_trace, "IRRd error: scan_irr_file () rewind DB (%s) "
 	     "error: %s\n", database->name, strerror (errno));
       return "scan_irr_file () rewind DB error.  Abort reload!";
@@ -329,15 +308,17 @@ char *scan_irr_file (irr_database_t *database, char *extension,
     database->time_loaded = time (NULL);
   }
 
-  trace (NORM, default_trace, "Starting Load %s\n", file);
+  trace (NORM, default_trace, "Begin loading %s\n", file);
 
   /* open transaction journal */
   if (database->journal_fd < 0) {
-    make_journal_name (database->name, JOURNAL_NEW, file);
+    char jfile[BUFSIZE];
+
+    make_journal_name (database->name, JOURNAL_NEW, jfile);
     
-    if ((database->journal_fd = open (file, O_RDWR | O_APPEND| O_CREAT, 0774)) < 0)
+    if ((database->journal_fd = open (jfile, O_RDWR | O_APPEND| O_CREAT, 0664)) < 0)
       trace (ERROR, default_trace, "IRRd error: scan_irr_file () Could not open "
-	     "journal file %s: (%s)!\n", file, strerror (errno));
+	     "journal file %s: (%s)!\n", jfile, strerror (errno));
   }
   
   /* if updating, log the serial number in the Journal file */
@@ -347,10 +328,10 @@ char *scan_irr_file (irr_database_t *database, char *extension,
   if (IRR.key_string_hash == NULL)
     populate_keyhash (database);
 
-  p = (char *) scan_irr_file_main (fd, database, update_flag, SCAN_FILE);
+  p = (char *) scan_irr_file_main (fp, database, update_flag, SCAN_FILE);
 
-  fflush (database->fd);
-  trace (NORM, default_trace, "Update/Mirror/Loading done...\n");
+  fflush (database->db_fp);
+  trace (NORM, default_trace, "Finished loading %s\n", file);
   return p;
 }
 
@@ -361,7 +342,7 @@ char *scan_irr_file (irr_database_t *database, char *extension,
  * This tells us to look for mirror file format errors
  * and save's us 'check for mirror header' cycles on reloads.
  */
-void *scan_irr_file_main (FILE *fd, irr_database_t *database, 
+void *scan_irr_file_main (FILE *fp, irr_database_t *database, 
                           int update_flag, enum SCAN_T scan_scope) {
   char buffer[4096], *cp, *p = NULL;
   u_long save_offset, offset, position, mode;
@@ -373,7 +354,7 @@ void *scan_irr_file_main (FILE *fd, irr_database_t *database,
 
   /* init everything */
   if (update_flag)
-    position = save_offset = offset = (u_long) ftell (fd);
+    position = save_offset = offset = (u_long) ftell (fp);
   else
     position = save_offset = offset = 0;
 
@@ -389,9 +370,7 @@ void *scan_irr_file_main (FILE *fd, irr_database_t *database,
 
   /* okay, here we go scanning the file */
   while (state != DB_EOF) { /* scan to end of file */
-
-    /*if ((cp = buffer = my_fgets (database, fd)) != NULL) {*/
-    if ((cp = fgets (buffer, sizeof (buffer), fd)) != NULL) {
+    if ((cp = fgets (buffer, sizeof (buffer), fp)) != NULL) {
       lineno++;
       position = offset;
       offset += strlen (buffer);
@@ -417,7 +396,7 @@ void *scan_irr_file_main (FILE *fd, irr_database_t *database,
       if (!strncmp ("%END", buffer, 4))
         break; /* normal exit from successful mirror */
       else {
-	state = pick_off_mirror_hdr (fd, buffer, sizeof(buffer), state, &save_state,
+	state = pick_off_mirror_hdr (fp, buffer, sizeof(buffer), state, &save_state,
 	                             &mode, &position, &offset, database);
 	/* something wrong with update, abort scan */
 	if (state == DB_EOF) {
@@ -459,11 +438,11 @@ void *scan_irr_file_main (FILE *fd, irr_database_t *database,
       /* mark end of object, read past err's and warn's */ 
       save_offset = position; 
 
-      state = find_blank_line (fd, buffer, sizeof(buffer), state, &save_state,
+      state = find_blank_line (fp, buffer, sizeof(buffer), state, &save_state,
                                &position, &offset, database->db_syntax,
 			       database);
       state = dump_object_check (irr_object, state, mode, update_flag, 
-                                 database, fd);
+                                 database, fp);
       if (state == DB_EOF) { /* something went wrong, dump object and abort */
         trace (ERROR, default_trace,"Attempt to remove RIPE server extraneous line "
 	       "failed!  Abort!\n");
@@ -503,7 +482,7 @@ void *scan_irr_file_main (FILE *fd, irr_database_t *database,
       else if (state == DB_EOF)
 	position = offset;
 
-      if ((p = build_indexes (fd, database, irr_object, position, update_flag)) 
+      if ((p = build_indexes (fp, database, irr_object, position, update_flag)) 
 	  != NULL && (!update_flag || atomic_trans))
 	state = DB_EOF; /* abort scan, something wrong found in input file */
 
@@ -518,7 +497,6 @@ void *scan_irr_file_main (FILE *fd, irr_database_t *database,
       mode = IRR_NOMODE;
     }
   } /* while (state != DB_EOF) */
-  /*} BOGUS for % in vi */
 
   /* only do on reload's and mirror updates */
   if (scan_scope == SCAN_FILE) {
@@ -778,26 +756,24 @@ int get_curr_f (int db_syntax, char *buf, int state, int curr_f) {
   if (cp != NULL) {*cp = save;}
   return (keystring_item->num);
 
-
   /*  for (i = 0; i < IRR_MAX_KEYS; i++) { 
     if (!memcmp (key_info[i][db_syntax].name, buf,  
 		 key_info[i][db_syntax].len)) {
       return (i);
     }
   }
-
   return (NO_FIELD);*/
 }
 
 /* read past an object to the first blank line */
-int find_blank_line (FILE *fd, char *buf, int buf_size, 
+int find_blank_line (FILE *fp, char *buf, int buf_size, 
                      enum STATES state, enum STATES *p_save_state,
 		     u_long *position, u_long *offset,
 		     enum DB_SYNTAX db_syntax, irr_database_t *database) {
   char *cp;
   
   do {
-    if ((cp = fgets (buf, buf_size, fd)) != NULL) {
+    if ((cp = fgets (buf, buf_size, fp)) != NULL) {
       *position = *offset;
       *offset += strlen (buf);
     }
@@ -830,7 +806,7 @@ int find_blank_line (FILE *fd, char *buf, int buf_size,
  * route: 198.108.60.0/24
  *
  */
-int read_blank_line_input (FILE *fd, char *buf, int buf_size,
+int read_blank_line_input (FILE *fp, char *buf, int buf_size,
                            enum STATES state, enum STATES *p_save_state,
 			   u_long *position, u_long *offset,
 			   irr_database_t *database) {
@@ -838,8 +814,7 @@ int read_blank_line_input (FILE *fd, char *buf, int buf_size,
   int lineno = 0;
   
   do {
-    /*if ((buf = my_fgets (database, fd)) != NULL) {*/
-    if ((cp = fgets (buf, buf_size, fd)) != NULL) {
+    if ((cp = fgets (buf, buf_size, fp)) != NULL) {
       *position = *offset;
       *offset += strlen (buf);
     }
@@ -862,32 +837,32 @@ int read_blank_line_input (FILE *fd, char *buf, int buf_size,
  *   START_F if no errors.
  *   DB_EOF otherwise.
  */
-int pick_off_mirror_hdr (FILE *fd, char *buf, int buf_size,
+int pick_off_mirror_hdr (FILE *fp, char *buf, int buf_size,
                          enum STATES state, enum STATES *p_save_state,
 			 u_long *mode, u_long *position,
 			 u_long *offset, irr_database_t *db) {
 
   if (!strncasecmp ("ADD", buf, 3))  {
     *mode = IRR_UPDATE;
-    state = read_blank_line_input (fd, buf, buf_size, state, p_save_state, position, offset, db);
+    state = read_blank_line_input (fp, buf, buf_size, state, p_save_state, position, offset, db);
   }
   else if (!strncasecmp ("DEL", buf, 3))  {
     *mode = IRR_DELETE;
-    state = read_blank_line_input (fd, buf, buf_size, state, p_save_state, position, offset, db);
+    state = read_blank_line_input (fp, buf, buf_size, state, p_save_state, position, offset, db);
   }
   else
     state = DB_EOF; /* no "ADD" or "DEL" so abort scan */
 
   if (state == DB_EOF) {
-    trace (ERROR, default_trace,"ERROR scan.c: pick_off_mirrro_hdr(): abort scan\n");
+    trace (ERROR, default_trace,"ERROR scan.c: pick_off_mirror_hdr(): abort scan\n");
     trace (ERROR, default_trace,"ERROR line (%s)\n", buf);
   }
 
   return (state);
 }
 
-char *build_indexes (FILE *fd, irr_database_t *db, irr_object_t *object, 
-                     u_long fd_pos, int update_flag) {
+char *build_indexes (FILE *fp, irr_database_t *db, irr_object_t *object, 
+                     u_long fp_pos, int update_flag) {
   u_long db_offset = 0;
   int del_obj = -1;
   char *p = NULL;
@@ -905,8 +880,8 @@ char *build_indexes (FILE *fd, irr_database_t *db, irr_object_t *object,
     return NULL;
   }
 
-  object->len = fd_pos - object->offset;
-  object->fd = fd;
+  object->len = fp_pos - object->offset;
+  object->fp = fp;
 
   if (!(db->obj_filter & object->filter_val)) {
     switch (object->mode) {
@@ -988,7 +963,7 @@ char *build_indexes (FILE *fd, irr_database_t *db, irr_object_t *object,
  * with said fields and continue scanning if all these checks pass.
  */
 int dump_object_check (irr_object_t *object, enum STATES state, u_long mode,
-                       int update_flag, irr_database_t *database, FILE *fd) {
+                       int update_flag, irr_database_t *database, FILE *fp) {
   
   if (mode == IRR_NOMODE) {
     if (update_flag)
@@ -1006,13 +981,12 @@ int dump_object_check (irr_object_t *object, enum STATES state, u_long mode,
   }
   else if (state == DB_EOF) { /* causes us to skip over bad obj, next mirror
                                * will be able to run */
-    object->fd = fd;
+    object->fp = fp;
     journal_irr_update (database, object, mode, (u_long) 0);
   }
 
   return (state);
 }
-
 
 static int populate_keyhash (irr_database_t *database) {
   keystring_hash_t keystring_item;
@@ -1031,6 +1005,5 @@ static int populate_keyhash (irr_database_t *database) {
       keystring_item->num = i;
       HASH_Insert (IRR.key_string_hash, keystring_item);
     }
-
     return (1);
 }

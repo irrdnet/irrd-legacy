@@ -1,5 +1,5 @@
 /*
- * $Id: config.c,v 1.22 2001/08/07 17:09:35 ljb Exp $
+ * $Id: config.c,v 1.24 2002/02/04 20:53:55 ljb Exp $
  * originally Id: config.c,v 1.50 1998/07/20 01:22:03 labovit Exp 
  */
 
@@ -97,14 +97,17 @@ int config_irr_max_con (uii_connection_t *uii, int max) {
 
 /* return the irr_port (whois) on which we are listening */
 void get_config_irr_port () {
-  config_add_output ("irr_port %d [ access %d ]\r\n", IRR.irr_port, IRR.irr_port_access);
+  if (IRR.irr_port_access == 0)
+    config_add_output ("irr_port %d\r\n", IRR.irr_port);
+  else
+    config_add_output ("irr_port %d access %d\r\n", IRR.irr_port, IRR.irr_port_access);
 }
 
 /* irr_port %d
  * The port we listen on for RAWhoisd style machine queries
  */
 void config_irr_port (uii_connection_t *uii, int port, int access_list) {
-  if ((port <= 0) || (port > 20000)) {
+  if ((port <= 0) || (port > 60000)) {
     config_notice (NORM, uii, "CONFIG Error -- usage: irr_port <port_num> [access <acccess list>]\n");
     return;
   }
@@ -124,7 +127,7 @@ void config_irr_port (uii_connection_t *uii, int port, int access_list) {
  * The port we listen on for RAWhoisd style machine queries
  */
 void config_irr_port_2 (uii_connection_t *uii, int port) {
-  if ((port <= 0) || (port > 20000)) {
+  if ((port <= 0) || (port > 60000)) {
     config_notice (NORM, uii, "CONFIG Error -- usage: irr_port <port_num> [access <acccess list>]\n");
     return;
   }
@@ -159,7 +162,10 @@ int config_irr_directory (uii_connection_t *uii, char *directory) {
   config_add_module (0, "irr_directory", get_config_irr_directory, NULL); 
 
   sprintf(status_filename, "%s/IRRD_STATUS", directory);
-  if (IRR.statusfile) CloseStatusFile(IRR.statusfile);
+  if (IRR.statusfile) {
+    CloseStatusFile(IRR.statusfile);
+    Delete(IRR.statusfile);
+  }
   IRR.statusfile = InitStatusFile(status_filename);
 
   return (1);
@@ -861,7 +867,7 @@ int config_irr_database_authoritative (uii_connection_t *uii, char *name) {
   /* since we're authoritative, turn on cleaning by default */
   if ((database->clean_timer == NULL) && (!database->no_dbclean)) {
     database->clean_timer = (mtimer_t *) 
-    New_Timer (irr_sync_timer, 60*60*24*2, "IRR dbclean", database);
+    New_Timer (irr_clean_timer, 60*60*24*2, "IRR dbclean", database);
     timer_set_jitter (database->clean_timer, 60*60*1);
     Timer_Turn_ON ((mtimer_t *) database->clean_timer);
   }
@@ -912,7 +918,7 @@ int config_irr_database_mirror (uii_connection_t *uii, char *name,
   /* since we're mirroring, turn on cleaning by default */
   if ((database->clean_timer == NULL) && (!database->no_dbclean)) {
     database->clean_timer = (mtimer_t *) 
-    New_Timer (irr_sync_timer, 60*60*24*2, "IRR dbclean", database);
+    New_Timer (irr_clean_timer, 60*60*24*2, "IRR dbclean", database);
     timer_set_jitter (database->clean_timer, 60*60*1);
     Timer_Turn_ON ((mtimer_t *) database->clean_timer);
   }
@@ -992,10 +998,15 @@ int no_config_irr_database (uii_connection_t *uii, char *name) {
 
   config_notice (NORM, uii, "CONFIG database %s deleted\r\n", db->name);
   LL_Remove (IRR.ll_database, db);
-  irr_lock (db);
-  database_clear (db);
-  irr_unlock (db);
-  Delete (db); /* we need a real delete routine */
+  irr_update_lock (db);
+  radix_flush(db->radix);
+  HASH_Destroy(db->hash);
+  HASH_Destroy(db->hash_spec);
+  Delete(db->name);
+  irr_update_unlock (db);
+  pthread_mutex_destroy(&db->mutex_lock);
+  pthread_mutex_destroy(&db->mutex_clean_lock);
+  Delete (db);
   Delete (name);
   return (1);
 }
@@ -1003,39 +1014,13 @@ int no_config_irr_database (uii_connection_t *uii, char *name) {
 /* config irr_database xxxx */
 int config_irr_database (uii_connection_t *uii, char *name) {
   irr_database_t *database;
-  hash_item_t hash_item;
 
   database = find_database (name);
 
   if (database == NULL) {
-    database = New (irr_database_t);
-    memset(database, 0, sizeof(irr_database_t));
-
-    database->radix = New_Radix (128);
-    database->hash = 
-      HASH_Create (1000,
-		   HASH_KeyOffset, HASH_Offset (&hash_item, &hash_item.key),
-		   HASH_DestroyFunction, irr_hash_destroy,
-		   0);
-    database->hash_spec = 
-      HASH_Create (1000,
-		   HASH_KeyOffset, HASH_Offset (&hash_item, &hash_item.key), 
-                   HASH_DestroyFunction, irr_hash_destroy, 0);
-
-    database->name = strdup (name);
-    database->mirror_fd  = -1;
-    database->journal_fd = -1;
-    database->max_journal_bytes = IRR_MAX_JOURNAL_SIZE;
-    database->fd         = NULL;
-    database->db_syntax  = EMPTY_DB;
-    database->obj_filter = 0; /* Any object bit-fields that are 1 will be filtered out
-			       * of the DB (including mirroring, updates and reloads).
-			       */
-    pthread_mutex_init (&database->mutex_lock, NULL);
-    /*rwl_init (&database->rwlock);*/
+    database = new_database (name);
     LL_Add (IRR.ll_database, database);
   }
-
   config_add_module (0, "irr_database", get_config_irr_database, database); 
   Delete (name);
   return (1);
@@ -1271,12 +1256,14 @@ int config_irr_database_clean (uii_connection_t *uii, char *name, int seconds) {
 
   if (database->clean_timer == NULL) {
     database->clean_timer = (mtimer_t *) 
-      New_Timer (irr_sync_timer, seconds, "IRR dbclean", database);
+      New_Timer (irr_clean_timer, seconds, "IRR dbclean", database);
     timer_set_jitter (database->clean_timer, (int) (seconds/ 3.0));
     Timer_Turn_ON ((mtimer_t *) database->clean_timer);
   }
   else {
+    Timer_Turn_OFF ((mtimer_t *) database->clean_timer);
     Timer_Set_Time (database->clean_timer, seconds);
+    timer_set_jitter (database->clean_timer, (int) (seconds/ 3.0));
     Timer_Turn_ON ((mtimer_t *) database->clean_timer);
   }
 

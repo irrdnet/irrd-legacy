@@ -1,5 +1,5 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_REVISION($Revision: 1.19 $)
+AC_REVISION($Revision: 1.20 $)
 
 AC_INIT(lib/mrt/mrt.c)
 AC_CONFIG_HEADER(include/config.h)
@@ -142,7 +142,7 @@ esac
 dnl Checks for programs.
 AC_PROG_MAKE_SET
 dnl because it will be executed in program/*
-dnl ac_install_sh=../../$ac_install_sh
+ac_install_sh=../../$ac_install_sh
 AC_PROG_INSTALL
 AC_PROG_RANLIB
 AC_CHECK_PROGS(MAKEDEP, makedepend mkdep)
@@ -209,12 +209,13 @@ if test -d /usr/local/lib; then
     LDFLAGS="$LDFLAGS -L/usr/local/lib"
 fi
 
-dnl find flex and bixon
+dnl find flex
 AC_PATH_PROG(FLEX_PATH,flex,no)
 if test $FLEX_PATH = no; then
-    FLEX_PATH="lex"
+ AC_MSG_ERROR([flex is required -- see www.gnu.org/software/flex/])
 fi
 
+dnl find bison/yacc
 AC_PROG_YACC
 dnl AC_PATH_PROG(BISON_PATH,bison,no)
 dnl if test $BISON_PATH = no; then
@@ -223,86 +224,6 @@ dnl    echo "** No BISON -- only IRRD will be built! **"
 dnl fi
 
 AC_SUBST(FLEX_PATH)
-
-dnl Don't use these test's -- they don't work 
-
-dnl AC_MSG_CHECKING(for berkeley DB)
-dnl AC_EGREP_CPP(yes, [
-dnl #include <db.h>
-dnl main() {
-dnl #if defined(_DB_H_)
-dnl   yes
-dnl #endif
-dnl }
-dnl ], [ac_havedb=1; AC_MSG_RESULT(yes)], AC_MSG_RESULT(no))
-
-
-dnl AC_MSG_CHECKING(if using Berkeley DB)
-dnl AC_ARG_WITH(db,
-dnl [  --with-db              Use Berkeley DB package],
-dnl [ if test "$ac_havedb" = 1; then
-dnl   ac_usedb=1;
-dnl   DB_LIB="-ldb"
-dnl   AC_MSG_RESULT(yes)
-dnl else
-dnl   AC_MSG_RESULT(no)
-dnl fi],
-dnl   AC_MSG_RESULT(no))
-
-dnl Huh? if test "${ac_cv_header_gdbm_h}${ac_hasgdbm}"  ; then
-dnl if test "$ac_hasgdbm" = 1; then
-dnl   if test "$ac_usedb" != 1 ; then
-dnl     if test "$ac_nogdbm" != 1; then
-dnl        AC_DEFINE(USE_GDBM)
-dnl        DB_LIB="-lgdbm"
-dnl        AC_MSG_RESULT(yes)
-dnl      else
-dnl        AC_MSG_RESULT("no - from configure option")
-dnl      fi
-dnl    else
-dnl      if test "$ac_havedb" = 1; then
-dnl        AC_MSG_RESULT(no)
-dnl        AC_DEFINE(USE_DB1)
-dnl      else
-dnl        AC_MSG_RESULT(no)
-dnl      fi
-dnl    fi
-dnl else
-dnl   AC_MSG_RESULT(no)
-dnl fi
-
-
-dnl For now no support for berkeley DB
-dnl Check for GDBM
-
-AC_CHECK_HEADERS(gdbm.h, 
-[AC_CHECK_LIB(gdbm, gdbm_open, [ac_hasgdbm=1],[ac_hasgdbm=0])],
-[ac_hasgdbm=0])
-
-AC_MSG_CHECKING(if using GDBM)
-AC_ARG_WITH(gdbm,
-[  --with-gdbm             Use GNU DBM package (default)],
-[ case "$withval" in
-  no)
-    ac_nogdbm=1
-  ;;
-  *)
-    true
-  ;;
-  esac ]
-)
-
-if test "$ac_hasgdbm" = 1; then
-  if test "$ac_nogdbm" != 1; then
-    AC_DEFINE(USE_GDBM)
-    DB_LIB="-lgdbm"
-    AC_MSG_RESULT(yes)
-  else
-    AC_MSG_RESULT("no - from configure option")
-  fi
-else
-  AC_MSG_RESULT(no)
-fi
 
 dnl sendmail mail and pgp
 AC_PATH_PROG(SENDMAIL_PATH,sendmail,no,$PATH:/usr/lib)

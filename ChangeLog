@@ -1,3 +1,172 @@
+2002-02-06 11:03  ljb
+
+	* NOTES:   more updates for the 2.1.4 release.
+
+2002-02-04 17:14  ljb
+
+	* src/include/version.h:    2.1.4 version include file
+
+2002-02-04 17:13  ljb
+
+	* NOTES, irrd-user.pdf, irrd-user.sgml:    final updates to docs
+	for 2.1.4 release
+
+2002-02-04 15:53  ljb
+
+	* src/programs/IRRd/: Makefile, atomic_trans.c, commands.c,
+	config.c, database.c, dbm_support.c, hash_spec.c, indicies.c,
+	irrd.h, irrd_prototypes.h, irrd_util.c, journal.c, main.c,
+	mirror.c, route.c, rpsl_commands.c, scan.c, statusfile.c, telnet.c,
+	uii_commands.c, update.c:     Remove support for Berkeley DB and
+	DBM.  add "clean_lock" for cleaning
+	and export operations to allow queries while performing these
+	functions.  fix mirror request handler so that data is buffered in
+	memory rather than locking the database for entire update transfer.
+	 limit query command size to prevent possible buffer overflows.
+
+2002-02-04 15:45  ljb
+
+	* src/programs/irr_util/IRR_query.pl:	change host and port
+	settings to be localhost and port 43 as defaults.
+
+2002-02-04 15:33  ljb
+
+	* src/lib/mrt/trace.c:	  Add additional error check when
+	attempting to open log_file.
+
+2002-02-04 15:31  ljb
+
+	* src/lib/config/config_file.c:    Don't log initial config file
+	open.
+
+2002-02-04 14:55  ljb
+
+	* irrd-user.sgml:   remove docs for deprecated -m and -r options
+	for irrd.
+
+2002-01-25 17:19  ljb
+
+	* src/programs/IRRd/scan.h:    If filtering on
+	routing-registry-objects, inet-rtr objects should be
+	allowed.
+
+2002-01-23 01:26  ljb
+
+	* src/programs/IRRd/irrd.8:  remove -m and -r options from manual.
+
+2002-01-21 15:39  ljb
+
+	* src/: configure, configure.in:   Fix patch for install-sh
+	(botched install on Solaris systems).  Also,
+	abort the configure process is flex is missing.
+
+2002-01-21 14:43  ljb
+
+	* src/dos2unix.pl:   See no reason to keep this script around.
+
+2002-01-21 14:41  ljb
+
+	* src/install-sh:   updated version of install-sh from MIT X11
+	release.  Includes full
+	copyright notice.
+
+2001-12-12 01:34  ljb
+
+	* irrd-user.sgml:    Update documentation on !u command to correct
+	errors and offer a
+	better explanation of how it works.
+
+2001-12-03 15:08  ljb
+
+	* src/include/config.h.in:  remove GDBM and Berkeley DB support
+
+2001-12-03 15:07  ljb
+
+	* src/Make.include.in:	 removed GDBM and Berkeley DB support
+
+2001-12-03 15:06  ljb
+
+	* src/: acconfig.h, configure:	 remove GDBM and Berkeley DB
+	support.
+
+2001-12-03 11:55  ljb
+
+	* src/configure.in.orign:   removed old file from repository.
+
+2001-11-26 14:09  ljb
+
+	* irrd-user.sgml:   Add documentation for optional access list with
+	irr_port config command.
+
+2001-11-16 13:41  ljb
+
+	* src/programs/IRRd/: database.c, scan.c:   change open file mode
+	permissions to 664 from 774.
+
+2001-11-16 13:35  ljb
+
+	* src/programs/IRRd/journal.c:	 Should open JOURNAL files with
+	permission mode 664 instead of 774.
+
+2001-11-15 16:54  ljb
+
+	* src/programs/irr_util/templates.config:   more updates to
+	templates.config for RPSL compliance.
+
+2001-11-14 12:58  ljb
+
+	* src/programs/irr_rpsl_check/irr_attrs.c:   add e-mail address as
+	mandatory attribute for person class
+
+2001-11-14 12:50  ljb
+
+	* src/programs/irr_util/templates.config:    more fixes for
+	templates for RPSL objects.
+
+2001-11-13 17:00  ljb
+
+	* src/programs/IRRd/main.c:   change help for irr_port command to
+	indicate it sets the whois port, not
+	the telnet port.
+
+2001-11-13 13:32  ljb
+
+	* src/programs/irr_util/templates.config:   more updates to
+	template
+
+2001-11-13 13:28  ljb
+
+	* src/programs/irr_util/templates.config:   add new RPSL attributes
+	to templates
+
+2001-11-05 16:52  ljb
+
+	* src/programs/IRRd/config.c:	when saving the config file via a
+	UII connection, the irr_port config
+	option was erroneously safe with the access_list information in
+	brackets.
+
+2001-11-03 02:13  ljb
+
+	* src/programs/irr_rpsl_check/irr_attrs.c:   as-name attribute is
+	mandatory for the aut-num class.
+
+2001-11-02 15:31  ljb
+
+	* src/programs/irr_util/templates.config:   forgot to update
+	aut-num class.
+
+2001-11-02 15:29  ljb
+
+	* src/programs/irr_util/templates.config:   update aut-num and
+	inet6num classes.  aut-num was missing mandatory as-name
+	attribute.
+
+2001-10-26 17:49  ljb
+
+	* samples/irrd.conf.sample:   removed DOS LF characters in sample
+	conf.
+
 2001-10-18 13:44  ljb
 
 	* NOTES:   forgot to document 30 second telnet timeout change.

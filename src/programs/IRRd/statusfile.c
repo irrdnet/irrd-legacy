@@ -63,23 +63,21 @@ extern irr_t   IRR;
 static int
 StrTrim (char *buf)
 {
-char *p;
+  char *p;
 
-assert (buf);
+  /* Strip trailing whitespace */
+  p = buf + strlen(buf) - 1;
+  while ((p >= buf) && isspace(*p)) *p-- = '\0';
 
-/* Strip trailing whitespace */
-p = buf + strlen(buf) - 1;
-while ((p >= buf) && isspace(*p)) *p-- = '\0';
+  /* Remove any leading white space */
+  p = buf;
+  while (isspace(*p)) p++;
+  if (p != buf)
+    memmove(buf, p, strlen(p)+1);
 
-/* Remove any leading white space */
-p = buf;
-while (isspace(*p)) p++;
-if (p != buf)
-   memmove(buf, p, strlen(p)+1);
-
-if (strlen(buf) > 0) return (1);
-
-return (0);
+  if (strlen(buf) > 0)
+    return (1);
+  return (0);
 }
 
 /*
@@ -92,21 +90,19 @@ CmtTrim (char *buf)
 {
 char *p, *q;
 
-assert (buf);
-
 /* String leading comments before " (if any) */
-if ((p = strchr(buf, '"')) != NULL) {
-   q = strchr(buf, ';');
-   if (q != NULL && q < p) *q = '\0';
-   }
-else {
-   if ((p = strchr(buf, ';')) != NULL) 
+  if ((p = strchr(buf, '"')) != NULL) {
+    q = strchr(buf, ';');
+    if (q != NULL && q < p) *q = '\0';
+  }
+  else {
+    if ((p = strchr(buf, ';')) != NULL) 
       *p = '\0';
-   }
+  }
 
-if (strlen(buf) > 0) return (1);
-
-return (0);
+  if (strlen(buf) > 0)
+    return (1);
+  return (0);
 }
 
 /* 
@@ -118,37 +114,35 @@ return (0);
 static int
 VarTrim (char *buf)
 {
-char *p, *q;
+  char *p, *q;
 
-assert (buf);
+  /* Make sure we have an =, otherwise we might as well bail */
+  if ((p = strchr(buf, '=')) == NULL)
+    return (0);
 
-/* Make sure we have an =, otherwise we might as well bail */
-if ((p = strchr(buf, '=')) == NULL)
-   return (0);
+  if (!CmtTrim(buf)) return (0);
+  if (!StrTrim(buf)) return (0);
 
-if (!CmtTrim(buf)) return (0);
-if (!StrTrim(buf)) return (0);
-
-/* Remove white space after = */
-if ((p = strchr(buf, '=')) != NULL) {
-   p++; q = p;
-   while (isspace(*q)) q++;
-   if (p != q)
+  /* Remove white space after = */
+  if ((p = strchr(buf, '=')) != NULL) {
+    p++; q = p;
+    while (isspace(*q)) q++;
+    if (p != q)
       memmove (p, q, strlen(q)+1);
-   }
+  }
 
-/* Remove white space before = */
-if ((p = q = strchr(buf, '=')) != NULL) {
-   if (q != buf) {
+  /* Remove white space before = */
+  if ((p = q = strchr(buf, '=')) != NULL) {
+    if (q != buf) {
       while (((p-1) >= buf) && isspace(*(p-1))) p--;
       if (p != q)
 	 memmove(p, q, strlen(q)+1);
-      }
-   }
+    }
+  }
 
-if (strlen(buf) > 0) return (1);
+  if (strlen(buf) > 0) return (1);
 
-return (0);
+  return (0);
 }
 
 /**
@@ -184,10 +178,6 @@ InsertVar (statusfile_t *sf, char *section, hash_item_t *h)
 {
 section_hash_t *h_sect;
 
-assert(sf);
-assert(section);
-assert(h);
-
 /* Find the proper section */
 if ((h_sect = HASH_Lookup(sf->hash_sections, section)) == NULL) {
    h_sect = New(section_hash_t);
@@ -210,10 +200,6 @@ LookupVar (statusfile_t *sf, char *section, char *variable)
 hash_item_t    *p_hi;
 section_hash_t *p_sh;
 
-assert(sf);
-assert(section);
-assert(variable);
-
 if ((p_sh = HASH_Lookup(sf->hash_sections, section)) != NULL) {
    if ((p_hi = HASH_Lookup(p_sh->hash_vars, variable)) != NULL) {
       return (p_hi);
@@ -228,10 +214,6 @@ DeleteVar (statusfile_t *sf, char *section, char *variable)
 {
 hash_item_t    *p_hi;
 section_hash_t *p_sh;
-
-assert(sf);
-assert(section);
-assert(variable);
 
 if ((p_sh = HASH_Lookup(sf->hash_sections, section)) != NULL) {
    if ((p_hi = HASH_Lookup(p_sh->hash_vars, variable)) != NULL) {
@@ -249,24 +231,18 @@ ProcessLine (statusfile_t *sf, char *section, char *line)
 char tmp[BUFSIZE], *p, *q, *last;
 hash_item_t    *h_var;
 
-assert(sf);
-assert(section);
-assert(line);
+  h_var = New(hash_item_t);
 
-h_var = New(hash_item_t);
-assert(h_var);
+  tmp[BUFSIZE-1] = '\0';
+  strncpy(tmp, line, BUFSIZE);
 
-tmp[BUFSIZE-1] = '\0';
+  if (VarTrim(tmp)) {
+    /* Sanity check: no " before = */
+    p = strchr(tmp, '"');
+    q = strchr(tmp, '=');
+    if (p && (p < q)) return (0);
 
-strncpy(tmp, line, BUFSIZE);
-
-if (VarTrim(tmp)) {
-   /* Sanity check: no " before = */
-   p = strchr(tmp, '"');
-   q = strchr(tmp, '=');
-   if (p && (p < q)) return (0);
-
-   if ((p = strtok_r(tmp, "=", &last)) != NULL) {
+    if ((p = strtok_r(tmp, "=", &last)) != NULL) {
       /* No " in the key */
       if ((q = strchr(p, '"')) != NULL) return (0);
 
@@ -280,20 +256,20 @@ if (VarTrim(tmp)) {
 	    p = q + 1;
 	    if ((q = strchr(p, '"')) != NULL) *q = '\0';
 	    else return (0);
-	    }
-	 }
-
-      h_var->value = strdup(p);
-
-      return (InsertVar(sf, section, h_var));
       }
-   }
+    }
 
-/* Failure cases */
-if (h_var->key) Delete(h_var->key);
-Delete(h_var);
+    h_var->value = strdup(p);
 
-return (0);
+    return (InsertVar(sf, section, h_var));
+    }
+  }
+
+  /* Failure cases */
+  if (h_var->key) Delete(h_var->key);
+  Delete(h_var);
+
+  return (0);
 }
 
 static char *
@@ -336,8 +312,6 @@ char buf[BUFSIZE];
 int length;
 int ret = 0;
 int c;
-
-assert(sf);
 
 if ((fp = fopen (sf->filename, "r")) != NULL) {
    while (fgets (buf, BUFSIZE, fp) != NULL) {
@@ -399,8 +373,6 @@ FILE *fp;
 hash_item_t    *p_hi;
 section_hash_t *p_sh;
 int ret = 0;
-
-assert (sf);
 
 tmp[BUFSIZE-1] = '\0';
 
@@ -534,9 +506,7 @@ InitStatusFile (char *filename)
 statusfile_t *sf;
 section_hash_t sh;
 
-assert(filename);
-
-if ((sf = New(statusfile_t)) != NULL) {
+ if ((sf = New(statusfile_t)) != NULL) {
    sf->filename = strdup(filename);
    if ((sf->hash_sections = HASH_Create (HASHSIZE_SECTIONS,
  				    HASH_KeyOffset, HASH_Offset(&sh, &(sh.key)),
@@ -545,11 +515,11 @@ if ((sf = New(statusfile_t)) != NULL) {
       goto FAIL;
    ReadStatusFile(sf);
    pthread_mutex_init (&(sf->mutex_lock), NULL);
-   }
+ }
 
-FAIL:
+ FAIL:
 
-return (sf);
+ return (sf);
 }
 
 /*
@@ -561,20 +531,20 @@ return (sf);
 int
 CloseStatusFile (statusfile_t *sf)
 {
-assert(sf);
 
-sf->filename = NULL;
+  Delete(sf->filename);
+  sf->filename = NULL;
 
-if (!pthread_mutex_lock(&(sf->mutex_lock))) {
-   if (sf->hash_sections) {
+  if (!pthread_mutex_lock(&(sf->mutex_lock))) {
+    if (sf->hash_sections) {
       HASH_Destroy(sf->hash_sections);
       sf->hash_sections = NULL;
-      }
-   pthread_mutex_unlock(&(sf->mutex_lock));
-   }
+    }
+    pthread_mutex_unlock(&(sf->mutex_lock));
+  }
 
 /* There's not much we can do about failures in the above routines */
-return (1);
+  return (1);
 }
 
 /*
@@ -597,10 +567,6 @@ GetStatusString (statusfile_t *sf, char *section, char *variable)
 {
 hash_item_t *p_hi;
 char *ret = NULL;
-
-assert (sf);
-assert (section);
-assert (variable);
 
 if (sf->filename == NULL) return (NULL);
 
@@ -631,10 +597,6 @@ SetStatusString (statusfile_t *sf, char *section, char *variable, char *value)
 hash_item_t *p_hi;
 int ret = 0;
 
-assert (sf);
-assert (section);
-assert (variable);
-
 if (sf->filename == NULL) return (0);
 
 if (!pthread_mutex_lock(&(sf->mutex_lock))) {
@@ -654,7 +616,6 @@ if (!pthread_mutex_lock(&(sf->mutex_lock))) {
    /* If its not, add a new value */
    else {
       p_hi = New(hash_item_t);
-      assert(p_hi);
       p_hi->key = strdup(variable);
       p_hi->value = strdup(value);
       if (InsertVar(sf, section, p_hi)) ret = 1;
@@ -683,37 +644,13 @@ if (!pthread_mutex_lock(&(IRR.statusfile->mutex_lock))) {
 int
 config_statusfile (uii_connection_t *uii, char *filename)
 {
-if (IRR.statusfile) CloseStatusFile(IRR.statusfile);
-IRR.statusfile = InitStatusFile(filename);
+  if (IRR.statusfile) {
+    CloseStatusFile(IRR.statusfile);
+    Delete(IRR.statusfile);
+  }
+  IRR.statusfile = InitStatusFile(filename);
 
-return ((IRR.statusfile) ? 1 : -1);
+  return ((IRR.statusfile) ? 1 : -1);
 }
 
 
-/*********************************************************************/
-
-#ifdef TESTJMH
-int main(int argc, char *argv[])
-{
-statusfile_t *p_sf;
-char *p_ret;
-
-default_trace = New_Trace();
-set_trace(default_trace, TRACE_FLAGS, NORM, 0);
-/*set_trace(default_trace, TRACE_LOGFILE, "logfile", 0);*/
-init_mrt(default_trace);
-
-p_sf = InitStatusFile("status.ini");
-p_ret = GetStatusString(p_sf, "ripe", "lastexport");
-p_ret = GetStatusString(p_sf, "new", "lastexport");
-SetStatusString(p_sf, "ripe", "lastexport", "9999");
-SetStatusString(p_sf, "ripe", "new", "somevalue");
-p_ret = GetStatusString(p_sf, "ripe", "lastexport");
-p_ret = GetStatusString(p_sf, "ripe", "new");
-SetStatusString(p_sf, "ripe", "lastexport", "elite");
-p_ret = GetStatusString(p_sf, "ripe", "lastexport");
-SetStatusString(p_sf, "ripe", "new", NULL);
-CloseStatusFile(p_sf);
-return (0);
-}
-#endif

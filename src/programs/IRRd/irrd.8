@@ -8,7 +8,7 @@ irrd \- stand-alone Internet Routing Registry database
 .SH SYNOPSIS
 .BI "irrd"
 [-a] [-d database directory] [-f conf file] [-g group name] [-l user name]
-[-m] [-n] [-r] [-s password] [-u] [-v] [-w irr port] [-x]
+[-n] [-s password] [-u] [-v] [-w irr port] [-x]
 .SH DESCRIPTION
 .B irrd
 is a stand-alone Internet Routing Registry database server. irrd can store information and answer
@@ -56,14 +56,8 @@ Set the program's group id to the named group after initialization.
 .B \-l <user name> 
 Set the program's user id to the named user after initialization.
 .TP
-.B \-m
-use memory mode indexing (faster than disk based index)
-.TP
 .B \-n 
 Do not daemonize
-.TP
-.B \-r 
-Force re-indexing of databases
 .TP
 .B \-s <password> 
 Set the password for the UII interactive interface

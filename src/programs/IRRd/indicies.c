@@ -1,6 +1,6 @@
 
 /*
- * $Id: indicies.c,v 1.1.1.1 2000/02/29 22:28:30 labovit Exp $
+ * $Id: indicies.c,v 1.2 2002/02/04 20:53:56 ljb Exp $
  * originally Id: indicies.c,v 1.38 1998/08/07 19:07:46 labovit Exp 
  */
 
@@ -78,17 +78,8 @@ int irr_database_store (irr_database_t *database, char *key, u_short p_or_s,
   cp = buffer;
   UTIL_PUT_NETLONG (++count, cp); /* count */
 
-#if (defined(USE_GDBM) || defined(USE_DB1))
-  if (IRR.use_disk == 1) {
-    ret_code = irr_dbm_store (database->dbm, key, buffer, _size_new, database->name);
-    Delete (buffer);
-    irr_hash_destroy (hash_item);
-  }
-#endif /* USE_GDBM || USE_DB1 */
-  if (IRR.use_disk == 0) {
-    if (hash_item != NULL) HASH_Remove (database->hash, hash_item);
-    irr_hash_store (database, key, buffer);
-  }
+  if (hash_item != NULL) HASH_Remove (database->hash, hash_item);
+  irr_hash_store (database, key, buffer);
 
   return ret_code; 
 }
@@ -124,27 +115,12 @@ int irr_hash_destroy (hash_item_t *hash_item) {
   return (1);
 }
 
-
 /* irr_database_fetch
  */
 hash_item_t *irr_database_fetch (irr_database_t *database, char *key) {
   hash_item_t *hash_item;
 
-#if (defined(USE_GDBM) || defined(USE_DB1))
-  if (IRR.use_disk == 1) { 
-    /* always look in memory first */
-    if ((hash_item = HASH_Lookup (database->hash, key)) == NULL) {
-      if (database->dbm != NULL)
-	hash_item = irr_dbm_fetch (database->dbm, key);
-      else
-	trace (NORM, default_trace, "No data\n");
-    }
-  }
-  else
-#endif /* USE_GDBM || USE_DB1*/
   hash_item = HASH_Lookup (database->hash, key);
-
-
   return (hash_item);
 }
 
@@ -168,9 +144,6 @@ int irr_database_find_matches (irr_connection_t *irr, char *key,
 
   LL_Iterate (irr->ll_database, database) {
     
-    if ((IRR.use_disk == 1) && hash_item)
-      irr_hash_destroy  (hash_item);
-
     hash_item = irr_database_fetch (database, key);
     
     if (hash_item == NULL)
@@ -208,7 +181,7 @@ int irr_database_find_matches (irr_connection_t *irr, char *key,
 	*ret_len = len;
 	break;
       }
-      irr_build_answer (irr, database->fd, _type, offset, len, NULL, database->db_syntax);
+      irr_build_answer (irr, database->db_fp, _type, offset, len, NULL, database->db_syntax);
 
       /* RAWHOISD_MODE means exit after first the match */
       if (match_behavior & RAWHOISD_MODE) {
@@ -219,12 +192,6 @@ int irr_database_find_matches (irr_connection_t *irr, char *key,
     if (exit_on_match)
       break;
   }
-
-#if (defined(USE_GDBM) || defined(USE_DB1))
-  /* the data is stored on disk, and not in memory. we have to delete this temp copy */
-  if (IRR.use_disk == 1)
-    irr_hash_destroy  (hash_item);
-#endif /* USE_GDBM || USE_DB1 */
 
   return (1);
 }
@@ -350,31 +317,13 @@ int irr_database_remove (irr_database_t *database, char *key, u_short p_or_s,
     }
   }  
 
-#if (defined(USE_GDBM) || defined(USE_DB1))
-  if (IRR.use_disk == 1) {
-    if (count > 0)
-      ret_code = irr_dbm_store (database->dbm, key, buffer_new, size, database->name);
-    else
-      ret_code = irr_dbm_delete (database->dbm, key, database->name);
-
-    if (buffer_new)
-      Delete (buffer_new);
-
-    irr_hash_destroy  (hash_item);
-  }
-#endif /* USE_GDBM || USE_DB1 */
 /* JW: I think this section can be optimized later,
  * for case count > 0 just Delete(hash_item->value) and
  * hash_item->value = buffer_new;
  */
-  if (IRR.use_disk == 0) {
-    HASH_Remove (database->hash, hash_item);
-    if (count > 0)
-      irr_hash_store (database, key, buffer_new);
-  }
+  HASH_Remove (database->hash, hash_item);
+  if (count > 0)
+    irr_hash_store (database, key, buffer_new);
 
   return ret_code;
 }
-
-
-

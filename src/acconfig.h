@@ -1,5 +1,5 @@
 /* 
- * $Id: acconfig.h,v 1.4 2001/08/09 20:06:01 ljb Exp $
+ * $Id: acconfig.h,v 1.5 2001/12/03 20:06:51 ljb Exp $
  */
 
 @TOP@
@@ -9,12 +9,6 @@
 
 /* Define if you have pthread library (-lpthread) */
 #undef HAVE_LIBPTHREAD
-
-/* Define if you are using gdbm */
-#undef USE_GDBM
-
-/* Define if you using berkeley db */
-#undef USE_DB1
 
 /* Define if you have pthread_attr_setscope */
 #undef HAVE_PTHREAD_ATTR_SETSCOPE

@@ -251,7 +251,7 @@ ABORT_TRANS:
  *
  *  function will return a transaction file name suitable for rollback.
  */
-char *build_transaction_file (irr_database_t *db, FILE *u_fd, char *uname,
+char *build_transaction_file (irr_database_t *db, FILE *u_fp, char *uname,
 			      char *fname, int *n_updates) {
   int fd, n;
   long jsize, dbsize;
@@ -259,7 +259,7 @@ char *build_transaction_file (irr_database_t *db, FILE *u_fd, char *uname,
   struct stat fstats;
 
   /* sanity check */
-  if (db->fd == NULL) {
+  if (db->db_fp == NULL) {
     trace (ERROR, default_trace, "DB (%s) is not open.  "
 	   "Abort update op.\n", db->name);
     return "DB does not exist or is not open for updates!";
@@ -307,7 +307,7 @@ char *build_transaction_file (irr_database_t *db, FILE *u_fd, char *uname,
 
   /* build the DEL list, ie, the file positions
    * of deleted/replaced objects and the first 2 attr letters */
-  if (!(n = transaction_dels (db, u_fd, fp))) {
+  if (!(n = transaction_dels (db, u_fp, fp))) {
     fclose (fp);
     remove (fname);
     return "Abort update!  transaction file operation error.";
@@ -448,9 +448,9 @@ int db_rollback (irr_database_t *db, char *fname) {
    * so if the DB is open (ie, transacton abort) then we need to re-open
    * it after we truncate */
   reopenf = 0;
-  if (db->fd != NULL) {
+  if (db->db_fp != NULL) {
     reopenf = 1;
-    fclose (db->fd);
+    fclose (db->db_fp);
   }
 
   /* truncate the DB to it's original length;
@@ -463,7 +463,7 @@ int db_rollback (irr_database_t *db, char *fname) {
   }
 
   /* open the DB */
-  if ((db->fd = fopen (buf, "r+")) == NULL) {
+  if ((db->db_fp = fopen (buf, "r+")) == NULL) {
     trace (ERROR, default_trace, "db_rollback (): Can't re-open DB (%s):"
 	   "(%s)\n", strerror (errno));
     goto CLEAN_UP;
@@ -489,7 +489,7 @@ int db_rollback (irr_database_t *db, char *fname) {
     trace (NORM, default_trace, "JW: rollback buf (%s) (%ld,%s)\n", buf, fpos, attr);
 
     /* go to the DEL operation file position ... */
-    if (fseek (db->fd, fpos, SEEK_SET) < 0) {
+    if (fseek (db->db_fp, fpos, SEEK_SET) < 0) {
       trace (ERROR, default_trace, "db_rollback (): fseek DEL error for trans "
 	     "file (%s) for DB (%s) to fpos (%ld): (%s)\n", 
 	     fname, db->name, fpos, strerror (errno));
@@ -497,7 +497,7 @@ int db_rollback (irr_database_t *db, char *fname) {
     }
     
     /* ... and reverse the operation */
-    if (!fwrite (attr, 3, 1, db->fd)) {
+    if (!fwrite (attr, 3, 1, db->db_fp)) {
       trace (ERROR, default_trace, "db_rollback (): undo DEL fwrite error for "
 	     "trans file (%s) for DB (%s) attr string (%s)): (%s)\n", 
 	     fname, db->name, attr, strerror (errno));
@@ -512,9 +512,9 @@ CLEAN_UP:
 
   /* maintain original file status */
   if (reopenf == 0 && 
-      db->fd != NULL) {
-    fclose (db->fd);
-    db->fd = NULL;
+      db->db_fp != NULL) {
+    fclose (db->db_fp);
+    db->db_fp = NULL;
   }
   fclose (fin);
 

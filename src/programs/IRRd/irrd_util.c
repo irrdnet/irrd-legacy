@@ -1,5 +1,5 @@
 /*
- * $Id: irrd_util.c,v 1.9 2001/09/04 21:09:10 ljb Exp $
+ * $Id: irrd_util.c,v 1.10 2002/02/04 20:53:56 ljb Exp $
  * originally Id: util.c,v 1.51 1998/08/07 19:48:58 gerald Exp 
  */
 
@@ -20,6 +20,39 @@ static int find_token (char **, char **);
 extern key_label_t key_info[][2];
 extern trace_t *default_trace;
 extern m_command_t m_info [];
+
+irr_database_t *new_database (char *name) {
+  irr_database_t *database;
+  hash_item_t hash_item;
+
+  database = New (irr_database_t);
+  memset(database, 0, sizeof(irr_database_t));
+
+  database->radix = New_Radix (128);
+  database->hash =
+    HASH_Create (1000,
+                 HASH_KeyOffset, HASH_Offset (&hash_item, &hash_item.key),
+                 HASH_DestroyFunction, irr_hash_destroy,
+                 0);
+  database->hash_spec =
+    HASH_Create (1000,
+                 HASH_KeyOffset, HASH_Offset (&hash_item, &hash_item.key),
+                 HASH_DestroyFunction, irr_hash_destroy, 0);
+
+  database->name = strdup (name);
+  database->mirror_fd  = -1;
+  database->journal_fd = -1;
+  database->max_journal_bytes = IRR_MAX_JOURNAL_SIZE;
+  database->db_fp         = NULL;
+  database->db_syntax  = EMPTY_DB;
+  database->obj_filter = 0; /* Any object bit-fields that are 1 will be filtered out
+                               * of the DB (including mirroring, updates and reloads).
+                               */
+  pthread_mutex_init (&database->mutex_lock, NULL);
+  pthread_mutex_init (&database->mutex_clean_lock, NULL);
+  /*rwl_init (&database->rwlock);*/
+  return(database);
+}
 
 /* find_database
  * Given the name of a database (e.g. "mae-east") return a pointer to
@@ -78,17 +111,33 @@ void irr_unlock_all (irr_connection_t *irr) {
   }
 }
 
-void irr_lock (irr_database_t *database) {
-  trace (TRACE, default_trace, "About to lock database %s\n", database->name);
+void irr_update_lock (irr_database_t *database) {
+  irr_clean_lock(database);
+  irr_lock(database);
+}
 
+void irr_update_unlock (irr_database_t *database) {
+  irr_unlock(database);
+  irr_clean_unlock(database);
+}
+
+void irr_clean_lock (irr_database_t *database) {
+  if (pthread_mutex_lock (&database->mutex_clean_lock) != 0)
+    trace (ERROR, default_trace, "Error locking clean database %s : %s\n", 
+	   database->name, strerror (errno));
+}
+
+void irr_clean_unlock (irr_database_t *database) {
+  if (pthread_mutex_unlock (&database->mutex_clean_lock) != 0)
+    trace (ERROR, default_trace, "Error unlocking clean database %s : %s\n", 
+	   database->name, strerror (errno));
+}
+
+void irr_lock (irr_database_t *database) {
   /*if (rwl_writelock (&database->rwlock) != 0)*/
   if (pthread_mutex_lock (&database->mutex_lock) != 0)
     trace (ERROR, default_trace, "Error locking database %s : %s\n", 
 	   database->name, strerror (errno));
-  /* JW: this just clutters up the trace log and irrd has been stable
-  else
-    trace (TRACE, default_trace, "Locked database %s\n", database->name);
-  */
 }
 
 void irr_unlock (irr_database_t *database) {
@@ -96,10 +145,6 @@ void irr_unlock (irr_database_t *database) {
   /*if (rwl_writeunlock (&database->rwlock) != 0) */
     trace (ERROR, default_trace, "Error unlocking database %s : %s\n", 
 	   database->name, strerror (errno));
-  /* JW: this just clutters up the trace log and irrd has been stable
-  else
-    trace (TRACE, default_trace, "Unlocked database %s\n", database->name);
-  */
 }
 
 void Delete_RT_Object (irr_route_object_t *attr) {
@@ -110,13 +155,13 @@ int irr_comp (char *s1, char *s2) {
   return (strcmp (s1, s2));
 }
 
-int get_prefix_from_disk (FILE *fd, u_long offset, char *buffer) {
+int get_prefix_from_disk (FILE *fp, u_long offset, char *buffer) {
   char *p, temp[BUFSIZE], *last; 
 
-  if (fseek (fd, offset, SEEK_SET) < 0) 
+  if (fseek (fp, offset, SEEK_SET) < 0) 
     trace (NORM, default_trace, "** Error ** fseek failed in get_prefix");
     
-  if (fgets (temp, sizeof (temp) - 1, fd) != NULL) {
+  if (fgets (temp, sizeof (temp) - 1, fp) != NULL) {
     if (strtok_r (temp, " ", &last) != NULL && 
 	(p = strtok_r (NULL, " ", &last)) != NULL) {
       if (*(p + strlen (p) - 1) ==  '\n')
@@ -139,35 +184,33 @@ int get_prefix_from_disk (FILE *fd, u_long offset, char *buffer) {
  * Copy an object from one <DB>.db file to another
  * this is used in updates and in resyching database
  */
-long copy_irr_object (FILE *src_fd, long offset, irr_database_t *database,
+long copy_irr_object (FILE *src_fp, long offset, irr_database_t *database,
                      u_long obj_length) {
   char buffer[BUFSIZE];
   long start_offset = 0;
   int bytes_read   = 0;
   int i;
 
-  if ((database->fd == (void *) -11) || 
-      (database->fd == (void *) -1)  ||
-      (database->fd == NULL))
+  if ( database->db_fp == NULL )
     return -1L;
   
-  if ((fseek (src_fd, offset, SEEK_SET) < 0) ||
-      (fseek (database->fd, 0, SEEK_END) < 0)) 
+  if ((fseek (src_fp, offset, SEEK_SET) < 0) ||
+      (fseek (database->db_fp, 0, SEEK_END) < 0)) 
     trace (NORM, default_trace, "** Error ** fseek failed in copy_irr_object");
-  start_offset = ftell (database->fd);
+  start_offset = ftell (database->db_fp);
 
   bytes_read = 0;
-  while (fgets (buffer, sizeof (buffer)-1, src_fd) != NULL) {
+  while (fgets (buffer, sizeof (buffer)-1, src_fp) != NULL) {
     if ((i = strlen (buffer)) < 2) break;
 
     if (bytes_read < obj_length) {
-      fwrite (buffer, 1, (size_t) i, database->fd);
+      fwrite (buffer, 1, (size_t) i, database->db_fp);
       database->bytes += i;
     }
      bytes_read += i;
   }
   sprintf (buffer, "\n");
-  fwrite (buffer, 1, strlen (buffer), database->fd);
+  fwrite (buffer, 1, strlen (buffer), database->db_fp);
   database->bytes += strlen (buffer);
 
   return start_offset;
@@ -273,11 +316,11 @@ void pick_off_indirect_references (irr_answer_t *irr_answer, LINKED_LIST **ll) {
     return;
 
   if (irr_answer->len == 0 ||
-      fseek (irr_answer->fd, irr_answer->offset, SEEK_SET) < 0)
+      fseek (irr_answer->fp, irr_answer->offset, SEEK_SET) < 0)
     return;
 
   do {
-    cp = fgets (buf, BUFSIZE - 1, irr_answer->fd);
+    cp = fgets (buf, BUFSIZE - 1, irr_answer->fp);
 
     if ((state = get_state (buf, cp, state, &save_state)) == START_F) {
       curr_f = get_curr_f (irr_answer->db_syntax, buf, state, curr_f);
@@ -350,7 +393,7 @@ void lookup_route_exact (irr_connection_t *irr, char *key) {
   }
 
   if (len > 0)
-    irr_build_answer (irr, database->fd, ROUTE, offset, len, NULL, database->db_syntax);
+    irr_build_answer (irr, database->db_fp, ROUTE, offset, len, NULL, database->db_syntax);
 }
 
 /* convert a string to an unsigned long
@@ -568,8 +611,8 @@ int parse_ripe_flags (irr_connection_t *irr, char **cp) {
   }
 
   if (buf[0] != '\0') { /* Got an error, tell the user */
-    irr_write (irr, irr->sockfd, buf, strlen (buf));
-    irr_write_buffer_flush (irr, irr->sockfd);
+    irr_write (irr, buf, strlen (buf));
+    irr_write_buffer_flush (irr);
     return -1;
   }
 
@@ -597,6 +640,32 @@ radix_str_t *new_radix_str (radix_node_t *node) {
 void delete_radix_str (radix_str_t *str) {
   IRRD_Delete_Node (str->ptr);
   Delete (str);
+}
+
+/* radix_flush
+ * Delete a radix tree. Called by database_clear
+ */
+void radix_flush (radix_tree_t *radix_tree) {
+  radix_node_t *node = NULL;
+  radix_str_t tmp;
+  LINKED_LIST *ll_nodes;
+
+  if (radix_tree == NULL)
+    return;
+
+  ll_nodes = LL_Create (LL_Intrusive, True,
+			LL_NextOffset, LL_Offset (&tmp, &tmp.next),
+			LL_PrevOffset, LL_Offset (&tmp, &tmp.prev),
+			LL_DestroyFunction, delete_radix_str,
+			0);
+
+  RADIX_WALK_ALL (radix_tree->head, node) {
+    LL_Add (ll_nodes, new_radix_str (node));
+  }
+  RADIX_WALK_END;
+
+  LL_Destroy (ll_nodes);
+  Delete (radix_tree);
 }
 
 /* prefix_tobitstring
@@ -673,71 +742,6 @@ void nice_time (long seconds, char *buf) {
 	     seconds / 3600, (seconds / 60) % 60, seconds % 60);
 
   return;
-}
-
-/* my_fgets
- * Read buffered I/O in large chunks (and fewer system calls)
- * then line-by-line fgets
- */
-char *my_fgets (irr_database_t *db, FILE *fd) {
-  char *cp, *start;
-  int n;
-  
-  /* first time -- initialize */
-  if (db->read_cur_ptr == NULL) {
-    db->read_buf = malloc (IRRD_FAST_BUF_SIZE + 2);
-    n = fread (db->read_buf, 1,IRRD_FAST_BUF_SIZE, fd);
-    db->read_cur_ptr = db->read_buf;
-    db->read_end_ptr = db->read_buf + n;
-    cp = db->read_cur_ptr;
-  }
-  /* another pass */
-  else {
-    cp = db->read_cur_ptr;
-    *cp = (char) db->last_char;
-  }
-
-  while (1) {
-    if ((cp < db->read_end_ptr) && (*cp == '\n')) {
-      cp++; /* advance end */
-      db->last_char = *cp; /* save off last character */
-      *cp = '\0'; /* null terminate */
-      start = db->read_cur_ptr;
-      db->read_cur_ptr = cp;
-      return (start);
-    }
-
-    /* 
-     * at end of buffer -- repopulate 
-     */
-    if (cp >= db->read_end_ptr) {
-      n = db->read_end_ptr- db->read_cur_ptr;
-
-      if (n < 0) {n = 0;}
-
-      memcpy (db->read_buf, db->read_cur_ptr, n);
-      db->read_cur_ptr = db->read_buf;
-      
-      cp = db->read_buf + n;
-      if ((n = IRRD_FAST_BUF_SIZE - (cp - db->read_buf)) > 0) {
-	n = fread (cp, 1, n, fd);
-	/*printf ("read %d\n", n);*/
-	if (n == 0) {return (NULL);}
-      }
-
-      /* check if eof */
-      db->read_end_ptr = cp + n;
-      db->read_cur_ptr = db->read_buf;
-      continue;
-    }
-
-    /*if (*cp == '\0') {
-      printf ("ZEWOOO \n");
-      exit (0);
-      }*/
-
-    cp++;
-  }
 }
 
 /* irr_sort_database  
@@ -822,9 +826,6 @@ void interactive_io (char *msg) {
 char *dir_chks (char *dir, int creat_dir) {
   char file[BUFSIZE+1];
   FILE *fp;
-
-  trace (NORM, default_trace, "JW: enter cachedir_chks () (%s) (%d)\n",
-	 ((dir == NULL) ? "NULL" : dir), creat_dir);
 
   /* Sanity checks */
   if (dir == NULL)

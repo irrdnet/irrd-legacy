@@ -1,5 +1,5 @@
 /*
- * $Id: commands.c,v 1.36 2001/08/07 17:09:55 ljb Exp $
+ * $Id: commands.c,v 1.37 2002/02/04 20:53:55 ljb Exp $
  * originally Id: commands.c,v 1.101 1998/08/07 00:13:37 gerald Exp 
  */
 
@@ -24,7 +24,6 @@
 
 extern trace_t *default_trace;
 extern char *obj_template[];
-char *p;
 
 /* m_info [] uses 'enum IRR_OBJECTS' in scan.h as the second
  * field in the struct.  This means changes to m_info []
@@ -74,8 +73,6 @@ m_command_t m_info [] = {
 */
 };
 
-char *no_support_msg = "\n%% Command is disabled, object update abort!\n\n";
-
 /* Handler routines for IRR lookups
  * the show_xxx functions are human readable UII commands
  * the irr_xxx are used by the RAWhoisd machine telnet interface
@@ -101,23 +98,20 @@ void irr_community (irr_connection_t *irr, char *name);
 void irr_journal_range (irr_connection_t *irr, char *db);
 void irr_journal_add_answer (irr_connection_t *irr);
 
-/* globals */
-int begin_line, line_cont;
-char ue_test[10];
-
 /* irr_process_command
  * read/parse the !command and call the appropriate handler
  */
 void irr_process_command (irr_connection_t * irr) {
-  char tmp[BUFSIZE+1];
+  char tmp[BUFSIZE];
+  char *return_str = NULL;
   int update_done = 0, i;
   int n_updates;
   int tmp_fd;
   
   if (irr->state == IRR_MODE_LOAD_UPDATE) {
-    begin_line = !line_cont;
+    irr->begin_line = !irr->line_cont;
     i = strlen (irr->cp);
-    line_cont = (*(irr->cp + i - 1) != '\n');
+    irr->line_cont = (*(irr->cp + i - 1) != '\n');
     
     /* This section of code requires a bit of explanation.  The 
      * irr_read_command () function in telnet.c uses a fixed 
@@ -131,41 +125,41 @@ void irr_process_command (irr_connection_t * irr) {
      * will send lines terminate by a "\n" unless the line fills the 
      * buffer.  This simplifies the processing of the code below.
      */
-    if (begin_line) {
-      ue_test[0] = '\0';
-      if (line_cont) {
+    if (irr->begin_line) {
+      irr->ue_test[0] = '\0';
+      if (irr->line_cont) {
 	if (i < 4) {
-	  strcpy (ue_test, irr->cp);
+	  strcpy (irr->ue_test, irr->cp);
 	  return;
 	}
       }
       else if (!strncasecmp (irr->cp, "!ue", 3))
 	update_done = 1;
     }
-    else if (line_cont == 0 && i < 4) {
-      i = strlen (ue_test);
-      strcat (ue_test, irr->cp);
-      if (!strncasecmp (ue_test, "!ue", 3))
+    else if (!irr->line_cont && i < 4) {
+      i = strlen (irr->ue_test);
+      strcat (irr->ue_test, irr->cp);
+      if (!strncasecmp (irr->ue_test, "!ue", 3))
 	update_done = 1;
-      ue_test[i] = '\0';
+      irr->ue_test[i] = '\0';
     }
     
     if (update_done) {
       
       trace (NORM, default_trace, "enter update done\n");
       
-      fwrite ("\n%END\n", 1, 6, irr->update_fd);
+      fwrite ("\n%END\n", 1, 6, irr->update_fp);
       irr->state = 0;
-      irr_lock (irr->database);
+      irr_update_lock (irr->database);
       
       /* rewind */
-      if (fseek (irr->update_fd, 0L, SEEK_SET) < 0) {
+      if (fseek (irr->update_fp, 0L, SEEK_SET) < 0) {
 	trace (ERROR, default_trace, "IRRd ERROR: !ue file rewind positioning"
 	       " error.\n");
-	irr_unlock (irr->database);
+	irr_update_unlock (irr->database);
 	irr_send_error (irr, "IRRd ERROR: Transaction aborted!  "
 			"!ue file rewind positioning error.");
-	fclose (irr->update_fd);
+	fclose (irr->update_fp);
 	unlink (irr->update_file_name);
 	return;
       }
@@ -174,15 +168,15 @@ void irr_process_command (irr_connection_t * irr) {
       if (atomic_trans) {
 	/* build the transaction file which can be used to 
 	 * restore the DB to it's original state before the transaction */
-	if ((p = build_transaction_file (irr->database, irr->update_fd, 
+	if ((return_str = build_transaction_file (irr->database, irr->update_fp, 
 					 irr->update_file_name, tmp, 
 					 &n_updates)) != NULL) {
 	  trace (ERROR, default_trace, "Could not create transaction files: "
-		 "%s\n", p);
-	  irr_unlock (irr->database);
+		 "%s\n", return_str);
+	  irr_update_unlock (irr->database);
 	  irr_send_error (irr, "IRRd ERROR: Transaction aborted!  "
 			  "Could not build transaction files.");
-	  fclose (irr->update_fd);
+	  fclose (irr->update_fp);
 	  unlink (irr->update_file_name);
 	  return;
 	}
@@ -190,13 +184,13 @@ void irr_process_command (irr_connection_t * irr) {
       
       /* update the DB */
       trace (NORM, default_trace, "call scan_irr_file ()\n");
-      p = scan_irr_file (irr->database, "update", 1, irr->update_fd);
+      return_str = scan_irr_file (irr->database, "update", 1, irr->update_fp);
       trace (NORM, default_trace, "after scan_irr_file ()\n");
 
       /* rollback the DB to it's original state if the transaction
        * could not be applied successfully in it's entirety */
       if (atomic_trans) {
-	if (p != NULL) {
+	if (return_str != NULL) {
 	  /* restore the DB to it's original state 
 	   * then rebuild the indexes */
 	  db_rollback (irr->database, tmp);
@@ -208,47 +202,51 @@ void irr_process_command (irr_connection_t * irr) {
 	 * rpsdist will manage the journal in the other case */
 	else if (((irr->database->flags & IRR_AUTHORITATIVE) ||
 		 irr->database->mirror_prefix != NULL)            &&
-		 !update_journal (irr->update_fd, irr->database, n_updates)) {
+		 !update_journal (irr->update_fp, irr->database, n_updates)) {
 	  trace (ERROR, default_trace, "error in updating journal for DB (%s) "
 		 "rolling back transaction\n", irr->database->name);
 	  db_rollback (irr->database, tmp);
 	  journal_rollback (irr->database, tmp);
-	  p = "Transaction abort!  Internal journaling error.";
+	  return_str = "Transaction abort!  Internal journaling error.";
 	}
 
 	/* remove the transaction file */
 	remove (tmp);
       }
       
-      fclose (irr->update_fd);
-      irr_unlock (irr->database);
+      fclose (irr->update_fp);
+      irr_update_unlock (irr->database);
       
-      trace (NORM, default_trace, "send client response...)\n");
-      
+      trace (NORM, default_trace, "sending client response...\n");
       /* Send the client the transaction result */
-      if (p == NULL) {
+      if (return_str == NULL) {
 	irr_send_okay(irr);
 	irr->database->last_update = time (NULL);
       }
       else
-	irr_send_error (irr, p);
-      trace (NORM, default_trace, "bye-bye update...)\n");
+	irr_send_error (irr, return_str);
       
       /* remove the update file */
       remove (irr->update_file_name);
     }
     else { /* save the update to file */
-      if (ue_test[0] != '\0') {
-	fwrite (ue_test, 1, strlen (ue_test), irr->update_fd);
-	ue_test[0] = '\0';
+      if (irr->ue_test[0] != '\0') {
+	fwrite (irr->ue_test, 1, strlen (irr->ue_test), irr->update_fp);
+	irr->ue_test[0] = '\0';
       }
-      fwrite (irr->cp, 1, strlen (irr->cp), irr->update_fd);
+      fwrite (irr->cp, 1, strlen (irr->cp), irr->update_fp);
     }
     
     return;
   }
   
   trace (NORM, default_trace, "Command: %s\n", irr->cp);
+
+  if ( strlen(irr->cp) > IRR_MAXCMDLEN ) {
+      trace (NORM, default_trace, "ERROR -- query exceeds max length\n",irr->cp);
+      irr_send_error (irr, "Command/Query exceeds max length!");
+      return;
+  }
   
   if (irr->stay_open == 0 && 
       (!strncmp (irr->cp, "!!", 2) ||
@@ -339,7 +337,7 @@ void irr_process_command (irr_connection_t * irr) {
       return;
     }
     
-    if ((irr->update_fd = fdopen (tmp_fd, "r+")) == NULL) {
+    if ((irr->update_fp = fdopen (tmp_fd, "r+")) == NULL) {
       /* open up the temp update file */
       snprintf (tmp, BUFSIZE, "IRRd error: initial !us file fdopen () error:"
 		" %s\n", strerror (errno));
@@ -348,14 +346,12 @@ void irr_process_command (irr_connection_t * irr) {
       return;
     }
     
-    line_cont = 0;
-    ue_test[0] = '\0';
+    irr->line_cont = 0;
+    irr->ue_test[0] = '\0';
     irr->state = IRR_MODE_LOAD_UPDATE;
     irr_send_okay (irr);
     return;
   }
-  
-  
   
   /* withdrawn routes global flag */
   /* =1 -> show withdrawns's; =0 -> don't show */
@@ -394,7 +390,6 @@ void irr_process_command (irr_connection_t * irr) {
     return;
   }
   
-  
   /* long or short fields global flag */
   /* =1 -> short fields (fast!); =0 -> long fields (default)*/
   /* this will go away in rpsl because short fields are not used */
@@ -415,8 +410,6 @@ void irr_process_command (irr_connection_t * irr) {
     
     return;
   }
-  
-  
   
   /* set timeout, !t<seconds> (for programs like Roe, Aoe, etc */
   if (!strncasecmp (irr->cp, "!t", 2)) {
@@ -645,7 +638,7 @@ void irr_process_command (irr_connection_t * irr) {
   
   /* error -- command unrecognized */
   sprintf (tmp, "F\n");
-  irr_write_nobuffer (irr, irr->sockfd, tmp, strlen (tmp));
+  irr_write_nobuffer (irr, tmp, strlen (tmp));
   
 }
 
@@ -675,12 +668,12 @@ void irr_m_command (irr_connection_t *irr) {
   if (found) {
     send_dbobjs_answer (irr, DISK_INDEX, DB_OBJ, RAWHOISD_MODE);
     irr_unlock_all (irr);
-    irr_write_buffer_flush (irr, irr->sockfd);
+    irr_write_buffer_flush (irr);
     LL_Destroy (irr->ll_answer);
   }
   else  {
     sprintf (tmp, "F\n");
-    irr_write_nobuffer (irr, irr->sockfd, tmp, strlen (tmp));
+    irr_write_nobuffer (irr, tmp, strlen (tmp));
   }
 
   return;
@@ -702,7 +695,7 @@ void irr_ripewhois (irr_connection_t *irr, char * key) {
   
   if (irr->ripe_flags & TEMPLATE) {
     if (irr->ripe_type >= 0 && irr->ripe_type < IRR_MAX_KEYS)
-      irr_write_nobuffer (irr, irr->sockfd, obj_template[irr->ripe_type], 
+      irr_write_nobuffer (irr, obj_template[irr->ripe_type], 
 						 strlen (obj_template[irr->ripe_type]));
       return;
   }
@@ -752,7 +745,7 @@ void irr_ripewhois (irr_connection_t *irr, char * key) {
 
   send_dbobjs_answer (irr, DISK_INDEX, DB_OBJ, RIPEWHOIS_MODE);
   irr_unlock_all (irr);
-  irr_write_buffer_flush (irr, irr->sockfd);
+  irr_write_buffer_flush (irr);
 
   LL_Destroy (irr->ll_answer);
 }
@@ -792,7 +785,7 @@ void show_hash_spec_answer (irr_connection_t *irr, char *key) {
 
     if ((hash_item = fetch_hash_spec (db, key, FAST)) != NULL) {
 
-      irr_build_answer (irr, db->fd, NO_FIELD, 0, 
+      irr_build_answer (irr, db->db_fp, NO_FIELD, 0, 
 			hash_item->len1, hash_item->gas_answer, RIPE181);
       /* JW: later put into a ll and destroy after showing answer 
        * Delete_hash_spec (hash_item);
@@ -808,7 +801,7 @@ void show_hash_spec_answer (irr_connection_t *irr, char *key) {
     irr_build_answer (irr, NULL, NO_FIELD, 0, 1, "\n", RIPE181);
   send_dbobjs_answer (irr, MEM_INDEX, PRECOMP_OBJ, RAWHOISD_MODE);
   irr_unlock_all (irr);
-  irr_write_buffer_flush (irr, irr->sockfd);
+  irr_write_buffer_flush (irr);
   LL_Destroy (irr->ll_answer);
   LL_Destroy (ll);
 } /* new_irr_origin() */
@@ -837,13 +830,7 @@ void irr_less_all (irr_connection_t *irr, prefix_t *prefix,
   LL_ContIterate (irr->ll_database, database) {
     route_found = 0;
 
-    if (IRR.use_disk == 1) {
-      if (tmp_prefix != NULL)
-	Delete_Prefix (tmp_prefix);
-      tmp_prefix = copy_prefix (prefix);
-    }
-    else
-      tmp_prefix = prefix;
+    tmp_prefix = prefix;
 
     /* first check if this node exists */
     if ((node = route_search_exact (database, database->radix, prefix)) != NULL) {
@@ -853,14 +840,13 @@ void irr_less_all (irr_connection_t *irr, prefix_t *prefix,
 	    irr->withdrawn == 1    || 
 	    rt_object->withdrawn == 0) {
 	  if (mode == RAWHOISD_MODE && irr->full_obj == 0)
-	    irr_build_key_answer (irr, database->fd, database->name, ROUTE, 
+	    irr_build_key_answer (irr, database->db_fp, database->name, ROUTE, 
 				  rt_object->offset, rt_object->origin);
 	  else
-	    irr_build_answer (irr, database->fd, ROUTE, rt_object->offset, 
+	    irr_build_answer (irr, database->db_fp, ROUTE, rt_object->offset, 
 			      rt_object->len, NULL, database->db_syntax);
 	}
       }
-      if (IRR.use_disk == 1) IRRD_Delete_Node (node);
     }
 
     /* now check all less specific */
@@ -868,13 +854,7 @@ void irr_less_all (irr_connection_t *irr, prefix_t *prefix,
 	   (node = route_search_best (database, database->radix, 
 				      tmp_prefix)) != NULL) {
       if (node != NULL) { 
-	if (IRR.use_disk == 1) {
-	  if (tmp_prefix != NULL)
-	    Delete_Prefix (tmp_prefix);
-	  tmp_prefix = copy_prefix (node->prefix);
-	}
-	else
-	  tmp_prefix = node->prefix;
+	tmp_prefix = node->prefix;
 
 	ll_attr = (LINKED_LIST *) node->data;
 	LL_Iterate (ll_attr, rt_object) {
@@ -883,18 +863,13 @@ void irr_less_all (irr_connection_t *irr, prefix_t *prefix,
 	      rt_object->withdrawn == 0) {
 	    route_found = 1;
 	    if (mode == RAWHOISD_MODE && irr->full_obj == 0)
-	      irr_build_key_answer (irr, database->fd, database->name, ROUTE, 
+	      irr_build_key_answer (irr, database->db_fp, database->name, ROUTE, 
 				    rt_object->offset, rt_object->origin);
 	    else {
-	      irr_build_answer (irr, database->fd, ROUTE, rt_object->offset, 
+	      irr_build_answer (irr, database->db_fp, ROUTE, rt_object->offset, 
 				rt_object->len, NULL, database->db_syntax);
             }
 	  }
-	}
-
-	if (IRR.use_disk == 1) {
-	  IRRD_Delete_Node (node);
-	  node = NULL;
 	}
       }
       /* break out after one loop for "l" case */
@@ -902,12 +877,6 @@ void irr_less_all (irr_connection_t *irr, prefix_t *prefix,
     }
   }
   
-  /* a little cleanup */
-  if ((IRR.use_disk == 1) && (tmp_prefix != NULL))
-    Delete_Prefix (tmp_prefix);
-  if ((IRR.use_disk == 1) && (node != NULL))
-    IRRD_Delete_Node (node);
-
   if (mode == RAWHOISD_MODE) {
     if (irr->full_obj == 0) {
       send_dbobjs_answer (irr, MEM_INDEX, PRECOMP_OBJ, RAWHOISD_MODE);
@@ -918,7 +887,7 @@ void irr_less_all (irr_connection_t *irr, prefix_t *prefix,
     else
       send_dbobjs_answer (irr, DISK_INDEX, DB_OBJ, RAWHOISD_MODE);
     irr_unlock_all (irr);
-    irr_write_buffer_flush (irr, irr->sockfd);
+    irr_write_buffer_flush (irr);
     LL_Destroy(irr->ll_answer);
   }
 }
@@ -931,15 +900,9 @@ void irr_more_all (irr_connection_t *irr, prefix_t *prefix, int mode) {
   irr_route_object_t *rt_object;
   irr_answer_t *irr_answer;
   irr_database_t *database;
-
   
-  if (IRR.use_disk == 1) {
-    irr_send_error (irr, "This command only support in memory-only mode");
-    return;
-  }
-
-  if (prefix->bitlen < 20) {
-    irr_send_error (irr, "We only allow more searches > /20");
+  if (prefix->bitlen < 16) {
+    irr_send_error (irr, "We only allow more searches >= /16");
     return;
   }
 
@@ -953,14 +916,6 @@ void irr_more_all (irr_connection_t *irr, prefix_t *prefix, int mode) {
     last_node = NULL;
     start_node = NULL;
     node = NULL;    
-
-    /* do the search on disk */
-    if (IRR.use_disk == 1) {
-      /* this doesn't really work yet... */
-      /*route_search_more_specific (irr, database, prefix);*/
-      continue;
-    }
-    /* ----  end disk search  ----- */
 
     /* memory  -- find the prefix, or the best large node */
     start_node = radix_search_exact_raw (database->radix, prefix);
@@ -976,10 +931,10 @@ void irr_more_all (irr_connection_t *irr, prefix_t *prefix, int mode) {
 	  LL_Iterate (ll_attr, rt_object) {
 	    if ((irr->withdrawn == 1) || (rt_object->withdrawn == 0)) {
 	      if (irr->full_obj == 0)
-		irr_build_key_answer (irr, database->fd, database->name, ROUTE, 
+		irr_build_key_answer (irr, database->db_fp, database->name, ROUTE, 
 				      rt_object->offset, rt_object->origin);
 	      else
-		irr_build_answer (irr, database->fd, ROUTE, rt_object->offset, 
+		irr_build_answer (irr, database->db_fp, ROUTE, rt_object->offset, 
 				  rt_object->len, NULL, database->db_syntax);
 	    }
 	  }
@@ -999,7 +954,7 @@ void irr_more_all (irr_connection_t *irr, prefix_t *prefix, int mode) {
     else
       send_dbobjs_answer (irr, DISK_INDEX, DB_OBJ, RAWHOISD_MODE);
     irr_unlock_all (irr);
-    irr_write_buffer_flush (irr, irr->sockfd);
+    irr_write_buffer_flush (irr);
     LL_Destroy(irr->ll_answer);
   }
 
@@ -1045,24 +1000,16 @@ void irr_exact (irr_connection_t *irr, prefix_t *prefix, int flag) {
 	  }
 	  else {
 	    if (irr->full_obj == 1)
-	      irr_build_answer (irr, database->fd, ROUTE, rt_object->offset, 
+	      irr_build_answer (irr, database->db_fp, ROUTE, rt_object->offset, 
 				rt_object->len, NULL, database->db_syntax);
 	    else 
-	      irr_build_key_answer (irr, database->fd, database->name, ROUTE, 
+	      irr_build_key_answer (irr, database->db_fp, database->name, ROUTE, 
 				    rt_object->offset, rt_object->origin);
 	  }
 	}
       }
-      if (IRR.use_disk == 1) {
-	IRRD_Delete_Node (node);
-	node = NULL;
-      }
     }
   }
-  
-  /* cleanup */
-  if ((IRR.use_disk == 1) && (node != NULL)) 
-    IRRD_Delete_Node (node);
   
   if (flag == SHOW_JUST_ORIGIN) {
     if (irr->full_obj == 1 && strlen (buffer) > 0)
@@ -1081,7 +1028,7 @@ void irr_exact (irr_connection_t *irr, prefix_t *prefix, int flag) {
   }   
 
   irr_unlock_all (irr);
-  irr_write_buffer_flush (irr, irr->sockfd);
+  irr_write_buffer_flush (irr);
   if (flag == SHOW_FULL_OBJECT)
     LL_Destroy(irr->ll_answer);
 }
@@ -1167,7 +1114,7 @@ int irr_set_sources (irr_connection_t *irr, char *sources, int mode) {
       irr_send_okay (irr);
   }
   else if (buf[0] != '\0') /* in RIPEWHOIS_MODE and errors, tell user */
-    irr_write_nobuffer (irr, irr->sockfd, buf, strlen (buf));
+    irr_write_nobuffer (irr, buf, strlen (buf));
 
   return (ret_code);
 }
@@ -1212,7 +1159,7 @@ int irr_set_ALL_sources (irr_connection_t *irr, int mode) {
       irr_send_okay (irr);
   }
   else if (buf[0] != '\0')  /* in RIPEWHOIS_MODE and errors, tell user */
-      irr_write_nobuffer (irr, irr->sockfd, buf, strlen (buf));
+      irr_write_nobuffer (irr, buf, strlen (buf));
 
   return (ret_code);
 }

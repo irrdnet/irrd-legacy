@@ -1,5 +1,5 @@
 #
-# $Id: Make.include.in,v 1.6 2001/10/18 17:22:45 ljb Exp $
+# $Id: Make.include.in,v 1.7 2001/12/03 20:07:33 ljb Exp $
 #
 
 .c.o:
@@ -14,7 +14,6 @@ HOST_OS =	@HOST_OS@
 
 EXTRA_LIBS=	@EXTRA_LIBS@
 THREADLIBS=	@THREADLIBS@
-DB_LIB=		@DB_LIB@
 
 IRRD_OPS_LIBS=  @IRRD_OPS_LIBS@
 CRYPT_LIB=      @CRYPT_LIB@

@@ -1,5 +1,5 @@
 /*
- * $Id: mirror.c,v 1.7 2001/07/13 19:15:41 ljb Exp $
+ * $Id: mirror.c,v 1.8 2002/02/04 20:53:56 ljb Exp $
  * originally Id: mirror.c,v 1.26 1998/08/03 21:55:23 gerald Exp 
  */
 
@@ -18,17 +18,11 @@
 extern trace_t *default_trace;
 
 static int mirror_read_data ();
-int dump_serial_updates (int sockfd, char * dbname, int journal_ext, 
+int dump_serial_updates (irr_connection_t *irr, char * dbname, int journal_ext, 
 			 u_long from, u_long to);
-int socket_send_updates (char *file, int sockfd, FILE *fd, u_long curr_serial, 
+int build_update (char *file, irr_connection_t *irr, FILE *fp, u_long curr_serial, 
 			 u_long to);
-int valid_start_line (irr_database_t *db, FILE *fd, u_long *serial_num);
-int parse_mirror_request_line (irr_connection_t *irr,
-							   int sockfd, char *command, irr_database_t **database, 
-								u_long *currserial, u_long *from, u_long *to);
-int range_errors (irr_connection_t *irr,
-				  int sockfd, u_long oldestserial, u_long currentserial, 
-				  u_long from, u_long to);
+int valid_start_line (irr_database_t *db, FILE *fp, u_long *serial_num);
 
 int request_mirror (irr_database_t *db, uii_connection_t *uii, int last) {
   char tmp[BUFSIZE], name[BUFSIZE], logfile[BUFSIZE];
@@ -36,10 +30,10 @@ int request_mirror (irr_database_t *db, uii_connection_t *uii, int last) {
   fd_set		write_fds;
   int			n, i, ret;
 
-  if ((db->fd == (void *) -1) || (db->fd == (void*) -11)) {
+  if (db->db_fp == NULL) {
     trace (NORM, default_trace, 
-	   "Aborting mirror -- we don't have a valid database socket for %s (%d)\n",
-	   db->name, db->fd);
+	   "Aborting mirror -- we don't have an open file pointer for %s\n",
+	   db->name);
     return (-1);
   }
 
@@ -52,9 +46,6 @@ int request_mirror (irr_database_t *db, uii_connection_t *uii, int last) {
   }
 
   db->mirror_error_message[0] = '\0';
-
-  /* we might be processing the mirror results, lock to make sure */
-  /*irr_lock (db);*/
 
   /* 
    * Check if already mirroring. 
@@ -73,8 +64,8 @@ int request_mirror (irr_database_t *db, uii_connection_t *uii, int last) {
 	   db->name);
     strcpy (db->mirror_error_message, "Mirroring timed out...");
     select_delete_fd (db->mirror_fd);
-    fclose (db->mirror_disk_fd);
-    db->mirror_disk_fd = NULL;
+    fclose (db->mirror_disk_fp);
+    db->mirror_disk_fp = NULL;
     db->mirror_fd = -1;
     return (-1);
   }
@@ -115,7 +106,7 @@ int request_mirror (irr_database_t *db, uii_connection_t *uii, int last) {
   sprintf (logfile, "%s/.%s.mirror", IRR.database_dir, db->name);
   trace (NORM, default_trace, " (%s) Saving updates to %s\n", 
          db->name, logfile);
-  if ((db->mirror_disk_fd = fopen (logfile, "w+")) == NULL) {
+  if ((db->mirror_disk_fp = fopen (logfile, "w+")) == NULL) {
     trace (NORM, default_trace, " (%s) Error opening %s (%s)\n",
            db->name, logfile, strerror (errno));
     close (db->mirror_fd);
@@ -135,7 +126,7 @@ int request_mirror (irr_database_t *db, uii_connection_t *uii, int last) {
     trace (NORM, default_trace, " (%s) Error writing request (timeout) to %s:%d\n", 
 	   db->name, prefix_toa (db->mirror_prefix), db->mirror_port);
     close (db->mirror_fd);
-    fclose (db->mirror_disk_fd); /* and delete tmp file??? */
+    fclose (db->mirror_disk_fp); /* and delete tmp file??? */
     db->mirror_fd = -1;	   
     return 0;
   }
@@ -145,7 +136,7 @@ int request_mirror (irr_database_t *db, uii_connection_t *uii, int last) {
     trace (NORM, default_trace, " (%s) Error writing request (write failed) to %s:%d\n", 
 	   db->name, prefix_toa (db->mirror_prefix), db->mirror_port);
     close (db->mirror_fd);
-    fclose (db->mirror_disk_fd); /* and delete tmp file??? */
+    fclose (db->mirror_disk_fp); /* and delete tmp file??? */
     db->mirror_fd = -1;	   
     return 0;
   }
@@ -167,7 +158,6 @@ int request_mirror (irr_database_t *db, uii_connection_t *uii, int last) {
   select_add_fd (db->mirror_fd, SELECT_READ, (void_fn_t) mirror_read_data, db);
   return (1);
 }
-
 
 static int mirror_read_data (irr_database_t *database) {
   struct timeval	tv;
@@ -192,9 +182,9 @@ static int mirror_read_data (irr_database_t *database) {
     if ((n = read (database->mirror_fd, tmp, MIRROR_BUFFER)) <= 0) break;
 
     database->mirror_update_size += n;
-    if (fwrite (tmp, 1, n, database->mirror_disk_fd) != n) {
+    if (fwrite (tmp, 1, n, database->mirror_disk_fp) != n) {
       trace (NORM, default_trace, " (%s) Mirroring Error: Failed on writing mirroring data to disk.\n", database->name);
-      fclose (database->mirror_disk_fd);
+      fclose (database->mirror_disk_fp);
       select_delete_fd (database->mirror_fd);
       database->mirror_fd = -1;
 
@@ -206,47 +196,30 @@ static int mirror_read_data (irr_database_t *database) {
   trace (NORM, default_trace, " (%s) Read %d bytes\n", 
          database->name, database->mirror_update_size);
 
-  /* reset fast buffer stuff 
-  database->read_cur_ptr = database->read_buf;
-  database->read_end_ptr = database->read_buf + IRRD_FAST_BUF_SIZE;
-  */
-
   if ((valid_start_line_ret = valid_start_line (database,
-       database->mirror_disk_fd, 
+       database->mirror_disk_fp, 
        &database->new_serial_number)) > 0) {
-    irr_lock (database);
-#if (defined(USE_GDBM))
-    dbm_fast (database);
-#endif
+    irr_update_lock (database);
 
-    if (scan_irr_file (database, "mirror", 2, database->mirror_disk_fd) != NULL) {
+    if (scan_irr_file (database, "mirror", 2, database->mirror_disk_fp) != NULL) {
       trace (NORM, default_trace, 
 	     " (%s) Mirroring Error: Serial number unchanged: %d\n",
 	     database->name, database->serial_number);
-      irr_unlock (database);
-      fclose (database->mirror_disk_fd);
-#if (defined(USE_GDBM))
-      dbm_slow (database);
-#endif
+      irr_update_unlock (database);
+      fclose (database->mirror_disk_fp);
       select_delete_fd (database->mirror_fd);
       database->mirror_fd = -1;
-#if (defined(USE_GDBM))
-      dbm_slow (database);
-#endif
       return (-1);
     }
     
     select_delete_fd (database->mirror_fd);
     database->mirror_fd = -1;
-#if (defined(USE_GDBM))
-    dbm_slow (database);
-#endif
     database->mirror_error_message[0] = '\0';
     trace (NORM, default_trace, 
 	   " (%s) Serial number now %d, Mirroring header said: %d\n", 
 	   database->name, database->serial_number, database->new_serial_number);
     
-    irr_unlock (database);
+    irr_update_unlock (database);
     database->last_mirrored = time (NULL);
 
     trace (NORM, default_trace, " (%s) Route Objects    %4d changed, %4d deleted\n",
@@ -265,8 +238,7 @@ static int mirror_read_data (irr_database_t *database) {
      select_delete_fd (database->mirror_fd);
      database->mirror_fd = -1;
   }
-  
-  fclose (database->mirror_disk_fd);
+  fclose (database->mirror_disk_fp);
   
   return (1);
 }
@@ -282,15 +254,15 @@ static int mirror_read_data (irr_database_t *database) {
  *
  */
 
-int valid_start_line (irr_database_t *database, FILE *fd, u_long *serial_num) {
+int valid_start_line (irr_database_t *database, FILE *fp, u_long *serial_num) {
   char buffer[BUFSIZE], *cp, *last;
   enum STATES state = BLANK_LINE, save_state;
   int  ret = -1;
 
-  fseek (fd, 0L, SEEK_SET);
+  fseek (fp, 0L, SEEK_SET);
 
   while (state != DB_EOF) {
-    cp = fgets (buffer, sizeof (buffer) - 1, fd);
+    cp = fgets (buffer, sizeof (buffer) - 1, fp);
 
     state = get_state (buffer, cp, state, &save_state);
     /* dump comment lines and lines that exceed the buffer size */
@@ -402,7 +374,6 @@ void irr_mirror_timer (mtimer_t *timer, irr_database_t *db) {
   request_mirror (db, NULL, 0);
 }
 
-
 int irr_service_mirror_request (irr_connection_t *irr, char *command) {
   char buffer[BUFSIZE];
   irr_database_t *database;
@@ -410,23 +381,68 @@ int irr_service_mirror_request (irr_connection_t *irr, char *command) {
   u_long from, to;
   int old_journal_exists, new_journal_exists;
   int ret_code = 1;
-  fd_set write_fds;
-  struct timeval  tv;
-
-  FD_ZERO(&write_fds);
-  FD_SET(irr->sockfd, &write_fds);
-  tv.tv_sec = 2;
-  tv.tv_usec = 0;
+  char name[BUFSIZE], buffer1[BUFSIZE];
 
   /* Parse a valid -g mirror request line and set request "from" - "to" */
-  if (parse_mirror_request_line (irr, irr->sockfd, command, &database, 
-                                 &currentserial, &from, &to) < 0)
+  if (sscanf (command, " %[^:]:1:%[^-]-%s", name, buffer1, buffer) != 3) {
+    sprintf (buffer, "\n\n\n%% ERROR: syntax error in -g command: (%s)\n", command);
+    irr_write_nobuffer (irr, buffer, strlen (buffer));
     return (-1);
+  }
+  else {
+    if (convert_to_lu (buffer1, &from) < 0) {
+      sprintf (buffer, "\n\n\n%% ERROR: syntax error in 'from' value (%s)\n", buffer1);
+      irr_write_nobuffer (irr, buffer, strlen (buffer));
+      return (-1);
+    }
+    if (strncasecmp (buffer, "LAST", 4) != 0 && 
+        convert_to_lu (buffer, &to) < 0) {
+      sprintf (buffer1, "\n\n\n%% ERROR: syntax error in 'to' value (%s)\n", buffer);
+      irr_write_nobuffer (irr, buffer1, strlen (buffer1));
+      return (-1);
+    }
+  }
+  
+  /* See if the db name is one we know about and is mirrored */
+  if ((database = find_database (name)) == NULL) {
+    sprintf (buffer, "\n\n\n%% ERROR: Unknown db (%s) in mirror request\n", name);
+    irr_write_nobuffer (irr, buffer, strlen (buffer));
+    return (-1);
+  }
+  else if (database->mirror_prefix == NULL &&
+	   !(database->flags & IRR_AUTHORITATIVE)) {
+    sprintf (buffer, "\n\n\n%% ERROR: Database (%s) is a non-mirrored db!\n", database->name);
+    irr_write_nobuffer (irr, buffer, strlen (buffer));
+    return (-1);
+  }
+  
+  if (get_current_serial (name, &currentserial) < 0) {
+    if (database->db_syntax != EMPTY_DB) {
+      sprintf (buffer, "\n\n\n%% ERROR: (%s).CURRENTSERIAL file missing or corrupted!\n", name);
+      irr_write_nobuffer (irr, buffer, strlen (buffer));
+      return (-1);
+    }
+    /* DB is empty so there are no updates to mirror */
+    currentserial = 0;
+  }
 
+  if (currentserial == 0) {
+    sprintf (buffer, "\n\n\n%%Warning: No updates yet, journal file is empty!\n");
+    irr_write_nobuffer (irr, buffer, strlen (buffer));
+    return (-1);
+  }
+  
+  if (!strncasecmp (buffer, "LAST", 4)) {
+    to = currentserial;
+    if (from == (currentserial + 1)) {
+      sprintf (buffer, "\n\n\n%% Warning: there are no newer updates available!\n");
+      irr_write_nobuffer (irr, buffer, strlen (buffer));
+      return (-1);
+    }
+  }
 
   trace (NORM, default_trace, "Processing mirror request from %s for %s %d - %d\n",
 	 prefix_toa (irr->from), database->name, from, to);
-
 
   /* check acls */
   if (!apply_access_list (database->mirror_access_list, irr->from)) {
@@ -436,15 +452,18 @@ int irr_service_mirror_request (irr_connection_t *irr, char *command) {
     return (-1);
   }
 
+  irr_lock (database);  /* lock to build buffer with mirror data */
+
   /* find the oldest serial we have in *.JOURNAL.1 */
   old_journal_exists = find_oldest_serial (database->name, JOURNAL_OLD, &oldestserial);
 
   /* now find the first value in the *.JOURNAL file */
   if ((new_journal_exists = 
-       find_oldest_serial (database->name, JOURNAL_NEW, &first_in_new)) == 0) {
-      sprintf (buffer, "WARN: No serials to mirror yet or the first serial is corrupted!\n" );
-      irr_write_nobuffer (irr, irr->sockfd, buffer, strlen (buffer));
-      return (-1);
+      find_oldest_serial (database->name, JOURNAL_NEW, &first_in_new)) == 0) {
+    irr_unlock (database);
+    sprintf (buffer, "\n\n%% WARN: No serials to mirror yet or the first serial is corrupted!\n" );
+    irr_write_nobuffer (irr, buffer, strlen (buffer));
+    return (-1);
   }
 
   /* oldestserial is the first in *.JOURNAL if *.JOURNAL.1 doesn't exist */
@@ -452,44 +471,62 @@ int irr_service_mirror_request (irr_connection_t *irr, char *command) {
     oldestserial = first_in_new;
 
   /* check and see if there are any "from-to" range errors in the request */
-  if (range_errors (irr, irr->sockfd, oldestserial, currentserial, from, to) < 0)
+  if (from > to) {
+    irr_unlock (database);
+    sprintf (buffer, "\n\n%% ERROR: range error 'from > to' (%lu > %lu)\n", from, to);
+    irr_write_nobuffer (irr, buffer, strlen (buffer));
     return (-1);
+  }
+  
+  if (from < oldestserial) {
+    irr_unlock (database);
+    sprintf (buffer, "\n\n%% ERROR: serials (%lu - %lu) don't exist!\n", from, oldestserial - 1);
+    irr_write_nobuffer (irr, buffer, strlen (buffer));
+    return (-1);
+  }
+  
+  if (to > currentserial) {
+    irr_unlock (database);
+    sprintf (buffer, "\n\n%% ERROR: serials (%lu - %lu) don't exist!\n", currentserial + 1, to);
+    irr_write_nobuffer (irr, buffer, strlen (buffer));
+    return (-1);
+  }
 
-  /* okay, lets do it !*/
-  irr_lock (database);
+  if (old_journal_exists && from < first_in_new) {
+    ret_code = dump_serial_updates (irr, database->name, JOURNAL_OLD, from, to);
+  }
+
+  if (ret_code < 0) {
+    irr_unlock (database);
+    return (-1);
+  }
+  
+  if (to >= first_in_new) {
+    ret_code = dump_serial_updates (irr, database->name, JOURNAL_NEW, from, to);
+  }
+
+  if (ret_code < 0) {
+    irr_unlock (database);
+    return (-1);
+  }
+
+  irr_unlock (database);
 
   sprintf (buffer, "%%START Version: 1 %s %lu-%lu\n\n", database->name, from, to);
-  /*JW: I think we only need to set once 
-  FD_SET(irr->sockfd, &write_fds);
-  */
-  if (select (irr->sockfd + 1, 0, &write_fds, 0, &tv) < 1) {
-    trace (NORM, default_trace, "Write send %%START timed out during mirror\n");
-    irr_unlock (database);
+
+  irr_write_nobuffer(irr, buffer, strlen(buffer));
+
+  if (irr->scheduled_for_deletion) {
+    LL_Destroy (irr->ll_final_answer);
+    trace (NORM, default_trace, "Mirror send %%START error\n");
     return (-1);
   }
-  if (write (irr->sockfd, buffer, strlen (buffer)) < 0) {
-    trace (NORM, default_trace, "Mirror send %%START write error during mirror (%s)\n", strerror (errno));
-    irr_unlock (database);
-    return -1;
-  }
 
+  irr_write_buffer_flush(irr);  /* attempt to send our mirror data */
 
-  if (old_journal_exists && from < first_in_new)
-    ret_code = dump_serial_updates (irr->sockfd, database->name, 
-                                    JOURNAL_OLD, from, to);
-
-  if (ret_code < 0) {
-    irr_unlock (database);
-    return -1;
-  }
-
-  if (to >= first_in_new)
-    ret_code = dump_serial_updates (irr->sockfd, database->name, 
-                                    JOURNAL_NEW, from, to);
-
-  if (ret_code < 0) {
-    irr_unlock (database);
-    return -1;
+  if (irr->scheduled_for_deletion) {
+    trace (NORM, default_trace, "Mirror send DATA error\n");
+    return (-1);
   }
 
   sprintf (buffer, "%%END %s\n", database->name);
@@ -497,63 +534,48 @@ int irr_service_mirror_request (irr_connection_t *irr, char *command) {
    * in upper case
    */
   convert_toupper (buffer);
-  /*JW I think we only need to set once
-  FD_SET(irr->sockfd, &write_fds);
-  */
-  if (select (irr->sockfd + 1, 0, &write_fds, 0, &tv) < 1) {
-    trace (NORM, default_trace, "Write send %%END timed out during mirror\n");
-    irr_unlock (database);
+
+  irr_write_nobuffer(irr, buffer, strlen(buffer));
+
+  if (irr->scheduled_for_deletion) {
+    trace (NORM, default_trace, "Mirror send %%END error\n");
     return -1;
   }
-  if (write (irr->sockfd, buffer, strlen (buffer)) < 0) {
-      trace (NORM, default_trace, "Mirror send %%END write error during mirror (%s)\n", strerror (errno));
-      irr_unlock (database);
-      return -1;
-  }
-
-  irr_unlock (database);
   return (0);
 }
 
-int dump_serial_updates (int sockfd, char * dbname, int journal_ext, 
+int dump_serial_updates (irr_connection_t *irr, char * dbname, int journal_ext, 
 			 u_long from, u_long to) {
   char buf[BUFSIZE], file[BUFSIZE];
   u_long serial;
   int ret_code = 1;
-  FILE *journal_fd;
+  FILE *journal_fp;
 
   make_journal_name (dbname, journal_ext, file);
   
-  if ((journal_fd = fopen (file, "r")) == NULL) 
+  if ((journal_fp = fopen (file, "r")) == NULL) 
     return (-1);
 
   /* find the correct spot in the journal file, then pump the updates onto the socket */
-  while (fgets (buf, BUFSIZE - 1, journal_fd) != NULL) {
+  while (fgets (buf, BUFSIZE - 1, journal_fp) != NULL) {
     if (sscanf (buf, "%% SERIAL %lu", &serial) == 1) {
       if (serial >= from) {
-	ret_code = socket_send_updates (file, sockfd, journal_fd, serial, to);
+	ret_code = build_update (file, irr, journal_fp, serial, to);
 	break;
       }
     }
   }
-  fclose (journal_fd);
+  fclose (journal_fp);
 
   return ret_code;
 }
 
-int socket_send_updates (char *file, int sockfd, FILE *fd, u_long curr_serial, 
+int build_update (char *file, irr_connection_t *irr, FILE *fp, u_long curr_serial, 
 			 u_long to) {
   char buf[BUFSIZE];
   u_long chk_serial;
-  fd_set write_fds;
-  struct timeval  tv;
 
-  FD_ZERO(&write_fds);
-  FD_SET(sockfd, &write_fds);
-  tv.tv_sec = 2;
-  tv.tv_usec = 0;
-  
-  while ((fgets (buf, BUFSIZE - 1, fd) != NULL) &&
+  while ((fgets (buf, BUFSIZE - 1, fp) != NULL) &&
 	 (curr_serial <= to)) {
 
     if (sscanf (buf, "%% SERIAL %lu", &chk_serial) == 1) {
@@ -564,111 +586,7 @@ int socket_send_updates (char *file, int sockfd, FILE *fd, u_long curr_serial,
       continue;
     }
     
-    if (select (sockfd + 1, 0, &write_fds, 0, &tv) < 1) {
-      trace (NORM, default_trace, "Write timed out during mirror\n");
-      return (-1);
-    }
-    if (write (sockfd, buf, strlen (buf)) < 0) {
-      trace (NORM, default_trace, "Mirror send serial transaction write error %s \n", strerror (errno));
-      return -1;
-    }
+    irr_write (irr, buf, strlen (buf));
   }
-  
   return 1;
-}
-
-int parse_mirror_request_line (irr_connection_t *irr, int sockfd, 
-                               char *command, irr_database_t **database,
-			       u_long *currserial, u_long *from, u_long *to) {
-  char name[BUFSIZE], buffer[BUFSIZE], buffer1[BUFSIZE];
-  
-  if (sscanf (command, " %[^:]:1:%[^-]-%s", name, buffer1, buffer) != 3) {
-    sprintf (buffer, "\n\n\n%% ERROR: syntax error in -g command: (%s)\n", command);
-    irr_write_nobuffer (irr, sockfd, buffer, strlen (buffer));
-    return (-1);
-  }
-  else {
-    if (convert_to_lu (buffer1, from) < 0) {
-      sprintf (buffer, "\n\n\n%% ERROR: syntax error in 'from' value (%s)\n", buffer1);
-      irr_write_nobuffer (irr, sockfd, buffer, strlen (buffer));
-      return (-1);
-    }
-    if (strncasecmp (buffer, "LAST", 4) != 0 && 
-        convert_to_lu (buffer, to) < 0) {
-      sprintf (buffer1, "\n\n\n%% ERROR: syntax error in 'to' value (%s)\n", buffer);
-      irr_write_nobuffer (irr, sockfd, buffer1, strlen (buffer1));
-      return (-1);
-    }
-  }
-  
-  /* See if the db name is one we know about and is mirrored */
-  if ((*database = find_database (name)) == NULL) {
-    sprintf (buffer, "\n\n\n%% ERROR: Unknown db (%s) in mirror request\n", name);
-    irr_write_nobuffer (irr, sockfd, buffer, strlen (buffer));
-    return (-1);
-  }
-  else if ((*database)->mirror_prefix == NULL &&
-	   !((*database)->flags & IRR_AUTHORITATIVE)) {
-    sprintf (buffer, "\n\n\n%% ERROR: Database (%s) is a non-mirrored db!\n", (*database)->name);
-    irr_write_nobuffer (irr, sockfd, buffer, strlen (buffer));
-    return (-1);
-  }
-  
-  if (get_current_serial (name, currserial) < 0) {
-    if ((*database)->db_syntax != EMPTY_DB) {
-      sprintf (buffer, "\n\n\n%% ERROR: (%s).CURRENTSERIAL file missing or corrupted!\n", name);
-      irr_write_nobuffer (irr, sockfd, buffer, strlen (buffer));
-      return (-1);
-    }
-    /* DB is empty so there are no updates to mirror */
-    *currserial = 0;
-  }
-
-  if (*currserial == 0) {
-    sprintf (buffer, "\n\n\n%%Warning: No updates yet, journal file is empty!\n");
-    irr_write_nobuffer (irr, sockfd, buffer, strlen (buffer));
-    return (-1);
-  }
-  
-  if (!strncasecmp (buffer, "LAST", 4)) {
-    *to = *currserial;
-    if (*from == (*currserial + 1)) {
-      sprintf (buffer, "\n\n\n%% Warning: there are no newer updates available!\n");
-      irr_write_nobuffer (irr, sockfd, buffer, strlen (buffer));
-      return (-1);
-    }
-  }
-
-  return (1);
-}
-
-/*
- * return 1 if user request (ie, from-to) is "in range" (ie, contained
- * in oldestserial-currentserial)
- * otherwise return -1
- */
-int range_errors (irr_connection_t *irr, int sockfd, 
-                  u_long oldestserial, u_long currentserial,
-		  u_long from, u_long to) {
-  char buffer[BUFSIZE];
-  
-  if (from > to) {
-    sprintf (buffer, "\n\n\n%% ERROR: range error 'from > to' (%lu > %lu)\n", from, to);
-    irr_write_nobuffer (irr, sockfd, buffer, strlen (buffer));
-    return (-1);
-  }
-  
-  if (from < oldestserial) {
-    sprintf (buffer, "\n\n\n%% ERROR: serials (%lu - %lu) don't exist!\n", from, oldestserial - 1);
-    irr_write_nobuffer (irr, sockfd, buffer, strlen (buffer));
-    return (-1);
-  }
-  
-  if (to > currentserial) {
-    sprintf (buffer, "\n\n\n%% ERROR: serials (%lu - %lu) don't exist!\n", currentserial + 1, to);
-    irr_write_nobuffer (irr, sockfd, buffer, strlen (buffer));
-    return (-1);
-  }
-  
-  return (1);
 }
