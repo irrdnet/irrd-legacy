@@ -1,8 +1,10 @@
-/Make.include.in/1.5/Tue Aug 28 17:29:12 2001//
+/Make.include.in/1.6/Thu Oct 18 17:22:45 2001//
 /Makefile/1.2/Fri Jul 13 18:13:54 2001//
 /acconfig.h/1.4/Thu Aug  9 20:06:01 2001//
 /config.guess/1.1.1.1/Tue Feb 29 22:28:28 2000//
 /config.sub/1.1.1.1/Tue Feb 29 22:28:28 2000//
+/configure/1.20/Fri Sep 21 20:31:40 2001//
+/configure.in/1.19/Fri Sep 21 20:31:41 2001//
 /configure.in.orign/1.1.1.1/Tue Feb 29 22:28:29 2000//
 /dos2unix.pl/1.1.1.1/Tue Feb 29 22:28:29 2000//
 /install-sh/1.5/Wed Sep 27 00:02:36 2000//
@@ -10,5 +12,3 @@ D/WindowsVisualC++////
 D/include////
 D/lib////
 D/programs////
-/configure/1.20/Mon Sep 24 20:27:05 2001//
-/configure.in/1.19/Mon Sep 24 20:27:05 2001//

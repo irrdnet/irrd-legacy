@@ -1,3 +1,12 @@
+ Oct 18, 2001
+		   IRRd 2.1.3  Release notes
+
+  The 2.1.3 release fixes a compile problem on Solaris 8 with irr_check.
+  The release also now successfully compiles on systems without pgp/gpg
+  installed.  The default location for binaries is now the sbin directory.
+  A 3 second timeout for sending data on UII telnet connections was
+  too short in some cases, change to 30 seconds.
+
  Sep 24, 2001
 		   IRRd 2.1.2  Release notes
 

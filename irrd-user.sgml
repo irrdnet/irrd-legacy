@@ -24,6 +24,14 @@ User/Configuration Guide</title>
           fixes/additions for documentation on irr_rpsl_submit.
        </revremark>
    </revision>
+   <revision>
+     <revnumber>2.1.3</revnumber>
+       <date>2001-10-18</date>
+       <authorinitials>ljb</authorinitials>
+       <revremark>
+          default install location for binaries is now /usr/local/sbin
+       </revremark>
+   </revision>
 </revhistory>
 <copyright>
 <year>1997</year>
@@ -174,7 +182,7 @@ Now run make. After successful compilation, you will have binaries in each of th
 </literallayout></blockquote>
 </para></listitem>
 <listitem><para>
-Run make install. By default, binaries will be installed in /usr/local/bin. Use
+Run make install. By default, binaries will be installed in /usr/local/sbin. Use
 the --prefix option with configure to change the default install directory.
 <blockquote><literallayout>
 <prompt>% </prompt><userinput>su</userinput>
@@ -210,7 +218,7 @@ In addition, IRRd listens for user configuration/management telnet connections b
 The daemon may be configured by editing a configuration file, or by invoking the configuration utility from the interactive user telnet interface. The interactive interface features a Cisco System. Below is an example of telneting to the user interactive interface (UII) port on a machine running IRRd.</para>
 <blockquote><literallayout>
 	>telnet 127.0.0.1 irrd 
-	IRRd version 2.1.0 [09/13/2001]
+	IRRd version 2.1.3 [10/18/2001]
 	User Access Verification
 	foo password: *****
 	foo IRRd#
@@ -727,7 +735,7 @@ For a listing of configuration commands that control the behavior of the IRRd su
 <para>
 Many users will find it convenient to register irr_rpsl_submit in their Unix /etc/aliases file to allow convenient remote mail access.  Note that a link to irr_rpsl_submit in /etc/smrsh will be needed for those systems which employ the Sendmail restricted shell (i.e. RedHat Linux).  Also note that if PGP support is enabled, the irr_rspl_submit process will need to be able to read/write the PGP directory configured by pgp_dir.  This can be achieved by installing the irr_rpsl_submit process as set-uid to a particular ID and permit read/write access to the PGP directory from that ID.  Below is an example /etc/aliases entry for use with sendmail:</para>
 <para>
-<command>auto-dbm: "|/usr/local/bin/irr_rpsl_submit -f /etc/conf/irrd.conf"</command></para>
+<command>auto-dbm: "|/usr/local/sbin/irr_rpsl_submit -f /etc/conf/irrd.conf"</command></para>
 <para>
 The '-f' option gives the location of the IRRd configuration file. Any of the other flag options listed above can also be used.</para>
 <para>
@@ -757,13 +765,13 @@ pgp_dir &lt;your ~/.pgp path> ! example: /usr/users/joe/.pgp
 Execute IRRd.
 <blockquote><literallayout>
 (See Section 2 for instructions on building IRRd)
-   % /usr/local/bin/irrd -m
+   % /usr/local/sbin/irrd -m
 </literallayout></blockquote>
 </para></listitem>
 <listitem><para>
 To allow email submissions, add the following to /etc/aliases (also add a link to irr_rpsl_submit in /etc/smrsh if using the Sendmail restricted shell and verify that the pgp_dir is permitted to allow read/write access to the process):
 <blockquote><literallayout>
-   auto-dbm: "|/usr/local/bin/irr_rpsl_submit"
+   auto-dbm: "|/usr/local/sbin/irr_rpsl_submit"
 </literallayout></blockquote>
 </para></listitem>
 <listitem><para>
@@ -775,7 +783,7 @@ To allow TCP submissions, add the following to /etc/services:
 <listitem><para>
 Add the following to your /etc/inetd.conf and restart inetd:
 <blockquote><literallayout>
-irr_rpsl_submit stream tcp nowait daemon /usr/local/bin/irr_rpsl_submit irr_rpsl_submit -D
+irr_rpsl_submit stream tcp nowait daemon /usr/local/sbin/irr_rpsl_submit irr_rpsl_submit -D
 </literallayout></blockquote>
 </para></listitem>
 </orderedlist>

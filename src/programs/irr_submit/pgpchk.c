@@ -1,5 +1,5 @@
 /* Copyright 1998, Merit Network, Inc. and the University of Michigan */
-/* $Id: pgpchk.c,v 1.15 2001/09/19 21:40:20 ljb Exp $*/
+/* $Id: pgpchk.c,v 1.16 2001/10/18 17:09:29 ljb Exp $*/
 
 #include <stdio.h>
 #include <sys/types.h>
@@ -115,7 +115,8 @@ int pgpdecodefile_new (FILE *infile, char *outfn, FILE *log_fd,
     }
     
     /* If we don't have pgp installed then don't look for a signature */
-    if (PGP && !inpgpsig) {
+#ifdef PGP
+    if (!inpgpsig) {
       if (regexec (&pgpbegre, curline, 0, 0, 0) == 0) {
 	sig_type = REGULAR_SIG;
 	inpgpsig = 1;
@@ -125,6 +126,7 @@ int pgpdecodefile_new (FILE *infile, char *outfn, FILE *log_fd,
 	inpgpsig = 1;
       }
     }
+#endif
 
     switch (inpgpsig) {
  

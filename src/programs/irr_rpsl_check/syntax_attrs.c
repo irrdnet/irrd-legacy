@@ -1,5 +1,5 @@
 /* 
- * $Id: syntax_attrs.c,v 1.19 2001/08/28 17:29:22 gerald Exp $
+ * $Id: syntax_attrs.c,v 1.20 2001/10/18 17:10:44 ljb Exp $
  */
 
 #include <stdio.h>
@@ -675,6 +675,7 @@ sig       0x8938AA1B 2000-06-30 Gerald A. Winters <gerald@merit.edu>
  *    0 if a single key fingerprint was extracted from the ring with no errors
  *    1 otherwise
  */
+#ifdef PGP
 int get_fingerprint (parse_info_t *o, char *PGPPATH, pgp_data_t *pdat) {
   int pgp_ok = 1;
 
@@ -694,6 +695,7 @@ int get_fingerprint (parse_info_t *o, char *PGPPATH, pgp_data_t *pdat) {
   return pgp_ok;
 }
 
+#endif
 
 /* We have parsed a 'certif:' attribute from a 'key-cert' object.
  * Now perform the check to make sure the hexid specified in the
@@ -718,19 +720,21 @@ int get_fingerprint (parse_info_t *o, char *PGPPATH, pgp_data_t *pdat) {
  *    NULL otherwise
  */
 char *hexid_check (parse_info_t *o) {
+#ifdef PGP
   char curline[256], pgpinfn[256], tmp_pgp_dir[256];
   FILE *pgpin;
   char_list_t *p;
   pgp_data_t pdat;
   int pgp_errors = 0;
+#endif
 
   fprintf (dfile, "Enter hexid_check:\n%s\n\n", o->u.kc.certif);
 
   /* If we don't have PGP installed then there is nothing to do. */
-  if (PGP == 0) {
+#ifndef PGP
     error_msg_queue (o, "PGP is not installed on the system.  Cannot perform operation.", ERROR_MSG);
     return NULL;
-  }
+#else
 
   /* make a tmp directory for the pgp rings */
   umask (0000);
@@ -814,6 +818,7 @@ char *hexid_check (parse_info_t *o) {
 
   /* leave pgp key for possible addition to local ring */
   return strdup (pgpinfn);
+#endif
 }
 
 

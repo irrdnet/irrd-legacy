@@ -1,6 +1,6 @@
 
 /*
- * $Id: telnet.c,v 1.19 2001/08/09 20:15:16 ljb Exp $
+ * $Id: telnet.c,v 1.20 2001/09/28 19:39:26 ljb Exp $
  * originally Id: telnet.c,v 1.59 1998/08/03 17:29:10 gerald Exp 
  */
 
@@ -579,7 +579,7 @@ void irr_write_buffer_flush (irr_connection_t *irr, int fd) {
     /* len = final_answer->ptr - final_answer->buf; */
 
     while (ptr < final_answer->ptr) {
-      tv.tv_sec = 3; /* 3 second timeout on trying to write to socket */
+      tv.tv_sec = 30; /* 30 second timeout on trying to write to socket */
       tv.tv_usec = 0;
 
       /* select call with timeout --- add me !!!!!!!  */
@@ -587,7 +587,7 @@ void irr_write_buffer_flush (irr_connection_t *irr, int fd) {
       if (ret <= 0) {
 	trace (NORM, default_trace, "-- IRR Connection Timeout -- \n");
 	trace (NORM, default_trace,
-	       "ERROR on IRR select (before write). Closing connection (%s)\n",
+	       "ERROR on IRR select (before buffered write). Closing connection (%s)\n",
 	       strerror (errno));
 	irr->scheduled_for_deletion = 1;
 	return;

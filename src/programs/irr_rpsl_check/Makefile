@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.5 2001/08/09 20:42:28 ljb Exp $
+# $Id: Makefile,v 1.6 2001/10/18 15:29:38 ljb Exp $
 # * originally Id: Makefile,v 1.7 1998/08/09 22:16:26 dogcow Exp 
 #
 
@@ -14,8 +14,8 @@ LEX    = $(FLEX_PATH)
 all:  $(GOAL) librpslchk.a
 
 $(GOAL): $(OBJS)
-	@echo "Linking: $(LD) $(LDFLAGS) $(OBJS) $(IRRD_OPS_LIBS) -o $@ -L../hdr_comm -lhdrs -L../pgp -lirrpgp -L../compat -lcompat"
-	@$(LD) $(LDFLAGS) $(OBJS) $(IRRD_OPS_LIBS) -o $@ -L../hdr_comm -lhdrs  -L../pgp -lirrpgp -L../compat -lcompat
+	@echo "Linking: $(LD) $(LDFLAGS) $(OBJS) $(IRRD_OPS_LIBS) -o $@ -L../hdr_comm -lhdrs -L../pgp -lirrpgp -L../compat -lcompat $(SYS_LIBS)"
+	@$(LD) $(LDFLAGS) $(OBJS) $(IRRD_OPS_LIBS) -o $@ -L../hdr_comm -lhdrs  -L../pgp -lirrpgp -L../compat -lcompat $(SYS_LIBS)
 
 #	@$(CP) ./$@ $(EXEC_PREFIX)/bin/
 

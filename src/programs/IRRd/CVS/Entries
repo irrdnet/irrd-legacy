@@ -24,11 +24,11 @@
 /rwlock.c/1.1.1.1/Tue Feb 29 22:28:31 2000//
 /rwlock.h/1.2/Tue Aug  1 00:40:18 2000//
 /sample.conf/1.2/Tue Jun 12 18:27:39 2001//
+/scan.c/1.22/Mon Sep 17 19:45:55 2001//
 /scan.h/1.5/Thu Aug  3 17:11:14 2000//
 /statusfile.c/1.6/Fri Jul 13 19:15:42 2001//
-/telnet.c/1.19/Thu Aug  9 20:15:16 2001//
+/telnet.c/1.20/Fri Sep 28 19:39:26 2001//
 /templates.c/1.6/Fri Aug 18 15:45:17 2000//
 /uii_commands.c/1.16/Fri Jul 13 19:15:43 2001//
 /update.c/1.3/Fri Jul 13 19:15:43 2001//
-/scan.c/1.22/Tue Sep 18 17:11:35 2001//
 D

@@ -1,5 +1,5 @@
 #
-# $Id: Make.include.in,v 1.5 2001/08/28 17:29:12 gerald Exp $
+# $Id: Make.include.in,v 1.6 2001/10/18 17:22:45 ljb Exp $
 #
 
 .c.o:
@@ -32,9 +32,10 @@ INSTALL= 	@INSTALL@
 MAKEDEP= 	@MAKEDEP@
 MAKEDEPCLEAN= 	@MAKEDEPCLEAN@
 
-DESTDIR=	@prefix@/bin
-MANDIR=		@prefix@/man
-#EXEC_PREFIX=	@exec_prefix@
+prefix=		@prefix@
+exec_prefix=	@exec_prefix@
+DESTDIR=	@sbindir@
+MANDIR=		@mandir@
 
 MRTLIB= 	../../lib/libmrt.a
 CFGLIB=		../../lib/libcfg.a

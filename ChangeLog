@@ -1,3 +1,56 @@
+2001-10-18 13:44  ljb
+
+	* NOTES:   forgot to document 30 second telnet timeout change.
+
+2001-10-18 13:39  ljb
+
+	* irrd-user.pdf:   update pdf version of user manual
+
+2001-10-18 13:37  ljb
+
+	* irrd-user.sgml:   forgot end revision tag
+
+2001-10-18 13:31  ljb
+
+	* src/include/version.h:   update version.h to 2.1.3 release
+
+2001-10-18 13:30  ljb
+
+	* NOTES:    release notes for 2.1.3
+
+2001-10-18 13:27  ljb
+
+	* irrd-user.sgml:   Change default install location for binaries to
+	be /usr/local/sbin
+
+2001-10-18 13:22  ljb
+
+	* src/Make.include.in:	  Change binary file directory to sbin
+	instead of bin.
+
+2001-10-18 13:10  ljb
+
+	* src/programs/irr_rpsl_check/syntax_attrs.c:	PGP is not defined
+	if pgp/gpg not installed.  Need to use conditional code to
+	handle this case.
+
+2001-10-18 13:09  ljb
+
+	* src/programs/irr_submit/pgpchk.c:    PGP is not-defined when
+	pgp/gpg not installed.	 Use conditional code.
+
+2001-10-18 11:29  ljb
+
+	* src/programs/irr_rpsl_check/Makefile:   Need to link irr_check
+	with socket and nsl libraries on Solaris 8 in
+	order to get inet_pton() function.
+
+2001-09-28 15:39  ljb
+
+	* src/programs/IRRd/telnet.c:	3 second timeout was causing
+	problems for Pierre Thibaudeau, change to
+	30.  Also correct timeout message.
+
 2001-09-24 16:39  ljb
 
 	* NOTES:   update release notes for new release.
