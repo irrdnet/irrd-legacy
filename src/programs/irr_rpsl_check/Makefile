@@ -5,7 +5,7 @@
 
 include ../../Make.include
 
-GOAL   = irr_check
+GOAL   = irr_rpsl_check
 LIBOBJS= lex.yy.o y.tab.o irr_attrs.o prefix.o util.o syntax_attrs.o canonical.o hdr_build.o dictionary.o 
 IRRD_LIBS = -L$(EXEC_PREFIX)/lib 
 OBJS   = $(LIBOBJS) main.o

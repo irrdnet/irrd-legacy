@@ -1,10 +1,10 @@
 
 /*
- * $Id: indicies.c,v 1.2 2002/02/04 20:53:56 ljb Exp $
+ * $Id: indicies.c,v 1.4 2002/10/17 20:02:30 ljb Exp $
  * originally Id: indicies.c,v 1.38 1998/08/07 19:07:46 labovit Exp 
  */
 
-/* routines for handling indicies in hash or on disk dbm files */
+/* routines for handling indicies in hashes */
 
 #include <stdio.h>
 #include <string.h>
@@ -19,53 +19,50 @@
 
 extern trace_t *default_trace;
 
-static int irr_hash_store (irr_database_t *database, char *key, char *value);
-
 /* irr_database_store
  * 4 count | [2 type | 2 primary/secondary | 2 keylen | 4 offset | 4 len] | ...
- *
  */
+
+#define OBJCOUNT_SIZE 4
+#define OBJINFO_SIZE 14 
+
 int irr_database_store (irr_database_t *database, char *key, u_short p_or_s,
 			enum IRR_OBJECTS type, u_long offset, u_long len) {
   hash_item_t *hash_item;
   char *buffer, *cp;
   u_short _keylen, _type = (u_short) type;
-  u_int count, _size_old, _size_new;
-  int ret_code = 1;
+  u_int _size_old, _size_new;
+  int ret_code = 1, count;
 
   _keylen = strlen (key);
   convert_toupper(key);
-  hash_item = irr_database_fetch (database, key);
+  hash_item = HASH_Lookup (database->hash, key);
 
   /* JW want to dissallow duplicate primary key additions of same type */
 
   /* create a new hash entry */
   if (hash_item == NULL) {
-    buffer = malloc (18);
+    _size_new = OBJCOUNT_SIZE + OBJINFO_SIZE;
+    buffer = malloc (_size_new);
     count = 0;
-    cp = buffer + 4;
-    _size_new = 18;
+    cp = buffer + OBJCOUNT_SIZE;
   }
   /* just append the new data to the end of the hash entry */
   else {
     cp = hash_item->value;
     UTIL_GET_NETLONG (count, cp);
 
-    if ((count < 0) || (count > 1000)) {
+    if (count > 1000) {
       trace (ERROR, default_trace, 
-	     "** WARN ** Suspiciously high count value (%d) for %s\n",
-	     count, key);
-      return -1;
+     "%d entries for hash key %s exceeds 1000\n", count, key);
     }
 
     cp = hash_item->value; /* reset ptr to keep things simple */
 
-    _size_old = 4 + (count * 14);
-    _size_new = _size_old + 14;
+    _size_old = OBJCOUNT_SIZE + (count * OBJINFO_SIZE);
+    _size_new = _size_old + OBJINFO_SIZE;
 
-    buffer = malloc (_size_new);
-
-    memcpy (buffer, cp, _size_old);
+    buffer = realloc (cp, _size_new);
     cp = buffer + _size_old;
   } /* end append data */
 
@@ -76,27 +73,18 @@ int irr_database_store (irr_database_t *database, char *key, u_short p_or_s,
   UTIL_PUT_NETLONG (len, cp);
 
   cp = buffer;
-  UTIL_PUT_NETLONG (++count, cp); /* count */
+  count++;
+  UTIL_PUT_NETLONG (count, cp); /* count */
 
-  if (hash_item != NULL) HASH_Remove (database->hash, hash_item);
-  irr_hash_store (database, key, buffer);
+  if (hash_item == NULL) {
+    hash_item = New (hash_item_t);
+    hash_item->key = strdup (key);
+    hash_item->value = buffer;
+    HASH_Insert (database->hash, hash_item);
+  } else
+    hash_item->value = buffer;
 
   return ret_code; 
-}
-
-
-
-/* irr_hash_store
- * store indice in memory 
- */
-static int irr_hash_store (irr_database_t *database, char *key, char *value) {
-  hash_item_t *hash_item;
-
-  hash_item = New (hash_item_t);
-  hash_item->key = strdup (key);
-  hash_item->value = value;
-  HASH_Insert (database->hash, hash_item);
-  return (1);
 }
 
 int irr_hash_destroy (hash_item_t *hash_item) {
@@ -115,17 +103,8 @@ int irr_hash_destroy (hash_item_t *hash_item) {
   return (1);
 }
 
-/* irr_database_fetch
- */
-hash_item_t *irr_database_fetch (irr_database_t *database, char *key) {
-  hash_item_t *hash_item;
-
-  hash_item = HASH_Lookup (database->hash, key);
-  return (hash_item);
-}
-
-/* irr_database_fetch
- * if dbm file use that, otherwise search memory 
+/* irr_database_find_matches
+ * find matches and extract info from hash table entry
  * 4 count | [2 type | 2 primary/secondary | 2 keylen | 4 offset | 4 len] | ...
  */
 int irr_database_find_matches (irr_connection_t *irr, char *key, 
@@ -142,9 +121,12 @@ int irr_database_find_matches (irr_connection_t *irr, char *key,
 
   convert_toupper(key);
 
+  if (match_behavior & RAWHOISD_MODE)
+    exit_on_match = 1;
+
   LL_Iterate (irr->ll_database, database) {
     
-    hash_item = irr_database_fetch (database, key);
+    hash_item = HASH_Lookup (database->hash, key);
     
     if (hash_item == NULL)
       continue;
@@ -181,13 +163,11 @@ int irr_database_find_matches (irr_connection_t *irr, char *key,
 	*ret_len = len;
 	break;
       }
-      irr_build_answer (irr, database->db_fp, _type, offset, len, NULL, database->db_syntax);
+      irr_build_answer (irr, database, _type, offset, len, NULL);
 
       /* RAWHOISD_MODE means exit after first the match */
-      if (match_behavior & RAWHOISD_MODE) {
-	exit_on_match = 1;
+      if (exit_on_match)
 	break;
-      }
     }
     if (exit_on_match)
       break;
@@ -198,7 +178,6 @@ int irr_database_find_matches (irr_connection_t *irr, char *key,
 
 /* given an object key, find it's offset and length.  return 1 if found and
  * -1 otherwise.
- * can delete irr_database_load_object_seek() if this works
  */
 int find_object_offset_len (irr_database_t *db, char *key, 
 			    enum IRR_OBJECTS type,
@@ -220,53 +199,7 @@ int find_object_offset_len (irr_database_t *db, char *key,
   return (found);
 }
 
-
-int irr_database_load_object_seek (irr_database_t *database, char *key, 
-				   enum IRR_OBJECTS type,
-				   irr_object_t *irr_object) {
-  hash_item_t *hash_item;
-  u_long offset, len;
-  u_short _type, p_or_s, _keylen;
-  int count;
-  char *cp;
-
-  convert_toupper(key);
-
-  hash_item = irr_database_fetch (database, key);
-  if (hash_item == NULL) return (-1);
-
-  cp = hash_item->value;
-  UTIL_GET_NETLONG (count, cp);
-    
-  while (count--) {
-    UTIL_GET_NETSHORT (_type, cp);
-    UTIL_GET_NETSHORT (p_or_s, cp);
-    UTIL_GET_NETSHORT (_keylen, cp);
-    UTIL_GET_NETLONG (offset, cp);
-    UTIL_GET_NETLONG (len, cp);
-
-    /* check type */
-    if (type != _type)
-      continue;
-
-    /* exact key match, so as195 != as1955 */
-    if (strlen (key) != _keylen) 
-      continue;
-
-    /* if object is not null, we're loading and object, so fill it in */
-    if (irr_object != NULL) {
-      irr_object->offset = offset;
-      irr_object->len = len;
-      return (1);
-    }
-  }
-
-  return (-1);
-}
-
-
-
-/* irr_database_store
+/* irr_database_remove
  * 4 count | [2 type | 2 primary/secondary | 2 keylen | 4 offset | 4 len] | ...
  *
  */
@@ -274,56 +207,58 @@ int irr_database_remove (irr_database_t *database, char *key, u_short p_or_s,
 			 enum IRR_OBJECTS type, u_long offset, u_long len) {
   hash_item_t *hash_item;
   char *cp;
-  char *buffer_new = NULL, *cp_new;
+  char *buffer_new = NULL;
   u_short _type = (u_short) type;
-  u_long _offset, _len, _p_or_s, _keylen;
-  int count, size = 0, ret_code = 1;
+  u_short _p_or_s, _keylen;
+  u_long _offset, _len;
+  int count, new_count;
   
-  _offset = _len = _p_or_s = 0;
-
   convert_toupper (key);
+  hash_item = HASH_Lookup (database->hash, key);
 
-  hash_item = irr_database_fetch (database, key);
-
-  if (hash_item == NULL) 
+  if (hash_item == NULL)  {
+    trace (ERROR, default_trace, 
+   "irr_database_remove(): unable to find hash for key %s\n", key);
     return -1;
+  }
 
   cp = hash_item->value;
   UTIL_GET_NETLONG (count, cp);
 
-  if (--count > 0) {
-  /*
-    size = (4 + (count * 12) + 1);
-  */
-    size = 4 + (count * 14);
-    cp_new = buffer_new = malloc (size);
-    
-    UTIL_PUT_NETLONG (count -1, cp_new);
-    
-    while (count--) {
+  if (count <= 0) {
+      trace (ERROR, default_trace, 
+     "irr_database_remove(): count value (%d) for hash key %s is <= 0\n", count, key);
+      return -1;
+  }
+
+  new_count = count - 1;
+  if (new_count > 0) {
+    int found = 0;
+
+    while (!found) {
       UTIL_GET_NETSHORT (_type, cp); /* type */
       UTIL_GET_NETSHORT (_p_or_s, cp); /* primary/secondary */
       UTIL_GET_NETSHORT (_keylen, cp); /* primary/secondary */
       UTIL_GET_NETLONG (_offset, cp); 
       UTIL_GET_NETLONG (_len, cp);
-  
-      if (offset == _offset) continue; /* skip this delete entry */
-
-      UTIL_PUT_NETSHORT (_type, cp_new); /* type */
-      UTIL_PUT_NETSHORT (_p_or_s, cp_new); /* primary/secondary */
-      UTIL_PUT_NETSHORT (_keylen, cp_new); 
-      UTIL_PUT_NETLONG (_offset, cp_new); 
-      UTIL_PUT_NETLONG (_len, cp_new);
+      count--; 
+      if (offset == _offset) found = 1; /* found the entry */
+      if (count == 0) break;	/* we have scanned all the entries */
     }
-  }  
+    if (!found) {
+      trace (ERROR, default_trace, "irr_database_remove(): did not find entry for key: %s, at offset: %d\n", key, offset);
+      return -1;
+    }
+    if (count > 0) {  /* see if we need to shift down entries */
+      memmove(cp - OBJINFO_SIZE, cp, count * OBJINFO_SIZE);
+    }
+    cp = hash_item->value;  /* point back to beginning of buffer */
+    UTIL_PUT_NETLONG (new_count, cp); /* store new count */
+    buffer_new = realloc(hash_item->value, OBJCOUNT_SIZE + (new_count * OBJINFO_SIZE)); /* free unused space */
+    hash_item->value = buffer_new;
+  } else {
+    HASH_Remove (database->hash, hash_item);
+  }
 
-/* JW: I think this section can be optimized later,
- * for case count > 0 just Delete(hash_item->value) and
- * hash_item->value = buffer_new;
- */
-  HASH_Remove (database->hash, hash_item);
-  if (count > 0)
-    irr_hash_store (database, key, buffer_new);
-
-  return ret_code;
+  return 1;
 }

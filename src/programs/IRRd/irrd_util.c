@@ -1,5 +1,5 @@
 /*
- * $Id: irrd_util.c,v 1.10 2002/02/04 20:53:56 ljb Exp $
+ * $Id: irrd_util.c,v 1.12 2002/10/17 20:02:30 ljb Exp $
  * originally Id: util.c,v 1.51 1998/08/07 19:48:58 gerald Exp 
  */
 
@@ -17,7 +17,7 @@
 #include <sys/stat.h>
 
 static int find_token (char **, char **);
-extern key_label_t key_info[][2];
+extern key_label_t key_info[];
 extern trace_t *default_trace;
 extern m_command_t m_info [];
 
@@ -28,14 +28,15 @@ irr_database_t *new_database (char *name) {
   database = New (irr_database_t);
   memset(database, 0, sizeof(irr_database_t));
 
-  database->radix = New_Radix (128);
+  database->radix_v4 = New_Radix (32); 
+  database->radix_v6 = New_Radix (128);
   database->hash =
-    HASH_Create (1000,
+    HASH_Create (DEF_HASH_SIZE,
                  HASH_KeyOffset, HASH_Offset (&hash_item, &hash_item.key),
                  HASH_DestroyFunction, irr_hash_destroy,
                  0);
   database->hash_spec =
-    HASH_Create (1000,
+    HASH_Create (DEF_HASH_SIZE,
                  HASH_KeyOffset, HASH_Offset (&hash_item, &hash_item.key),
                  HASH_DestroyFunction, irr_hash_destroy, 0);
 
@@ -43,11 +44,6 @@ irr_database_t *new_database (char *name) {
   database->mirror_fd  = -1;
   database->journal_fd = -1;
   database->max_journal_bytes = IRR_MAX_JOURNAL_SIZE;
-  database->db_fp         = NULL;
-  database->db_syntax  = EMPTY_DB;
-  database->obj_filter = 0; /* Any object bit-fields that are 1 will be filtered out
-                               * of the DB (including mirroring, updates and reloads).
-                               */
   pthread_mutex_init (&database->mutex_lock, NULL);
   pthread_mutex_init (&database->mutex_clean_lock, NULL);
   /*rwl_init (&database->rwlock);*/
@@ -147,12 +143,8 @@ void irr_unlock (irr_database_t *database) {
 	   database->name, strerror (errno));
 }
 
-void Delete_RT_Object (irr_route_object_t *attr) {
+void Delete_RT_Object (irr_prefix_object_t *attr) {
   Delete (attr);
-}
-
-int irr_comp (char *s1, char *s2) {
-  return (strcmp (s1, s2));
 }
 
 int get_prefix_from_disk (FILE *fp, u_long offset, char *buffer) {
@@ -166,7 +158,7 @@ int get_prefix_from_disk (FILE *fp, u_long offset, char *buffer) {
 	(p = strtok_r (NULL, " ", &last)) != NULL) {
       if (*(p + strlen (p) - 1) ==  '\n')
         *(p + strlen (p) - 1) = '\0';
-      strcat (buffer + strlen (buffer), p);
+      strcat (buffer, p);
       return 1;
     }
     else 
@@ -220,19 +212,15 @@ long copy_irr_object (FILE *src_fp, long offset, irr_database_t *database,
  * Delete generic object used to hold data during scanning
  */
 void Delete_IRR_Object (irr_object_t *object) {
-/* ll_as and ll_mbr_by_ref are saved as data for the hash */
+/* ll_mbrs and ll_mbr_by_ref are saved as data for the hash */
   if (object->name) 
     Delete (object->name);
   if (object->nic_hdl)
     Delete (object->nic_hdl);
   if (object->ll_mnt_by) 
     LL_Destroy (object->ll_mnt_by);
-  if (object->ll_as) 
-    LL_Destroy (object->ll_as);
-  if (object->ll_keys) 
-    LL_Destroy (object->ll_keys);
-  if (object->ll_community)
-    LL_Destroy (object->ll_community);
+  if (object->ll_mbrs) 
+    LL_Destroy (object->ll_mbrs);
   if (object->ll_mbr_by_ref) 
     LL_Destroy (object->ll_mbr_by_ref);
   if (object->ll_mbr_of) 
@@ -252,28 +240,9 @@ irr_object_t *New_IRR_Object (char *buffer, u_long position, u_long mode) {
   irr_object->offset = position;
   irr_object->mode = mode;
   irr_object->type = NO_FIELD;
-  irr_object->ll_keys = LL_Create (LL_DestroyFunction, free, 0);
-  irr_object->ll_prefix = LL_Create (LL_DestroyFunction, free, 0);
   irr_object->filter_val = XXX_F;
 
   return (irr_object);
-}
-
-/* init_key
- * Pick-off the primary key field (ie, the usual first object field)
- * You cannot assume for example that 'route:' will be the first field
- * as this is *not* an rpsl or ripe181 requirement.  
- */
-void init_key (char *buf, int curr_f, irr_object_t *object, enum DB_SYNTAX syntax) {
-  char *cp;
-
-  if (object->name == NULL) { /* could get here twice if bad syntax object */
-    cp = buf + key_info[curr_f][syntax].len;
-    whitespace_remove (cp);
-    object->name = strdup (cp);
-    object->type = curr_f;
-    object->filter_val = key_info[curr_f][syntax].filter_val;
-  }
 }
 
 void Delete_Ref_keys (reference_key_t *ref_item) {
@@ -312,25 +281,24 @@ void pick_off_indirect_references (irr_answer_t *irr_answer, LINKED_LIST **ll) {
   enum STATES state  = BLANK_LINE, save_state;
   int curr_f = NO_FIELD;
     
-  if (irr_answer->type == ROUTE || irr_answer->type == PERSON)
+  if (irr_answer->type == ROUTE || irr_answer->type == ROUTE6 || irr_answer->type == PERSON)
     return;
 
   if (irr_answer->len == 0 ||
-      fseek (irr_answer->fp, irr_answer->offset, SEEK_SET) < 0)
+      fseek (irr_answer->db->db_fp, irr_answer->offset, SEEK_SET) < 0)
     return;
 
   do {
-    cp = fgets (buf, BUFSIZE - 1, irr_answer->fp);
+    cp = fgets (buf, BUFSIZE, irr_answer->db->db_fp);
 
-    if ((state = get_state (buf, cp, state, &save_state)) == START_F) {
-      curr_f = get_curr_f (irr_answer->db_syntax, buf, state, curr_f);
+    if ((state = get_state (cp, strlen(buf), state, &save_state)) == START_F) {
+      curr_f = get_curr_f (buf);
 
       /* all fields here must be *single valued*, else code won't work */
       if ((irr_answer->type == IPV6_SITE && 
-	   (curr_f == PREFIX || 
-	    curr_f == CONTACT)) ||
+	   (curr_f == PREFIX || curr_f == CONTACT)) ||
 	  (curr_f == ADMIN_C || curr_f == TECH_C)) {
-	cp = buf + key_info[curr_f][irr_answer->db_syntax].len;
+	cp = buf + key_info[curr_f].len;
 	whitespace_newline_remove (cp);
 	foldin_key_list (ll, cp, curr_f);
       }
@@ -360,7 +328,7 @@ printf("JW: indirect key lookup-(%s,%d)\n",ref->key,ref->type);
   }
 }
 
-void lookup_route_exact (irr_connection_t *irr, char *key) {
+void lookup_prefix_exact (irr_connection_t *irr, char *key, enum IRR_OBJECTS type) {
   irr_database_t *database;
   u_long offset, len = 0;
   char *last, *prefix, *str_orig;
@@ -370,30 +338,35 @@ void lookup_route_exact (irr_connection_t *irr, char *key) {
   if (*key == '\0')
     return;
 
-  if (strchr (key, '-') != NULL)
-    prefix = strtok_r (key, "-", &last);
-  else 
-    prefix = strtok_r (key, " ", &last);
+  if (type == INET6NUM) {
+    origin = 0;
+    prefix = key;
+  } else  {
+    if (strchr (key, '-') != NULL)
+      prefix = strtok_r (key, "-", &last);
+    else 
+      prefix = strtok_r (key, " ", &last);
 
-  if (prefix == NULL)
-    return;
+    if (prefix == NULL)
+      return;
 
-  if ((str_orig = strtok_r (NULL, " ", &last)) == NULL)
-    return;
+    if ((str_orig = strtok_r (NULL, " ", &last)) == NULL)
+      return;
 
-  while (*str_orig != '\0' && !isdigit ((int) *str_orig)) str_orig++;
-  if (*str_orig == '\0')
-    return;
+    while (*str_orig != '\0' && !isdigit ((int) *str_orig)) str_orig++;
+    if (*str_orig == '\0')
+      return;
+    origin = (u_short) atoi (str_orig);
+  }
 
-  origin = (u_short) atoi (str_orig);
   LL_Iterate (irr->ll_database, database) {
-    if (seek_route_object (database, prefix, origin, &offset, 
+    if (seek_prefix_object (database, type, prefix, origin, &offset, 
 			   &len, irr->withdrawn) > 0)
       break;
   }
 
   if (len > 0)
-    irr_build_answer (irr, database->db_fp, ROUTE, offset, len, NULL, database->db_syntax);
+    irr_build_answer (irr, database, type, offset, len, NULL);
 }
 
 /* convert a string to an unsigned long
@@ -429,28 +402,6 @@ void delete_irr_hash_string (irr_hash_string_t *str) {
   Delete (str);
 }
 
-/*
- * -s flag has been found, now return the token after the '-s'.
- * Return 1 if something is found after the -s, else return -1.
- */
-int ripe_set_source (irr_connection_t *irr, char **cp) {
-  char *p;
- 
-  while (**cp != '\0' && isspace ((int) **cp)) (*cp)++;
-
-  if (**cp == '\0')
-    return -1;
-  else
-    p = *cp;
-
-  while (**cp != '\0' && isgraph ((int) **cp)) (*cp)++;
-
-  strncpy (irr->ripe_tmp, p, *cp - p);
-  irr->ripe_tmp[*cp - p] = '\0';
-
-  return 1;
-}
-
 /* This routine finds a token in the string.  *x will
  * point to the first character in the string and *y will
  * point to the first character after the token.  A token
@@ -463,7 +414,7 @@ int ripe_set_source (irr_connection_t *irr, char **cp) {
  * along.
  *
  * Return:
- *   1 if a token is found (*x points to token, *y first token after)
+ *   length if a token is found (*x points to token, *y first token after)
  *  -1 if no token is found (*x and *y are to be ignored)
  */
 int find_token (char **x, char **y) {
@@ -485,7 +436,63 @@ int find_token (char **x, char **y) {
   *y = *x + 1;
   while (**y != '\0' && isgraph ((int) **y)) (*y)++;
 
-  return 1;  
+  return (*y - *x);  
+}
+
+/*
+ * -i performs inverse lookups on the given attribute name.
+ * Return 1 if attribute name valid/supported, else return -1.
+ */
+int ripe_inverse_attr (irr_connection_t *irr, char **cp) {
+  int attrname_len;
+  char *p, *q;
+
+  p = q = *cp;
+  if ( (attrname_len = find_token (&p, &q)) < 0)
+    return attrname_len;
+  *cp = q;
+
+  /* check for mnt-by inverse lookup */
+  if ( attrname_len == 6 && !strncasecmp (p, "mnt-by", 6)) {
+    irr->inverse_type = MNT_BY;
+    return 1;
+  } 
+
+  /* check for origin inverse lookup */
+  if ( attrname_len == 6 && !strncasecmp (p, "origin", 6)) {
+    irr->inverse_type = ORIGIN;
+    return 1;
+  } 
+
+  /* check for member-of inverse lookup */
+  if ( attrname_len == 9 && !strncasecmp (p, "member-of", 9)) {
+    irr->inverse_type = MEMBER_OF;
+    return 1;
+  } 
+
+  return -1;
+}
+
+/*
+ * -s flag has been found, now return the token after the '-s'.
+ * Return 1 if something is found after the -s, else return -1.
+ */
+int ripe_set_source (irr_connection_t *irr, char **cp) {
+  int sources_len;
+  char *p, *q;
+
+  p = q = *cp;
+  if ( (sources_len = find_token (&p, &q)) < 0)
+    return sources_len;
+  *cp = q;
+
+  if (sources_len >= RIPE_SOURCES_SZ)
+    return -1;
+
+  strncpy (irr->ripe_sources, p, sources_len);
+  irr->ripe_sources[sources_len] = '\0';
+
+  return 1;
 }
 
 /*
@@ -496,20 +503,11 @@ int ripe_obj_type (irr_connection_t *irr, char **cp) {
   int i, j, slen, ret_code = -1;
   char *p, *q;
 
-  /*
-  while (**cp != '\0' && isspace ((int) **cp)) (*cp)++;
-  
-  if (**cp == '\0')
-    return -1;
-  */
-
   p = q = *cp;
-  if (find_token (&p, &q) < 0)
-    return -1;
+  if ((slen = find_token (&p, &q)) < 0)
+    return slen;
   *cp = q;
-  
-  
-  slen = q - p;
+
   for (i = 0; i < IRR_MAX_MCMDS; i++) {
     j = strlen (m_info[i].command) - 1;
     if (slen == j &&
@@ -519,16 +517,18 @@ int ripe_obj_type (irr_connection_t *irr, char **cp) {
       break;
     }
   }
-
-  /* place the cursor pointer to the start of the next token 
-     find_token (cp, &q); */
-
   return ret_code;
 }
 
-void ignore_flag_param (irr_connection_t *irr, char **cp) {
+int process_tool_param (irr_connection_t *irr, char **cp) {
+  int toolname_len;
+  char *p, *q;
 
-  while (**cp != '\0' && isgraph ((int) **cp)) (*cp)++;
+  p = q = *cp;
+  if ((toolname_len = find_token (&p, &q)) < 0)
+    return toolname_len;
+  *cp = q;
+  return 1;
 }
 
 /*
@@ -556,20 +556,38 @@ int parse_ripe_flags (irr_connection_t *irr, char **cp) {
   for (non_flag_token = 0; **cp != '\0'; (*cp)++) {
     if (**cp == '-') {
       (*cp)++;
+      if (**cp == '\0') {
+	sprintf (buf, "%%ERROR:  flag value not specified\n\n\n");
+	trace (NORM, default_trace, 
+		"parse_ripe_flags(): flag value not specified\n");
+	break;
+      }
       switch (**cp) {
+      case 'k': irr->stay_open = 1;    break;
       case 'F': irr->ripe_flags |= FAST_OUT;    break;
       case 'r': irr->ripe_flags |= RECURS_OFF;  break;
+      case 'a': irr->ripe_flags |= SOURCES_ALL; break;
+      case 'K': irr->ripe_flags |= KEYFIELDS_ONLY; break;
       case 'l': irr->ripe_flags |= LESS_ONE;    break;
       case 'L': irr->ripe_flags |= LESS_ALL;    break;
-      case 'm': irr->ripe_flags |= MORE_ONE;    break;
+/*    case 'm': irr->ripe_flags |= MORE_ONE;    break; */ /* unsupported */
       case 'M': irr->ripe_flags |= MORE_ALL;    break;
-      case 'a': irr->ripe_flags |= SOURCES_ALL; break;
+      case 'x': irr->ripe_flags |= EXACT_MATCH;    break;
+      case 'i': (*cp)++;
+                if (ripe_inverse_attr (irr, cp) > 0)
+                  irr->ripe_flags |= INVERSE_ATTR;  
+                else {
+                  strcpy (buf, "%% Attribute name after \"-i\""
+			  " is invalid or unsupported.\n\n\n");
+                  non_flag_token = 1;
+                }
+                break;
       case 's': (*cp)++;
                 if (ripe_set_source (irr, cp) > 0)
                   irr->ripe_flags |= SET_SOURCE;  
                 else {
-                  strcpy (buf, "%%  Required DB source not specified after \"-s\""
-			  " flag.\n");
+                  strcpy (buf, "%% DB source after \"-s\""
+			  " flag is too long or invalid.\n\n\n");
                   non_flag_token = 1;
                 }
                 break;
@@ -577,25 +595,29 @@ int parse_ripe_flags (irr_connection_t *irr, char **cp) {
                 if (ripe_obj_type (irr, cp) > 0)
                   irr->ripe_flags |= TEMPLATE;
                 else
-		  strcpy (buf, "%%  Required object type not specified after \"-t\" flag or unrecognized type.\n");
+		  strcpy (buf, "%%  Required object type not specified after \"-t\" flag or unrecognized type.\n\n\n");
 		non_flag_token = 1;
                 break;
       case 'T': (*cp)++;
                 if (ripe_obj_type (irr, cp) > 0)
                   irr->ripe_flags |= OBJ_TYPE;
                 else {
-		  strcpy (buf, "%%  Required object type not specified after \"-T\" flag or unrecognized type.\n");
+		  strcpy (buf, "%%  Required object type not specified after \"-T\" flag or unrecognized type.\n\n\n");
 		  non_flag_token = 1;
 		}
 		break;
-      case 'V': ignore_flag_param (irr, cp);
+      case 'V': (*cp)++;
+		if (process_tool_param (irr, cp) < 0) {
+		  strcpy (buf, "%%  Error processing \"-V\" flag.\n\n\n");
+		  non_flag_token = 1;
+		}
                 break;
       default : non_flag_token = 1;             
-                sprintf (buf, "%%  Unrecognized flag \"-%c\".\n", **cp);
+                sprintf (buf, "%%  Unrecognized flag \"-%c\".\n\n\n", **cp);
 	        trace (NORM, default_trace, 
-	        "ERROR:parse_ripe_flags(): unrecognized flag '%c'\n", **cp);
+	        "parse_ripe_flags(): unrecognized flag '%c'\n", **cp);
 	        trace (NORM, default_trace, 
-	        "ERROR:parse_ripe_flags(): rest of input line (%s)", p);
+	        "parse_ripe_flags(): rest of input line (%s)", p);
 		(*cp)--;
 		break;
       }
@@ -611,8 +633,7 @@ int parse_ripe_flags (irr_connection_t *irr, char **cp) {
   }
 
   if (buf[0] != '\0') { /* Got an error, tell the user */
-    irr_write (irr, buf, strlen (buf));
-    irr_write_buffer_flush (irr);
+    irr_write_nobuffer (irr, buf);
     return -1;
   }
 
@@ -668,53 +689,7 @@ void radix_flush (radix_tree_t *radix_tree) {
   Delete (radix_tree);
 }
 
-/* prefix_tobitstring
- * convert a prefix to 110000111
- * This is used so we don't need a radix tree and can store prefixes
- * in a dbm file
- * Probably better ways to write this code...
- */
-char *prefix_tobitstring (prefix_t *prefix) {
-  char *tmp, *cp, *p;
-  u_char bit;
-  u_long i, b;
-  int n, masklen;
-
-
-  p = tmp = malloc (34);
-  cp = prefix_tochar (prefix);
-  masklen = 0;
-
-  for (n=0; n<= 3; n++) {
-    b = cp[n];
-    bit = 128;
-    i = 0;
-
-    while (i++ <= 7) {
-      if (masklen == prefix->bitlen) 
-	goto done;
-
-      if ( (b & bit)) {
-        sprintf (p, "1"); p += strlen (p);
-      }
-      else
-        sprintf (p, "0"); p += strlen (p);
-    
-      bit = bit >> 1;
-      masklen++;
-    }
-  }
-
-done:
-  while (masklen++ < 32) {
-    sprintf (p, "-"); p += strlen (p);
-  }
-
-  return (tmp);
-}
-
 void convert_toupper(char *_z) {
-
   while (*_z != '\0') {
     *_z = toupper((int) *_z);
     _z++;
@@ -857,3 +832,27 @@ char *dir_chks (char *dir, int creat_dir) {
 
   return NULL;
 }
+
+/* overwrite a hashed password with a fake value
+   to prevent cracking attacks */
+                                                                                
+void scrub_cryptpw(char *buf) {
+  char *ptr = buf;
+                                                                                
+  ptr = index(buf, ':');  /* check for start of attribute */
+  if (ptr == NULL)
+    return;
+  ptr++;        /* skip past ":" or continuation character */
+  while (*ptr == ' ' || *ptr == '\t')
+    ptr++;      /* skip white space */
+  if (!strncasecmp(ptr, "CRYPT-PW", 8) ) {
+    ptr += 8;   /* skip past CRYPT-PW string */
+    while (*ptr == ' ' || *ptr == '\t')
+      ptr++;    /* skip white space */
+    if (strlen(ptr) < 13)       /* crypt-pw string takes 13 bytes */
+      return;
+    memcpy(ptr, "HIDDENCRYPTPW", 13);  /* overwrite with our magic string */
+  }
+  return;
+}
+

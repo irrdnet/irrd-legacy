@@ -9,12 +9,7 @@
 #include <sys/select.h>
 #endif /* HAVE_SYS_SELECT_H */
 
-#ifdef NT
-#include <Winsock2.h>
-#endif /* NT */
-
 #include <linked_list.h>
-
 #include <mrt_thread.h>
 
 /* select type_mask */

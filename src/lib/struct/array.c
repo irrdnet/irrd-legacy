@@ -66,7 +66,6 @@ DATA_PTR ARRAY_BinarySearch(DATA_PTR in, unsigned size, DATA_PTR key, DATA_PTR f
    return(NULL); /* unable to find */
 }
 
-
 /*-----------------------------------------------------------
  *  Name: 	ARRAY_Find()
  *  Created:	Tue Sep  6 18:58:34 1994
@@ -103,7 +102,6 @@ DATA_PTR ARRAY_Find(DATA_PTR in, unsigned size, DATA_PTR key, DATA_PTR fn)
 #endif
    return(NULL); /* unable to find */
 }
-
 
 /*-----------------------------------------------------------
  *  Name: 	ARRAY_Sort()
@@ -165,7 +163,6 @@ void ARRAY_BubbleSort(DATA_PTR in, unsigned size, DATA_PTR fn)
    fflush(stdout);
 #endif
 }
-
 
 /*-----------------------------------------------------------
  *  Name: 	ARRAY_QuickSort()
@@ -241,7 +238,6 @@ void ARRAY_QuickSort(DATA_PTR in, unsigned size, DATA_PTR fn)
    fflush(stdout);
 #endif
 }
-
 
 /*-----------------------------------------------------------
  *  Name: 	ARRAY_MergeSort()
@@ -345,5 +341,3 @@ void ARRAY_MergeSort(DATA_PTR in, unsigned size, DATA_PTR fn)
    fflush(stdout);
 #endif
 }
-
-      

@@ -1143,11 +1143,9 @@ int from_originating_repository(mirror_transaction * mtrans){
 	char tmp_pgp_dir[256];
 	pgp_data_t pdat;
 	
-	umask (0000);
+	umask (0022);
 	strcpy (tmp_pgp_dir, "/var/tmp/pgp.XXXXXX");
-	mktemp (tmp_pgp_dir);
-	if (strlen (tmp_pgp_dir) == 0 ||
-	    mkdir (tmp_pgp_dir, 00777)) {
+	if (mkdtemp (tmp_pgp_dir) == NULL) {
 	  trace(ERROR, default_trace,"Internal error.  Couldn't create temp directory for PGP\n");
 	  return 0;
 	}

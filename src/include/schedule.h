@@ -48,7 +48,6 @@ typedef struct _schedule_t {
    u_long flags;
 } schedule_t;
 
-
 typedef struct _schedule_master_t {
   LINKED_LIST *ll_schedules;
   schedule_t *last_schedule;
@@ -58,7 +57,6 @@ typedef struct _schedule_master_t {
 } schedule_master_t;
 
 extern schedule_master_t *SCHEDULE_MASTER;
-
 
 /* public functions */
 int init_schedules (trace_t *trace);

@@ -19,6 +19,10 @@ extern int snprintf(char *, size_t, const char *, /*args*/ ...);
 extern int mkstemp(char *template);
 #endif
 
+#if defined(HAVE_DECL_MKDTEMP) && ! HAVE_DECL_MKDTEMP
+extern char *mkdtemp(char *template);
+#endif
+
 #define IRRDCACHER_CMD "@IRRDCACHER_PATH@"
 #define WGET_CMD       "@WGET_PATH@"
 

@@ -4,7 +4,7 @@
 
 include ../../Make.include
 
-OBJS    = New.o stack.o linked_list.o hash.o #array.o
+OBJS    = New.o stack.o linked_list.o hash.o array.o
 #CFLAGS += -D_LL_INTERNAL_DEBUG -DLL_DEBUG
 ARCHIVE = $(MRTLIB)
 

@@ -1,20 +1,12 @@
 /*
- * $Id: user.c,v 1.9 2001/09/17 21:46:35 ljb Exp $
+ * $Id: user.c,v 1.10 2002/10/17 19:43:22 ljb Exp $
  */
 
 #include "mrt.h"
 #include "config_file.h"
-
-#ifndef NT
 #include <sys/utsname.h>
 #include <netinet/tcp.h>
 #include <netdb.h>
-#else
-#include <winsock2.h>
-#ifdef HAVE_IPV6
-#include <ws2ip6.h>
-#endif /* HAVE_IPV6 */
-#endif /* NT */
 
 static int uii_command_help (uii_connection_t * uii, int alone);
 static int uii_call_callback_fn (uii_connection_t * uii, uii_command_t * candidate);
@@ -383,7 +375,6 @@ listen_uii2 (char *portname)
     int fd;
 
     struct sockaddr_in serv_addr;
-#ifndef NT_NOV4V6 /* NT IPv6 stack is not dual, and there is no IPv6 telnet */
 #ifdef HAVE_IPV6
     struct sockaddr_in6 serv_addr6;
     memset (&serv_addr6, 0, sizeof (serv_addr6));
@@ -392,8 +383,6 @@ listen_uii2 (char *portname)
 	memcpy (&serv_addr6.sin6_addr, prefix_toaddr6 (UII->prefix), 16);
     }
 #endif	/* HAVE_IPV6 */
-#endif /* NT_NOV4V6 */
-
     memset (&serv_addr, 0, sizeof (serv_addr));
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_addr.s_addr = INADDR_ANY;
@@ -419,7 +408,6 @@ listen_uii2 (char *portname)
     serv_addr.sin_port = port;
     sa = (struct sockaddr *) & serv_addr;
     len = sizeof (serv_addr);
-#ifndef NT_NOV4V6
 #ifdef HAVE_IPV6
     if (UII->prefix == NULL || UII->prefix->family == AF_INET6) {
 	serv_addr6.sin6_port = port;
@@ -427,10 +415,8 @@ listen_uii2 (char *portname)
 	len = sizeof (serv_addr6);
     }
 #endif	/* HAVE_IPV6 */
-#endif /* NT_NOV4V6 */ 
 
     if ((fd = socket (sa->sa_family, SOCK_STREAM, 0)) < 0) {
-#ifndef NT_NOV4V6
 #ifdef HAVE_IPV6
 	if (UII->prefix || sa->sa_family == AF_INET)
 	    goto error;
@@ -440,15 +426,12 @@ listen_uii2 (char *portname)
 	if ((fd = socket (sa->sa_family, SOCK_STREAM, 0)) < 0) {
     error:
 #endif	/* HAVE_IPV6 */
-#endif /* NT_V4V6 */
 	    trace (TR_ERROR, UII->trace, "socket (%m)\n");
 	    /* it's fatal */
 	    return (-1);
-#ifndef NT_NOV4V6
 #ifdef HAVE_IPV6
 	}
 #endif	/* HAVE_IPV6 */
-#endif /* NT_NOV4V6 */
     }
     if (setsockopt (fd, SOL_SOCKET, SO_REUSEADDR,
 		    (const char *) &optval, sizeof (optval)) < 0) {
@@ -460,6 +443,15 @@ listen_uii2 (char *portname)
 	trace (TR_ERROR, UII->trace, "setsockopt SO_REUSEPORT (%m)\n");
     }
 #endif /* SO_REUSEPORT */
+#ifdef IPV6_V6ONLY
+  /* want to listen for both IPv4 and IPv6 connections on same socket */
+  optval = 0;
+  if (setsockopt (fd, IPPROTO_IPV6, IPV6_V6ONLY,
+         (const char *) &optval, sizeof (optval)) < 0) {
+    trace (TR_ERROR, UII->trace, "Could not clear IPV6_V6ONLY (%s)\n",
+                strerror (errno));
+  }
+#endif
     if (bind (fd, sa, len) < 0) { 
 	if (UII->prefix)
 	    trace (TR_WARN, UII->trace,
@@ -493,7 +485,7 @@ listen_uii2 (char *portname)
 	select_delete_fdx (UII->sockfd);	/* this calls close() */
     UII->sockfd = fd;
     pthread_mutex_unlock (&UII->mutex_lock);
-    listen (fd, 5);
+    listen (fd, 128);
 
     if (UII->prefix)
 	trace (TR_INFO, UII->trace,
@@ -509,7 +501,6 @@ listen_uii2 (char *portname)
     return (1);
 }
 
-
 static int
 uii_new_level (uii_connection_t * uii, int new_state)
 {
@@ -518,7 +509,6 @@ uii_new_level (uii_connection_t * uii, int new_state)
     uii->state = new_state;;
     return (uii->state);
 }
-
 
 static int
 uii_quit_level (uii_connection_t * uii)
@@ -870,14 +860,12 @@ uii_read_command (uii_connection_t * uii)
 	    cp++;
 	}
     }
-
 #ifndef HAVE_LIBPTHREAD
     select_enable_fd (uii->sockfd);
 #endif	/* HAVE_LIBPTHREAD */
 
     return (1);
 }
-
 
 /* get a line from uii (non-block w/o thread) */
 static int
@@ -912,17 +900,15 @@ uii_input (uii_connection_t *uii)
     return (buffer_data_len (uii->buffer));
 }
 
-
 int
 uii_yes_no (uii_connection_t *uii)
 {
     if (uii_input (uii) > 0) {
-	if (strcasecmp (buffer_data (uii->buffer), "yes") == 0)
+	if (strncasecmp (buffer_data (uii->buffer), "y", 1) == 0)
 	    return (TRUE);
     }
     return (FALSE);
 }
-
 
 /*
  * read command from socket and call appropraiet handling function.
@@ -1047,7 +1033,6 @@ uii_proccess_command (uii_connection_t * uii)
     return (ret);
 }
 
-
 /*
  * uii_call_callback_fn The config or user input has matched a command. Rally
  * up the arguments (if any and call the callback function of the selected
@@ -1074,11 +1059,11 @@ uii_call_callback_fn (uii_connection_t * uii, uii_command_t * candidate)
 
 	/* optional argument */
 	if (cp[0] == '[') {
+	    if (optional_arg < 0) {
+	         optional_arg = nargs;
+	         nargs++;
+	    }
 	    if (strchr (cp + 1, '|') == NULL) {
-		if (optional_arg < 0) {
-	            optional_arg = nargs;
-	            nargs++;
-		}
 	        cp++;
 		if (utoken)
 	            optional++;
@@ -1089,8 +1074,9 @@ uii_call_callback_fn (uii_connection_t * uii, uii_command_t * candidate)
 		csaved = ctoken;
 		cp = ctoken = strdup (ctoken);
 		cp++;
-		defval = strchr (cp, '|');
+		defval = strrchr (cp, '|');
 		*defval++ = '\0';
+	        optional++;
 		/* check without default */
 		if (utoken == NULL || !uii_token_match (cp, utoken)) {
 		    usaved = utoken;
@@ -1410,7 +1396,6 @@ uii_call_callback_fn (uii_connection_t * uii, uii_command_t * candidate)
     return (ret);
 }
 
-
 /*
  * uii_add_command Add a command (i.e. "show rip") and accompagnying call
  * function to list maintaned by user interface object
@@ -1418,7 +1403,6 @@ uii_call_callback_fn (uii_connection_t * uii, uii_command_t * candidate)
 int 
 uii_add_command (int state, char *string, uii_call_fn_t call_fn)
 {
-
     uii_add_command2 (state, 0, string, call_fn, "No Explanation");
     return (1);
 }
@@ -1486,7 +1470,6 @@ uii_add_command_schedule_i (int state, int flag, char *string,
     return (1);
 }
 
-
 /*
  * uii_add_command2 add a command to list of accept commands the flag
  * specifies: 0=default  1=don't display  2=display, but only
@@ -1499,7 +1482,6 @@ uii_add_command2 (int state, int flag, char *string,
     return (uii_add_command_schedule (state, flag, string,
 				      call_fn, explanation, NULL));
 }
-
 
 /*
  * uii_add_command_arg as uii_add_command2, except arg will be passed back to
@@ -1603,7 +1585,6 @@ uii_destroy_connection (uii_connection_t * uii)
     return (1);
 }
 
-
 /*
  * set_trace
  */
@@ -1703,8 +1684,6 @@ quit:
     return (1);
 }
 
-
-
 int 
 uii_add_bulk_output (uii_connection_t * uii, char *format,...)
 {
@@ -1718,7 +1697,6 @@ uii_add_bulk_output (uii_connection_t * uii, char *format,...)
     va_end (args);
     return (1);
 }
-
 
 /*
  * uii_send_bulk_data A "more"  -- when we need to send pages of information
@@ -1856,7 +1834,6 @@ uii_send_bulk_data (uii_connection_t * uii)
     buffer_reset (uii->answer);
 }
 
-
 int 
 uii_check_passwd (uii_connection_t * uii)
 {
@@ -1896,8 +1873,6 @@ uii_check_passwd (uii_connection_t * uii)
     return (-1);
 }
 
-
-
 /* strip off the begining and trailing space characters */
 char *
 strip_spaces (char *tmp)
@@ -1913,7 +1888,6 @@ strip_spaces (char *tmp)
     }
     return (cp);
 }
-
 
 /*
  * uii_match_command we iterate through tokens for each command user enters
@@ -2127,7 +2101,6 @@ if (LL_GetCount (ll_match) > 1) {
     return (best_command);
 }
 
-
 int 
 uii_show_timers (uii_connection_t * uii)
 {
@@ -2183,7 +2156,6 @@ uii_show_help (uii_connection_t * uii)
 	"\n");
     return (1);
 }
-
 
 /*
  * uii_command_tab_complete tab command completion
@@ -2267,7 +2239,6 @@ uii_command_tab_complete (uii_connection_t * uii, int alone)
 	Delete (completion);
 }
 
-
 /*
  * telnet_option_process
  */
@@ -2329,10 +2300,6 @@ telnet_option_process (uii_connection_t * uii_connection, char cp)
     uii_connection->telnet = 0;
 }
 
-
-
-
-
 /*
  * uii_translate_machine_command_to_human FIX -- we really need to do bounds
  * checking!!
@@ -2381,7 +2348,6 @@ uii_translate_machine_token_to_human (char *token)
     }
     return (tmp);
 }
-
 
 typedef struct _pair_string_t {
     char *a;
@@ -2461,7 +2427,6 @@ uii_command_help (uii_connection_t * uii, int alone)
     return (1);
 }
 
-
 /*
  * show_version Display version number. Usually called by UII
  */
@@ -2529,7 +2494,6 @@ show_threads (uii_connection_t * uii)
     return (1);
 }
 
-
 static int 
 show_sockets (uii_connection_t * uii)
 {
@@ -2543,7 +2507,6 @@ show_sockets (uii_connection_t * uii)
     }
     return (1);
 }
-
 
 /* terminal monitor -- Ala cisco, divert logging to uii connection */
 static int 
@@ -2575,7 +2538,6 @@ no_terminal_monitor (uii_connection_t * uii)
     return (0);
 }
 
-
 void
 init_uii_port (char *portname)
 {
@@ -2598,16 +2560,13 @@ init_uii_port (char *portname)
         pthread_mutex_unlock (&UII->mutex_lock);
 }
 
-
 /*
  * initialize user interactive interface
  */
 void
 init_uii (trace_t * ltrace)
 {
-#ifndef NT
     struct utsname utsname;
-#endif /* NT */
     int i;
 
     assert (UII == NULL);
@@ -2625,10 +2584,8 @@ init_uii (trace_t * ltrace)
     UII->access_list = -1;
     UII->login_enabled = 0;
     UII->initial_state = -1;
-#ifndef NT
     if (uname (&utsname) >= 0)
 	UII->hostname = strdup (utsname.nodename);
-#endif /* NT */
 
     /* initialize prompts */
     for (i = 0; i < UII_MAX_STATE; i++) {
@@ -2671,7 +2628,6 @@ init_uii (trace_t * ltrace)
 		      "Show status of timers");
 }
 
-
 void
 print_error_list (uii_connection_t * uii, trace_t * tr)
 {
@@ -2687,4 +2643,3 @@ print_error_list (uii_connection_t * uii, trace_t * tr)
     }
     pthread_mutex_unlock (&tr->error_list->mutex_lock);
 }
-

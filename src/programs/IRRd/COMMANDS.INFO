@@ -1,6 +1,6 @@
 #
-# $Id: COMMANDS.INFO,v 1.3 2000/07/11 20:18:00 jeffhaas Exp $
- * originally Id: COMMANDS.INFO,v 1.10 1998/07/17 03:07:14 labovit Exp 
+# $Id: COMMANDS.INFO,v 1.5 2002/10/17 20:02:29 ljb Exp $
+# * originally Id: COMMANDS.INFO,v 1.10 1998/07/17 03:07:14 labovit Exp 
 #
 #  ------------------ IRRd Commands --------------------------
 
@@ -8,22 +8,18 @@ IRRd commands implemented:
 
 B command 
 	Build indexes command.
-	Normally issued by 'tcacher' program.
-	eg, !BANS
+	Normally issued by 'irrdcacher' program.
+	eg, !BRADB
+
 g command
 	Get routes with specified origin.
 	eg, !gas1234
 
-h command
-	Get routes with specified community.
-	eg, !hCOMM_NSFNET
-
 i command with option 1
-	Return al: lines of as-macro.  Recursive
+	Return members of an as-set/route-set.  Recursive
 	lookup available.
-	eg, !iAS-ESNETEU     	# non-recursive, don't expand
-				# any embedded marcos
-	eg, !iAS-ESNETEU,1   	# expand any embedded AS marcos
+	eg, !iAS-ESNETEU     	# non-recursive, don't expand any embedded sets
+	eg, !iAS-ESNETEU,1   	# expand any embedded as-set/route-set's
 
 j command
 	View the mirror status (oldest journal number, CURRENTSERIAL) for a db.
@@ -54,32 +50,39 @@ j command
 
 	Returned DB's are canonicalized to upper case.
 
-man command
-	Get the aut-num object with the specied key.
-	man, -- autnum
-	mam, -- as-macro
-	mcm, -- community
-	mmt, -- maintainer
-	mir, -- inetrouter
+m command
+	Get the object with the specied key.
+	!man, -- autnum
+	!mmt, -- maintainer
+	!mir, -- inet-rtr
 	eg, !man,as1234
 
+n command
+	Identification of a tool (the name)
+	!n<ascii text>
+	eg !nroe
+
+o command
+	return all objects with the given mnt-by: attribute value.
+	eg, !omaint-as237
+	
 q command
-	Quit the trawhoisd session.
+	Quit the IRRd session.
 	eg, !q
 
-r command with option l, o, L
+r command with option l, o, L, M
 	Route searches.
         Default finds exact prefix/len match.
         o - return origin of exact match(es)
         l - one-level less specific
 	L - all less specific
-	M - all more specific
+	M - all more specific (must be /16 or longer prefix)
 	eg, !r141.211.128/24,l
 
 s command
 	Set the sources to the specified list.
 	  Default is all sources.
-	  eg, !sradb,ans
+	  eg, !sradb,ripe
 	lc - show the currently selected sources
 	  eg, !s-lc
 
@@ -111,12 +114,7 @@ v command
 	version -- For people who like to type
 	
 
-n command
-	Identification of a tool (the name)
-	!n<ascii text>
-	eg !nroe
-
-IRRd treats each database (i.e. radb, ans, mci, ripe) as a
+IRRd treats each database (i.e. radb, cw, ripe) as a
 separate object. As a general algorithm, IRRd will scan each
 database and return an answer from each.
 

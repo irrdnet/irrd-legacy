@@ -1,5 +1,5 @@
 /* 
- * $Id: scan.c,v 1.24 2002/02/04 20:53:57 ljb Exp $
+ * $Id: scan.c,v 1.26 2002/10/17 20:02:31 ljb Exp $
  * originally Id: scan.c,v 1.87 1998/07/29 21:15:17 gerald Exp 
  */
 
@@ -21,25 +21,19 @@ extern trace_t *default_trace;
 /* local functions */
 static int populate_keyhash (irr_database_t *database);
 static void pick_off_secondary_fields (char *buffer, int curr_f, 
-                                       enum STATES state,
-				       irr_object_t *irr_object,
-				       enum DB_SYNTAX db_syntax);
+				       irr_object_t *irr_object);
 void mark_deleted_irr_object (irr_database_t *database, u_long offset);
-static void add_field_items (char *buf, int curr_f, enum STATES state, 
-			     enum DB_SYNTAX db_syntax, LINKED_LIST **ll);
+static void add_field_items (char *buf, LINKED_LIST **ll);
 static char *build_indexes (FILE *fp, irr_database_t *db, irr_object_t *object, 
-			    u_long fp_pos, int update_flag);
+			    u_long fp_pos, int update_flag, char *first_attr);
 int find_blank_line (FILE *fp, char *buf, int buf_size,
-                     enum STATES state, enum STATES *p_save_state,
-		     u_long *position, u_long *offset,
-		     enum DB_SYNTAX db_syntax, irr_database_t *db);
+                  enum STATES state, enum STATES *p_save_state,
+		  u_long *position, u_long *offset);
 int dump_object_check (irr_object_t *object, enum STATES state, u_long mode, 
 		       int update_flag, irr_database_t *db, FILE *fp);
-void database_store_stats (irr_database_t *database);
 
 /* Note: it is not necessary to define every field, only
  * those fields which irrd needs to recognize.
- * col 1 is RIPE181 and col 2 is RPSL 
  *
  * Also note that the data struct 'enum IRR_OBJECTS' defined in
  * scan.h is the first dimension index into this array.  get_curr_f ()
@@ -47,52 +41,49 @@ void database_store_stats (irr_database_t *database);
  * Any changes to key_info [] or to the 'enum IRR_OBJECTS' data struct
  * need to be coordinated.  m_info [] and obj_template [] also depend
  * on 'enum IRR_OBJECTS'.  See scan.h for more information. */
-key_label_t key_info [] [2] = {
-  { { "*an:", 4, KEY_F, AUTNUM_F},   { "aut-num:",      8, KEY_F, AUTNUM_F} },
-  { { "*rt:", 4, KEY_F, ROUTE_F},    { "route:",        6, KEY_F, ROUTE_F} },
-  { { "*am:", 4, KEY_F, ASMACRO_F},  { "",              1, KEY_F, ASMACRO_F} },
-  { { "*cm:", 4, KEY_F, COMMUNITY_F},{ "",              1, KEY_F, COMMUNITY_F} },
-  { { "*mt:", 4, KEY_F, MNTNER_F},   { "mntner:",       7, KEY_F, MNTNER_F} },
-  { { "*ir:", 4, KEY_F, INET_RTR_F}, { "inet-rtr:",     9, KEY_F, INET_RTR_F} },
-  { { "*pn:", 4, KEY_F, PERSON_F},   { "person:",       7, KEY_F, PERSON_F} },
-  { { "*ro:", 4, KEY_F, ROLE_F},     { "role:",         5, KEY_F, ROLE_F} },
-  { { "*is:", 4, KEY_F, IPV6_SITE_F},{ "ipv6-site:",   10, KEY_F, IPV6_SITE_F} },
-  { { "*al:", 4, NON_KEY_F, XXX_F},  { "",              1, NON_KEY_F, XXX_F} },
-  { { "*in:", 4, KEY_F, INETNUM_F},  { "inetnum:",      8, KEY_F,  INETNUM_F} },
-  { { "*or:", 4, NON_KEY_F, XXX_F},  { "origin:",       7, NON_KEY_F, XXX_F} },
-  { { "*cl:", 4, NON_KEY_F, XXX_F}, { "",              1, NON_KEY_F, XXX_F } },
-  { { "*wd:", 4, NON_KEY_F, XXX_F}, { "withdrawn:",   10, NON_KEY_F, XXX_F } },
-  { { "*mb:", 4, NON_KEY_F, XXX_F}, { "mnt-by:",       7, NON_KEY_F, XXX_F  } },
-  { { "*ac:", 4, NON_KEY_F, XXX_F}, { "admin-c:",      8, NON_KEY_F, XXX_F } },
-  { { "*tc:", 4, NON_KEY_F, XXX_F}, { "tech-c:",       7, NON_KEY_F, XXX_F } },
-  { { "*nh:", 4, NON_KEY_F, XXX_F}, { "nic-hdl:",      8, NON_KEY_F, XXX_F} },
-  { { "*dn:", 4, KEY_F, DOMAIN_F},  { "domain:",       7, KEY_F, DOMAIN_F } },
-  { { "*ue:", 4, NON_KEY_F, XXX_F}, { "*ERROR*:",      8, NON_KEY_F, XXX_F } },
-  { { "*uw:", 4, NON_KEY_F, XXX_F}, { "WARNING:",      8, NON_KEY_F , XXX_F} },
-  /* rpsl specific fields */
-  { { "",     1, NON_KEY_F, XXX_F}, { "mbrs-by-ref:", 12, NON_KEY_F, XXX_F } },
-  { { "",     1, NON_KEY_F, XXX_F}, { "member-of:",   10, NON_KEY_F, XXX_F } },
-  { { "",     1, NON_KEY_F, XXX_F}, { "members:",      8, NON_KEY_F, XXX_F } },
-  { { "",     1, NON_KEY_F, XXX_F}, { "prefix:",       7, NON_KEY_F, XXX_F } },
-  { { "",     1, NON_KEY_F, XXX_F}, { "as-set:",       7, KEY_F, AS_SET_F } },
-  { { "",     1, NON_KEY_F , XXX_F},{ "route-set:",   10, KEY_F, ROUTE_SET_F } },
-  { { "",     1, NON_KEY_F, XXX_F}, { "contact:",      8, NON_KEY_F, XXX_F } },
-  { { "",     1, NON_KEY_F , XXX_F},{ "filter-set:",   11, KEY_F, FILTER_SET_F } },
-  { { "",     1, NON_KEY_F , XXX_F},{ "rtr-set:",       8, KEY_F, RTR_SET_F } },
-  { { "",     1, NON_KEY_F , XXX_F},{ "peering-set:",  12, KEY_F, PEERING_SET_F } },
-  { { "",     1, NON_KEY_F , XXX_F},{ "key-cert:",      9, KEY_F, KEY_CERT_F } },
-  { { "",     1, NON_KEY_F , XXX_F},{ "dictionary:",   11, KEY_F, DICTIONARY_F } },
-  { { "",     1, NON_KEY_F , XXX_F},{ "repository:",   11, KEY_F, REPOSITORY_F } },
-  { { "",     1, NON_KEY_F , XXX_F},{ "inet6num:",      9, KEY_F, INET6NUM_F } },
-  { { "",     1, NON_KEY_F , XXX_F},{ "dom-prefix:",   11, KEY_F, DOMAIN_PREFIX_F } },
+key_label_t key_info [] = {
+  {"aut-num:",      8, NAME_F|KEY_F, AUT_NUM_F},
+  {"as-set:",       7, NAME_F|KEY_F, AS_SET_F},
+  {"mntner:",       7, NAME_F|KEY_F, MNTNER_F},
+  {"route:",        6, NAME_F|KEY_F, ROUTE_F},
+  {"route6:",       7, NAME_F|KEY_F, ROUTE6_F},
+  {"route-set:",   10, NAME_F|KEY_F, ROUTE_SET_F},
+  {"inet-rtr:",     9, NAME_F|KEY_F, INET_RTR_F},
+  {"rtr-set:",      8, NAME_F|KEY_F, RTR_SET_F},
+  {"person:",       7, NAME_F, PERSON_F},
+  {"role:",         5, NAME_F, ROLE_F},
+  {"filter-set:",  11, NAME_F|KEY_F, FILTER_SET_F},
+  {"peering-set:", 12, NAME_F|KEY_F, PEERING_SET_F},
+  {"key-cert:",     9, NAME_F|KEY_F, KEY_CERT_F},
+  {"dictionary:",  11, NAME_F, DICTIONARY_F},
+  {"repository:",  11, NAME_F, REPOSITORY_F},
+  {"inetnum:",      8, NAME_F|KEY_F, INETNUM_F},
+  {"inet6num:",     9, NAME_F|KEY_F, INET6NUM_F},
+  {"as-block:",     9, NAME_F|KEY_F, AS_BLOCK_F},
+  {"domain:",       7, NAME_F, DOMAIN_F},
+  {"limerick:",     9, NAME_F, LIMERICK_F},
+  {"ipv6-site:",   10, NAME_F, IPV6_SITE_F},
+/* beginning of non-class attribute names */
+  {"origin:",       7, KEY_F|SECONDARY_F, XXX_F},
+  {"mnt-by:",       7, SECONDARY_F, XXX_F},
+  {"admin-c:",      8, NON_NAME_F, XXX_F},
+  {"tech-c:",       7, NON_NAME_F, XXX_F},
+  {"nic-hdl:",      8, SECONDARY_F, XXX_F},
+  {"mbrs-by-ref:", 12, SECONDARY_F, XXX_F},
+  {"member-of:",   10, SECONDARY_F, XXX_F},
+  {"members:",      8, KEY_F|SECONDARY_F, XXX_F},
+  {"mp-members:",  11, KEY_F, XXX_F},
+  {"withdrawn:",   10, SECONDARY_F, XXX_F},
+  {"*error*:",      8, NON_NAME_F, XXX_F},
+  {"warning:",      8, NON_NAME_F, XXX_F},
+  {"prefix:",       7, SECONDARY_F, XXX_F},
+  {"contact:",      8, NON_NAME_F, XXX_F},
+  {"auth:",         5, NON_NAME_F, XXX_F},
   /* this should not change, add others before (ie, NO_FIELD row) */
-  { { "",1, NON_KEY_F, XXX_F }, { "",      1, NON_KEY_F, XXX_F } },
+  {"",      1, NON_NAME_F, XXX_F},
 };
 
-static char *str_syntax[] = {
-	"RIPE181",
-	"RPSL"
-};
+#define MAX_RPSLNAME_LEN 32
 
 /* scan_irr_serial
  * read the <DB>.serial file and store the number for later use 
@@ -131,34 +122,6 @@ int scan_irr_serial (irr_database_t *database) {
   return ret_code;
 }
 
-/* write_irr_serial
- * Write the serial number to <DB>.serial
- * we generally do this after mirroring and update our state
- */
-int write_irr_serial_orig (irr_database_t *database) {
-  int ret_code = 0;
-  char db[BUFSIZE], file[BUFSIZE], serial[20];
-  FILE *fp;
-
-  strcpy (db, database->name);
-  convert_toupper (db);
-
-  sprintf (file, "%s/%s.CURRENTSERIAL", IRR.database_dir, db);
-  if ((fp = fopen (file, "w")) != NULL) {
-    sprintf (serial, "%ld", database->serial_number);
-    fwrite (serial, 1, strlen (serial), fp);
-    fclose (fp);
-    ret_code = 1;
-  }
-  else
-    trace (ERROR, default_trace, "write_irr_serial () file I/O open error: (%s)\n",
-	   strerror (errno));
-
-  SetStatusString (IRR.statusfile, db, "currentserial", serial);
-
-  return ret_code;
-}
-
 /* Write to disk the current serial value for DB (db->name).
  *
  * Function was rewritten to return a value to indicate if
@@ -189,21 +152,20 @@ int write_irr_serial (irr_database_t *db) {
   sprintf (file, "%s/%s.CURRENTSERIAL", IRR.database_dir, dbname);
 
   /* now write the current serial to file */
-  if ((fd = open (file, O_WRONLY|O_TRUNC, 0664)) >= 0) {
+  if ((fd = open (file, O_WRONLY|O_TRUNC|O_CREAT, 0644)) >= 0) {
     sprintf (serial, "%ld", db->serial_number);
-    if (write (fd, serial, strlen (serial)) > 0) 
+    if (write (fd, serial, strlen (serial)) > 0)  {
+      SetStatusString (IRR.statusfile, dbname, "currentserial", serial);
       ret_code = 1;
-    else
-      trace (ERROR, default_trace, "write_irr_serial (): file I/O  error: (%s)\n",
+    } else
+      trace (ERROR, default_trace, "write_irr_serial (): file write error: (%s)\n",
 	     strerror (errno));
 
     close (fd);
   }
   else
-    trace (ERROR, default_trace, "write_irr_serial (): file I/O open error: (%s)\n",
+    trace (ERROR, default_trace, "write_irr_serial (): file open error: (%s)\n",
 	   strerror (errno));
-
-  SetStatusString (IRR.statusfile, dbname, "currentserial", serial);
 
   return ret_code;
 }
@@ -230,11 +192,9 @@ void write_irr_serial_export (u_long serial, irr_database_t *database) {
 /* scan_irr_file
  * Open the db, update, or mirror log file for parsing
  * The update_flag (if == 1 || 2) indicates this is a update/mirror file
- * Determine the syntax (RIPE or RPSL)
  */
 char *scan_irr_file (irr_database_t *database, char *extension, 
 		     int update_flag, FILE *update_fp) {
-  enum DB_SYNTAX syntax;
   FILE *fp = update_fp;
   char file[BUFSIZE], *p;
 
@@ -248,14 +208,13 @@ char *scan_irr_file (irr_database_t *database, char *extension,
   
   /* CL: open file */
   if (fp == NULL) {
-     trace (NORM, default_trace, "scan.c opening file %s\n", file);
      if ((fp = fopen (file, "r+")) == NULL) {
        /* try creating it for the first time */
        trace (NORM, default_trace, "scan.c (%s) does not exist, creating it\n", file);
         fp = fopen (file, "w+");
       
        if (fp == NULL) {
- 	trace (ERROR, default_trace, "IRRd error: scan_irr_file () "
+ 	trace (ERROR, default_trace, "scan_irr_file () "
 	       "Could not open %s (%s)!\n", 
 	       file, strerror (errno));
 	return "IRRd error: Disk error in scan_irr_file ().  Could not open DB";
@@ -266,42 +225,11 @@ char *scan_irr_file (irr_database_t *database, char *extension,
     /* setvbuf (fp, NULL, _IOFBF, IRRD_FAST_BUF_SIZE+2);*/ /* big buffer */
   }
 
-  if (!update_flag)
-    database->db_fp = fp;
-
-  if ((syntax = get_database_syntax (fp)) == UNRECOGNIZED) {
-      trace (ERROR, default_trace, "Unrecognized DB syntax, reload aborted!\n");
-      trace (ERROR, default_trace, "**** DB-(%s)\n", database->name);
-      return "Unrecognized DB syntax!";
-  }
-  else if (syntax == EMPTY_DB) {
-    trace (NORM, default_trace, "WARNING: No DB objects found, "
-	   "scan complete DB-(%s)!\n", database->name);
-    return "No DB objects found!";
-  }
-  
-  if (database->db_syntax != syntax) {
-    if (database->db_syntax == EMPTY_DB)
-      database->db_syntax = syntax;
-    else {
-      trace (ERROR, default_trace, "DB syntax mismatch, reload aborted!\n");
-      trace (NORM, default_trace, "**** (%s) is type (%s), update file type is"
-	     " (%s).\n", database->name, str_syntax[database->db_syntax],
-	     str_syntax[syntax]);
-      return "DB syntax mismatch!";
-    }
-  }      
-
-  if (IRR.database_syntax == EMPTY_DB)
-    IRR.database_syntax = syntax;
-  else if (IRR.database_syntax != MIXED &&
-	   IRR.database_syntax != syntax)
-    IRR.database_syntax = MIXED;
-
   if (!update_flag) {
+    database->db_fp = fp;
     /* rewind */
     if (fseek (database->db_fp, 0L, SEEK_SET) < 0) {
-      trace (ERROR, default_trace, "IRRd error: scan_irr_file () rewind DB (%s) "
+      trace (ERROR, default_trace, "scan_irr_file () rewind DB (%s) "
 	     "error: %s\n", database->name, strerror (errno));
       return "scan_irr_file () rewind DB error.  Abort reload!";
     }
@@ -317,7 +245,7 @@ char *scan_irr_file (irr_database_t *database, char *extension,
     make_journal_name (database->name, JOURNAL_NEW, jfile);
     
     if ((database->journal_fd = open (jfile, O_RDWR | O_APPEND| O_CREAT, 0664)) < 0)
-      trace (ERROR, default_trace, "IRRd error: scan_irr_file () Could not open "
+      trace (ERROR, default_trace, "scan_irr_file () Could not open "
 	     "journal file %s: (%s)!\n", jfile, strerror (errno));
   }
   
@@ -345,10 +273,11 @@ char *scan_irr_file (irr_database_t *database, char *extension,
 void *scan_irr_file_main (FILE *fp, irr_database_t *database, 
                           int update_flag, enum SCAN_T scan_scope) {
   char buffer[4096], *cp, *p = NULL;
-  u_long save_offset, offset, position, mode;
+  char first_attr[128];
+  u_long save_offset, offset, position, mode, len = 0;
   irr_object_t *irr_object;
   enum IRR_OBJECTS curr_f;
-  enum STATES prev_state, save_state, state;
+  enum STATES save_state, state;
   hash_spec_t hash_spec_item;
   long lineno = 0;
 
@@ -362,32 +291,34 @@ void *scan_irr_file_main (FILE *fp, irr_database_t *database,
   state      = BLANK_LINE; 
   curr_f     = NO_FIELD;
   irr_object = NULL;
-  if (scan_scope == SCAN_FILE)
+
+  if (scan_scope == SCAN_FILE) {
+    int hashsize;
+
+    if (update_flag)
+      hashsize = SMALL_HASH_SIZE; /* only need a smallish hash for updates */
+    else
+      hashsize = DEF_HASH_SIZE;
+    
     database->hash_spec_tmp = 
-      HASH_Create (1000, HASH_KeyOffset, 
+      HASH_Create (hashsize, HASH_KeyOffset, 
 		   HASH_Offset (&hash_spec_item, &hash_spec_item.key), 
 		   HASH_DestroyFunction, Delete_hash_spec, 0);
+  }
 
   /* okay, here we go scanning the file */
   while (state != DB_EOF) { /* scan to end of file */
     if ((cp = fgets (buffer, sizeof (buffer), fp)) != NULL) {
       lineno++;
       position = offset;
-      offset += strlen (buffer);
+      len = strlen(buffer);
+      offset += len;
     }
 
-    prev_state = state;
-    state = get_state (buffer, cp, state, &save_state);
+    state = get_state (cp, len, state, &save_state);
     
-    /*JW This doesn'tallow #'s, +'s at the end of an object
-    if (state == COMMENT &&
-        prev_state != COMMENT)
-      save_offset = position;
-    JW*/
     /* dump comment lines and lines that exceed the buffer size */
-    if (state == OVRFLW     || 
-	state == OVRFLW_END ||
-	state == COMMENT)
+    if (state & (OVRFLW | OVRFLW_END | COMMENT ))
       continue;
 
     if (update_flag      &&
@@ -407,20 +338,25 @@ void *scan_irr_file_main (FILE *fp, irr_database_t *database,
       }
     }
 
-    curr_f = get_curr_f (database->db_syntax, buffer, state, curr_f);  
+    if (state & (DB_EOF | OVRFLW | OVRFLW_END | BLANK_LINE))
+      curr_f = NO_FIELD;
+    else if (state != LINE_CONT)
+      curr_f = get_curr_f (buffer);  
 
     /* we have entered into a new object -- create the initial structure */
-    if (irr_object == NULL    && 
-	state      == START_F)
+    if (irr_object == NULL && state == START_F) {
       irr_object = New_IRR_Object (buffer, position, mode);
+      /* save a copy of the first attribute for logging purposes */
+      strncpy(first_attr, buffer, sizeof(first_attr));
+      first_attr[sizeof(first_attr) - 1] = '\0';
+    }
 
     /* Ignore these fields if they come at the end of the object.
      * The trick is to treat the fields like a comment at the end of the
      * object.
      * dump_object_check() will set state = DB_EOF if other error's found 
      */
-    if (curr_f == SYNTAX_ERR ||
-        curr_f == WARNING) {
+    if (curr_f == SYNTAX_ERR || curr_f == WARNING) {
 
       /* this junk should not be in a well-formed transaction */
       if (atomic_trans) {
@@ -432,64 +368,68 @@ void *scan_irr_file_main (FILE *fp, irr_database_t *database,
       }
 
       trace (ERROR, default_trace,"In (db,serial)=(%s,%lu) found 'WARNING' "
-	     "or '*ERROR*' line, attempting to remove RIPE server extraneous lines:"
-	     "\n%s", database->name, database->serial_number + 1, buffer);
+	     "or '*ERROR*' line, attempting to remove extraneous lines starting with:\n%s", database->name, database->serial_number + 1, buffer);
 
       /* mark end of object, read past err's and warn's */ 
       save_offset = position; 
 
       state = find_blank_line (fp, buffer, sizeof(buffer), state, &save_state,
-                               &position, &offset, database->db_syntax,
-			       database);
+                               &position, &offset);
       state = dump_object_check (irr_object, state, mode, update_flag, 
                                  database, fp);
       if (state == DB_EOF) { /* something went wrong, dump object and abort */
-        trace (ERROR, default_trace,"Attempt to remove RIPE server extraneous line "
-	       "failed!  Abort!\n");
+          trace (ERROR, default_trace,"Attempt to remove RIPE server extraneous line failed!  Abort!\n");
         Delete_IRR_Object (irr_object);
         irr_object = NULL;
         mode = IRR_NOMODE;
         continue;
-      }
-      else
-        trace (NORM, default_trace, "WARNING: Attempt to remove RIPE server "
-	       "extraneous line succeeded!\n");
+      } else
+        trace (NORM, default_trace, "Attempt to remove extraneous line succeeded!\n");
     }
 
-    /* KEY_F type indicates a key field (ie, key field may not be first) */
-    if (key_info[curr_f][database->db_syntax].f_type == KEY_F)
-      init_key (buffer, curr_f, irr_object, database->db_syntax);
-    
-    /* add secondary keys, and store things like withdrawn,
-     * origin, communities we'll need later
-     */
-    if (curr_f != NO_FIELD &&
-	(state == START_F  || 
-	 state == LINE_CONT)) {
-      pick_off_secondary_fields (buffer, curr_f, state, irr_object, 
-				 database->db_syntax);
+    if (curr_f != NO_FIELD && (state & (START_F | LINE_CONT)) ) {
+
+      /* if continuation line, attribute value starts at beginning + 1 */
+      if (state == LINE_CONT)
+        cp = buffer + 1; /* Ignore initial whitespace or '+' */
+      else /* skip over attribute name label */
+        cp = buffer + key_info[curr_f].len;
+
+      /* NAME_F indicates object class name attribute */
+      if (key_info[curr_f].f_type & NAME_F) {
+        whitespace_remove(cp);
+	if (*cp != '\0') { /* class name value may be on a continuation line */
+          if (irr_object->name != NULL) {
+ 	    /* Shouldn't have more than one class name attribute */
+            trace (NORM, default_trace, "Warning! Multiple class name attributes: Previous - %s %s,  New - %s %s\n", key_info[irr_object->type].name, irr_object->name, key_info[curr_f].name, cp );
+	  } else {
+	    irr_object->name = strdup (cp);
+	    irr_object->type = curr_f;
+	    irr_object->filter_val = key_info[curr_f].filter_val;
+	  }
+	}
+      } else if (key_info[curr_f].f_type & SECONDARY_F)
+        /* add secondary keys, and store things like origin, nic-hdl, etc.  */
+        pick_off_secondary_fields (cp, curr_f, irr_object);
+
       continue;
     }
 
     /* Process OBJECT  (we just read a '\n' on a line by itself or eof) */
-    if ((state == BLANK_LINE || state == DB_EOF) && irr_object != NULL) {
+    if ( (state & (BLANK_LINE | DB_EOF)) && irr_object != NULL) {
       if (scan_scope == SCAN_OBJECT)
 	return (void *) irr_object;
 
-      if (curr_f == SYNTAX_ERR ||
-	  curr_f == WARNING)
+      if (curr_f == SYNTAX_ERR || curr_f == WARNING)
 	position = save_offset;
       else if (state == DB_EOF)
 	position = offset;
 
-      if ((p = build_indexes (fp, database, irr_object, position, update_flag)) 
-	  != NULL && (!update_flag || atomic_trans))
-	state = DB_EOF; /* abort scan, something wrong found in input file */
-
-      if (update_flag) {
-	if (p == NULL)
-	  commit_spec_hash (database); 
-	HASH_Clear (database->hash_spec_tmp);
+      if ((p = build_indexes (fp, database, irr_object, position, update_flag, first_attr)) != NULL) {
+        if (!update_flag || (update_flag == 1 && atomic_trans))
+	  state = DB_EOF; /* abort scan, something wrong found in input file */
+	else
+	  p = NULL;	/* ignore errors if mirroring or non-atomic update */
       }
 
       Delete_IRR_Object (irr_object);
@@ -500,38 +440,11 @@ void *scan_irr_file_main (FILE *fp, irr_database_t *database,
 
   /* only do on reload's and mirror updates */
   if (scan_scope == SCAN_FILE) {
-    database_store_stats (database);
-    commit_spec_hash (database); 
+    if (p == NULL) 
+      commit_spec_hash (database); /* commit if no critical errors */
     HASH_Destroy (database->hash_spec_tmp);
   }
-
-  return (void *) p;
-}
-
-/* store stats in special indices
- * This is used so we can just load dbm files and not scan the .db file
- * to get all of this information
- */
-void database_store_stats (irr_database_t *database) {
-  char data[100], *key;
-
-  /*
-   * store database stats 
-   * FORMAT:
-   *   time last indexed #
-   *   databse language (RPSL or RIPE) #
-   *   number autnum #
-   *   number route objects #
-   */
-  key = strdup ("@STATS");
-  sprintf (data, "%d#%d#%d#%d#%d", 
-	   (int) time(NULL), 
-	   (int) database->db_syntax, 
-	   database->bytes,
-	   database->num_objects[ROUTE],
-	   database->num_objects[AUT_NUM]);
-  memory_hash_spec_store (database, key, DATABASE_STATS, NULL, NULL, data);
-  Delete (key);
+  return (void *) p;	/* return error string (if any) */
 }
 
 /* pick_off_secondary_fields
@@ -539,103 +452,62 @@ void database_store_stats (irr_database_t *database) {
  * and secondary indicie keys
  */
 void pick_off_secondary_fields (char *buffer, int curr_f, 
-                                enum STATES state, irr_object_t *irr_object,
-				enum DB_SYNTAX db_syntax) {
-  char *cp;
-  
-  /* rt object origin */
-  if (curr_f == ORIGIN) {
-    cp = buffer + key_info[ORIGIN][db_syntax].len;
+				irr_object_t *irr_object) {
+  char *cp = buffer;
+ 
+  switch (curr_f) {
+  case ORIGIN:
     whitespace_newline_remove(cp);
     cp += 2;
     irr_object->origin = (u_short) atoi (cp);
-  }
-
-  else if (curr_f == NIC_HDL) {
-    cp = buffer + key_info[NIC_HDL][db_syntax].len;
+    break;
+  case NIC_HDL:
     whitespace_newline_remove(cp);
     irr_object->nic_hdl = strdup (cp);
-  }
-  
-  /* rt object community list */
-    else if (db_syntax == RIPE181 && curr_f == COMM_LIST) {
-
-    cp = buffer + key_info[COMM_LIST][db_syntax].len;
-    whitespace_newline_remove(cp);
-    if (irr_object->ll_community == NULL) {
-      irr_object->ll_community = LL_Create (LL_DestroyFunction, free, 0);
-    }
-    LL_Add (irr_object->ll_community, strdup (cp));
-  }
-  
-  /* withdrawn */
-  else if (curr_f == WITHDRAWN) {
+    break;
+  case WITHDRAWN:
     irr_object->withdrawn = 1;
-  }
-  
-  /* prefix -- IPV6 Site object */
-  else if (db_syntax == RPSL && curr_f == PREFIX) {
-
-    cp = buffer + key_info[PREFIX][db_syntax].len;
+    break;
+  case PREFIX:	/* for IPv6 site objects */
+    if (irr_object->ll_prefix == NULL) /* create list if it does not exist */
+      irr_object->ll_prefix = LL_Create (LL_DestroyFunction, free, 0);
     whitespace_newline_remove(cp);
-    LL_Add (irr_object->ll_prefix, ascii2prefix (AF_INET6, cp));
-  }
-  
-  /* ASMACRO *al: scanning, RIPE181 only */
-  else if (db_syntax == RIPE181 && curr_f == AS_LIST)
-    add_field_items (buffer, curr_f, state, db_syntax,
-		     &irr_object->ll_as);
-
-  /* AS-SET, RS-SET members: scanning, RPSL only */
-  else if (db_syntax == RPSL && curr_f == MEMBERS)
-    add_field_items (buffer, curr_f, state, db_syntax,
-		     &irr_object->ll_as);
-
-  /* AS-SET, RS-SET mbrs-by-ref: scanning, RPSL only */
-  else if (db_syntax == RPSL && curr_f == MBRS_BY_REF) 
-    add_field_items (buffer, curr_f, state, db_syntax,
-		     &irr_object->ll_mbr_by_ref);
-
-  /* ROUTE and AUT-NUM mnt-by: scanning, RPSL only */
-  else if (db_syntax == RPSL && curr_f == MNT_BY)
-    add_field_items (buffer, curr_f, state, db_syntax,
-		     &irr_object->ll_mnt_by);
-
-  /* ROUTE and AUT-NUM member-of: scanning, RPSL only */
-  else if (db_syntax == RPSL && curr_f == MEMBER_OF)
-    add_field_items (buffer, curr_f, state, db_syntax,
-		     &irr_object->ll_mbr_of);
+    LL_Add (irr_object->ll_prefix, strdup(cp));
+    break;
+  case MNT_BY:
+    add_field_items (cp, &irr_object->ll_mnt_by);
+    break;
+  case MEMBER_OF:
+  /* ROUTE and AUT-NUM member-of: scanning */
+    add_field_items (cp, &irr_object->ll_mbr_of);
+    break;
+  case MEMBERS:
+  /* AS-SET, ROUTE-SET members: scanning */
+    add_field_items (cp, &irr_object->ll_mbrs);
+    break;
+  case MBRS_BY_REF:
+  /* AS-SET, ROUTE-SET mbrs-by-ref: scanning */
+    add_field_items (cp, &irr_object->ll_mbr_by_ref);
+    break;
+  default:
+    break;
+  } 
 }
   
-void add_field_items (char *buf, int curr_f, enum STATES state, 
-		      enum DB_SYNTAX db_syntax, LINKED_LIST **ll) {
-  char *cp, *last;
-  /*  reference_key_t *ref_item; */
+void add_field_items (char *buf, LINKED_LIST **ll) {
+  char *cp = buf, *last;
 
-  cp = buf + key_info[curr_f][db_syntax].len;
-  if (state == LINE_CONT)
-    cp = buf;
-
+  if (*ll == NULL) /* create list if it does not exist */
+    *ll = LL_Create (LL_DestroyFunction, free, 0);
   whitespace_newline_remove (cp);
-  if (db_syntax == RPSL)
-    strtok_r (cp, ",", &last); 
-  else
-
-    strtok_r (cp, " ", &last); 
+  strtok_r (cp, ",", &last); 
   while (cp != NULL && *cp != '\0') {
     whitespace_remove (cp);
-
-    if (*ll == NULL) /* this way we know if *ll != NULL list is non-empty */
-      *ll = LL_Create (LL_DestroyFunction, free, 0);
-
     /* sanity check */
-    if (strlen (cp) > 0) 
+    if (*cp != '\0') 
       LL_Add ((*ll), strdup (cp));
     
-    if (db_syntax == RPSL)
-      cp = strtok_r (NULL, ",", &last);
-    else
-      cp = strtok_r (NULL, " ", &last); 
+    cp = strtok_r (NULL, ",", &last);
   }
 }
 
@@ -661,13 +533,12 @@ void add_field_items (char *buf, int curr_f, enum STATES state,
  *   state associated with the current input line
  * 
  */
-int get_state (char *buf, char *cp, 
-               enum STATES state, enum STATES *p_save_state) {
+int get_state (char *buf, u_long len, enum STATES state, enum STATES *p_save_state) {
   char *p;
 
-  if (cp == NULL) return DB_EOF;
+  if (buf == NULL) return DB_EOF;
 
-  if (buf[strlen (buf) - 1] != '\n') return OVRFLW;
+  if (buf[len - 1] != '\n') return OVRFLW;
 
   /*JW put in later to support buffer overflow processing
   if (state == OVRFLW) {
@@ -692,7 +563,7 @@ int get_state (char *buf, char *cp,
   if (state == COMMENT)
     state = *p_save_state;     /* comment is over, restore old state */
 
-  if (state == BLANK_LINE || state == OVRFLW_END) {
+  if (state & (BLANK_LINE | OVRFLW_END)) {
     if (buf[0] == '\n')     return BLANK_LINE;
 
     if (buf[0] == '\r' && 
@@ -708,7 +579,7 @@ int get_state (char *buf, char *cp,
     return START_F;
   }
 
-  if (state == START_F || state == LINE_CONT) {
+  if (state & (START_F | LINE_CONT)) {
     if (buf[0] == '\n')     return BLANK_LINE;
 
     if (buf[0] == '\r' && 
@@ -724,72 +595,57 @@ int get_state (char *buf, char *cp,
   return OVRFLW_END;
 }
 
-/* get the current field and return it (eg, 'mnt-by:' or 'source:') */
-int get_curr_f (int db_syntax, char *buf, int state, int curr_f) {
+/* get the current field and return it's index (eg, 'mnt-by:' or 'source:') */
+int get_curr_f (char *buf) {
   keystring_hash_t *keystring_item;
-  char *cp, save = '\0';
-  /*int i;*/
+  char *src, *dst;
+  char tmp[MAX_RPSLNAME_LEN + 1];
+  int i;
 
-  if (state == LINE_CONT)
-    return (curr_f);
+  src = buf;
+  dst = tmp;
+  i = 0;
 
-  if (state == DB_EOF || 
-      state == OVRFLW || 
-      state == OVRFLW_END)
-    return (NO_FIELD);
+  while (i < MAX_RPSLNAME_LEN && *src != '\0') {
+   if ( (*dst++ = tolower(*src++)) == ':') /* convert to lowercase and check for colon */
+      break;
+   i++;
+  } 
+  *dst = '\0';  /* write a null after the colon */
 
-  /* do we need strncasecmp ????? */
-  /* maybe use a hash to speed this up? */
+  keystring_item = HASH_Lookup (IRR.key_string_hash, tmp);
 
-  cp = strchr (buf, ':');
-  if (cp != NULL) {
-    cp++;
-    save = *cp;
-    *cp = '\0';
+  if (keystring_item == NULL) {
+    /* trace (NORM, default_trace,"Warning! Unrecognized attr: %s", buf); */
+     return (NO_FIELD);
   }
-
-  if ((keystring_item = HASH_Lookup (IRR.key_string_hash, buf)) == NULL) {
-    if (cp != NULL) {*cp = save;}
-    return (NO_FIELD);
-  }
-
-  if (cp != NULL) {*cp = save;}
   return (keystring_item->num);
-
-  /*  for (i = 0; i < IRR_MAX_KEYS; i++) { 
-    if (!memcmp (key_info[i][db_syntax].name, buf,  
-		 key_info[i][db_syntax].len)) {
-      return (i);
-    }
-  }
-  return (NO_FIELD);*/
 }
 
 /* read past an object to the first blank line */
 int find_blank_line (FILE *fp, char *buf, int buf_size, 
-                     enum STATES state, enum STATES *p_save_state,
-		     u_long *position, u_long *offset,
-		     enum DB_SYNTAX db_syntax, irr_database_t *database) {
+                enum STATES state, enum STATES *p_save_state,
+		u_long *position, u_long *offset) {
   char *cp;
+  u_long len = 0;
   
   do {
     if ((cp = fgets (buf, buf_size, fp)) != NULL) {
       *position = *offset;
-      *offset += strlen (buf);
+      len = strlen(buf);
+      *offset += len;
     }
-    /* } BOGUS for % in vi */
-
-    state = get_state (buf, cp, state, p_save_state);
+    state = get_state (cp, len, state, p_save_state);
 
     /* only dump lines if the ERROR or WARN line come 
      * at the end of the object.
      */
     if (state == START_F) {
-      if (strncmp (key_info[WARNING][db_syntax].name, buf, 
-                  key_info[WARNING][db_syntax].len) &&
-          strncmp (key_info[SYNTAX_ERR][db_syntax].name, buf, 
-                  key_info[SYNTAX_ERR][db_syntax].len)) {
-        trace (NORM, default_trace,"ERROR: find_blank_line(): Encountered ERROR or WARN line embedded within an object.  Line after embedded line:%s ie, could not read past.  Abort scan!\n", buf); 
+      if (strncasecmp (key_info[WARNING].name, buf, 
+                  key_info[WARNING].len) &&
+          strncasecmp (key_info[SYNTAX_ERR].name, buf, 
+                  key_info[SYNTAX_ERR].len)) {
+        trace (ERROR, default_trace,"find_blank_line(): Encountered ERROR or WARN line embedded within an object.  Abort scan at following line: %s", buf); 
         return (DB_EOF);
       }
     } 
@@ -812,15 +668,16 @@ int read_blank_line_input (FILE *fp, char *buf, int buf_size,
 			   irr_database_t *database) {
   char *cp = NULL;
   int lineno = 0;
+  u_long len = 0;
   
   do {
     if ((cp = fgets (buf, buf_size, fp)) != NULL) {
       *position = *offset;
-      *offset += strlen (buf);
+      len = strlen(buf);
+      *offset += len;
     }
-    /* } BOGUS to make vi % happy */
     lineno++;
-  } while ((state = get_state (buf, cp, state, p_save_state)) == BLANK_LINE && lineno < 2);
+  } while ((state = get_state (cp, len, state, p_save_state)) == BLANK_LINE && lineno < 2);
 
   if (state == START_F && lineno == 2)
     return (state);
@@ -854,52 +711,57 @@ int pick_off_mirror_hdr (FILE *fp, char *buf, int buf_size,
     state = DB_EOF; /* no "ADD" or "DEL" so abort scan */
 
   if (state == DB_EOF) {
-    trace (ERROR, default_trace,"ERROR scan.c: pick_off_mirror_hdr(): abort scan\n");
-    trace (ERROR, default_trace,"ERROR line (%s)\n", buf);
+    trace (ERROR, default_trace,"scan.c: pick_off_mirror_hdr(): abort scan\n");
+    trace (ERROR, default_trace,"line (%s)\n", buf);
   }
 
   return (state);
 }
 
 char *build_indexes (FILE *fp, irr_database_t *db, irr_object_t *object, 
-                     u_long fp_pos, int update_flag) {
+                     u_long fp_pos, int update_flag, char *first_attr) {
   u_long db_offset = 0;
   int del_obj = -1;
+  int skip_obj = 0;
   char *p = NULL;
 
   /* good to have these checks so our scanner
      can deal with junk objects */
-  if (object == NULL       ||
-      object->name == NULL ||     /* can get *XX: objects on db loads, */
-      object->type == NO_FIELD) { /* these obj's have NULL names */
-    if (update_flag) {            /* so only abort on updates */ 
-      trace (ERROR, default_trace, "IRRd error: build_indexes (): got a junk object, "
-	     "update_flag-(%d) db-(%s)\n", update_flag, db->name); 
-      return "IRRd error: build_indexes (): Unrecognized object!";
+
+  if (update_flag && object->mode == IRR_NOMODE) {
+    trace (ERROR, default_trace, "got object with no "
+	   "ADD or DEL during udpate, obj key-(%s), db-(%s)\n", 
+	   object->name, db->name); 
+    return "Corrupted update file.  Missing 'ADD' or 'DEL'";   
+  }
+
+  if ( object->name == NULL ||     /* can get *XX: objects on db loads, */
+       object->type == NO_FIELD) { /* these obj's have NULL names */
+    if (update_flag) {       /* log unrecognized object classes on updates  */ 
+      trace (NORM, default_trace, "Unknown object class - %s", first_attr); 
+      p = "Unrecognized object class";
     }
-    return NULL;
+    skip_obj = 1;
+  }
+
+  if (db->obj_filter & object->filter_val) {
+     skip_obj = 1;	/* skip object if it should be filtered */
+     /*  trace (NORM, default_trace, "Filtered object class - %s", first_attr);  */
   }
 
   object->len = fp_pos - object->offset;
   object->fp = fp;
 
-  if (!(db->obj_filter & object->filter_val)) {
+  if (!skip_obj) {
     switch (object->mode) {
     case IRR_NOMODE:     /* reading .db file for first time */
-      if (update_flag) { /* abort update scan, got object with no "ADD" or "DEL" */
-	trace (ERROR, default_trace, "IRRd error: build_indexes(): Missing 'ADD' "
-	       "or 'DEL': obj key-(%s), db-(%s)\n", object->name, db->name); 
-	return "IRRd error: build_indexes() Corrupted update file.  "
-	       "Missing 'ADD' or 'DEL'!"; 
-      }
       add_irr_object (db, object);
       break;
 
     case IRR_DELETE:
       if (!update_flag) { /* db file has a "DEL" in it, abort scan */
-	trace (ERROR, default_trace, "IRRd error: build_indexes (): DEL found "
-	       "in db-(%s), obj key-(%s)\n", db->name, object->name);
-	return "IRRd error: build_indexes (): DB file has a 'DEL'.  Abort!";
+	trace (ERROR, default_trace, "DEL found in DB file, obj key-(%s)\n", object->name);
+	return "DB file has a 'DEL'";
       }
 
       if ((del_obj = delete_irr_object (db, object, &db_offset)) > 0) {
@@ -907,16 +769,16 @@ char *build_indexes (FILE *fp, irr_database_t *db, irr_object_t *object,
 	db->num_changes++;
       }
       else if (update_flag == 1) { /* !us...!ue udpate = 1, mirror update = 2 */
-	p = "Disk or indexing error! IRR_DELETE: delete_irr_object ()";
+	p = "Disk or indexing error! IRR_DELETE";
 	trace (ERROR, default_trace, 
-	       "ERROR: DELETE disk or indexing error: key (%s)\n", object->name);
+	       "DELETE disk or indexing error: key (%s)\n", object->name);
 	return (p);
       }
       break;
 
     case IRR_UPDATE: /* implicit replace from mirror or update */
       if (!update_flag) { /* db file has an "ADD" in it, abort scan */
-	trace (ERROR, default_trace,"ERROR scan.c: build_indexes(): ADD found in db-(%s), obj key-(%s)\n", db->name, object->name);
+	trace (ERROR, default_trace,"ADD found in DB file, obj key-(%s)\n", object->name);
 	return "DB file has a 'ADD'.  Abort!";
       }
 
@@ -928,31 +790,23 @@ char *build_indexes (FILE *fp, irr_database_t *db, irr_object_t *object,
       else {
 	p = "Disk or indexing error! IRR_UPDATE: add_irr_object ()";
 	trace (ERROR, default_trace, 
-	       "ERROR: UPDATE disk or indexing error: key (%s)\n", object->name);
+	       "UPDATE disk or indexing error: key (%s)\n", object->name);
       }
       break;
 
     default:
       trace (ERROR, default_trace,
-	     "ERROR scan.c(build): unrecognized mode (%d) obj key-(%s) db-(%s)\n", 
-	     object->mode, object->name, db->name);
+	     "unrecognized mode (%d) obj key-(%s)\n", 
+	     object->mode, object->name);
       return "Something wrong with file, no mode specified!";
     }
   }
-  else if (update_flag && object->mode == IRR_NOMODE) {
-    trace (ERROR, default_trace, "IRRd error: build_indexes (): got object with no "
-	   "ADD or DEL during udpate, obj key-(%s), db-(%s)\n", 
-	   object->name, db->name); 
-    return "IRRd error: build_indexes (): Corrupted update file.  Missing "
-           " 'ADD' or 'DEL'!";   
-  }
-  
 
   if (update_flag) {
     if (del_obj > 0)
       mark_deleted_irr_object (db, db_offset);
-    if (!atomic_trans)
-      journal_irr_update (db, object, object->mode, db_offset);
+    if (!atomic_trans || update_flag != 1)
+      journal_irr_update (db, object, object->mode, skip_obj);
   }
 
   return p;
@@ -982,7 +836,7 @@ int dump_object_check (irr_object_t *object, enum STATES state, u_long mode,
   else if (state == DB_EOF) { /* causes us to skip over bad obj, next mirror
                                * will be able to run */
     object->fp = fp;
-    journal_irr_update (database, object, mode, (u_long) 0);
+    journal_irr_update (database, object, mode, 1);
   }
 
   return (state);
@@ -999,9 +853,9 @@ static int populate_keyhash (irr_database_t *database) {
     for (i = 0; i < IRR_MAX_KEYS; i++) {
       keystring_hash_t *keystring_item;
 
-      if (strlen (key_info[i][database->db_syntax].name) <= 0) continue;
+      if (strlen (key_info[i].name) <= 0) continue;
       keystring_item = New (keystring_hash_t);
-      keystring_item->key = strdup (key_info[i][database->db_syntax].name);
+      keystring_item->key = strdup (key_info[i].name);
       keystring_item->num = i;
       HASH_Insert (IRR.key_string_hash, keystring_item);
     }

@@ -38,8 +38,9 @@ typedef struct _config_info_t {
   char     *pgp_dir;      /* pgp dir */
   char     *db_admin;     /* db admin email addr */
   char     *footer_msg;   /* submission footer msg's */
-  char     *header_notify_msg;   /* header on submissions msgs */ 
-  char     *header_forward_msg;   
+  char     *notify_header_msg;   /* header on submissions msgs */ 
+  char     *forward_header_msg;   
+  int	   allow_inetdom;  /* flag to allow inetnum/inet6num/as-block/domain objs */
   source_t *srcs;         /* pointer to the source_t list */
   acl      *acls;         /* accept ACL list */
 } config_info_t;

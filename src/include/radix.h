@@ -16,7 +16,7 @@ typedef struct _radix_node_t {
 
 typedef struct _radix_tree_t {
    radix_node_t 	*head;
-   u_int		maxbits;	/* for IP, 32 bit addresses */
+   u_int		maxbits; /* for 32 for IPv4, 128 for IPv6 */
    int num_active_node;		/* for debug purpose */
 } radix_tree_t;
 
@@ -34,7 +34,7 @@ void Destroy_Radix (radix_tree_t *radix, void_fn_t func);
 void radix_process (radix_tree_t *radix, void_fn_t func);
 
 
-#define RADIX_MAXBITS 128
+#define RADIX_MAXBITS 128   /* upto 128 bits (for IPv6) */
 #define RADIX_NBIT(x)        (0x80 >> ((x) & 0x7f))
 #define RADIX_NBYTE(x)       ((x) >> 3)
 

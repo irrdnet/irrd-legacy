@@ -1,5 +1,5 @@
 /*
- * $Id: commands.c,v 1.37 2002/02/04 20:53:55 ljb Exp $
+ * $Id: commands.c,v 1.39 2002/10/17 20:02:29 ljb Exp $
  * originally Id: commands.c,v 1.101 1998/08/07 00:13:37 gerald Exp 
  */
 
@@ -18,9 +18,9 @@
 #include <fcntl.h>
 #include "irrd.h"
 #include <errno.h>
-#ifndef NT
 #include <regex.h>
-#endif /* NT */
+
+#define MAX_DB_NAME 64	/* max db name length */
 
 extern trace_t *default_trace;
 extern char *obj_template[];
@@ -38,38 +38,37 @@ extern char *obj_template[];
 m_command_t m_info [] = {
   { "an,", AUT_NUM },             /* 0 */
   { "aut-num,", AUT_NUM },        /* 1 */
-  { "am,", AS_MACRO },            /* 2 */
-  { "as-macro,", AS_MACRO },      /* 3 */
-  { "as-set,", AS_SET },          /* 4 */
-  { "route-set,", RS_SET },       /* 5 */
-  { "cm,", COMMUNITY },           /* 6 */
-  { "community,", COMMUNITY },    /* 7 */
-  { "mt,", MAINT },               /* 8 */
-  { "mntner,", MAINT },           /* 9 */
-  { "ir,", INET_RTR },            /* 10 */
-  { "inet-rtr,", INET_RTR },      /* 11 */
-  { "ro,", ROLE },                /* 12 */
-  { "role,", ROLE },              /* 13 */
-  { "pn,", PERSON },              /* 14 */
-  { "person,", PERSON },          /* 15 */
-  { "in,", INETNUM },             /* 16 */
-  { "inetnum,", INETNUM },        /* 17 */
-  { "rt,", ROUTE},                /* 18 */
-  { "route,", ROUTE},             /* 19 */  
-  { "filter-set,", FILTER_SET},   /* 20 */
-  { "rtr-set,", RTR_SET},         /* 21 */
-  { "peering-set,", PEERING_SET}, /* 22 */
-  { "key-cert,", KEY_CERT},       /* 23 */
-  { "dictionary,", DICTIONARY},   /* 24 */
-  { "repository,", REPOSITORY},   /* 25 */
-  { "i6,", INET6NUM},             /* 26 */
-  { "inet6num,", INET6NUM},       /* 27 */
-  { "dom-prefix,", DOMAIN_PREFIX},/* 28 */
-  { "dp,", DOMAIN_PREFIX},        /* 29 */
-  { "domain,", DOMAIN},           /* 30 */
-  { "dn,", DOMAIN}                /* 31 */
+  { "as-set,", AS_SET },          /* 2 */
+  { "route-set,", ROUTE_SET },    /* 3 */
+  { "mt,", MNTNER },              /* 4 */
+  { "mntner,", MNTNER },          /* 5 */
+  { "ir,", INET_RTR },            /* 6 */
+  { "inet-rtr,", INET_RTR },      /* 7 */
+  { "ro,", ROLE },                /* 8 */
+  { "role,", ROLE },              /* 9 */
+  { "pn,", PERSON },              /* 10 */
+  { "person,", PERSON },          /* 11 */
+  { "in,", INETNUM },             /* 12 */
+  { "inetnum,", INETNUM },        /* 13 */
+  { "rt,", ROUTE},                /* 14 */
+  { "route,", ROUTE},             /* 15 */  
+  { "route6,", ROUTE6},           /* 16 */  
+  { "filter-set,", FILTER_SET},   /* 17 */
+  { "rtr-set,", RTR_SET},         /* 18 */
+  { "peering-set,", PEERING_SET}, /* 19 */
+  { "key-cert,", KEY_CERT},       /* 20 */
+  { "dictionary,", DICTIONARY},   /* 21 */
+  { "repository,", REPOSITORY},   /* 22 */
+  { "i6,", INET6NUM},             /* 23 */
+  { "inet6num,", INET6NUM},       /* 24 */
+  { "as-block,", AS_BLOCK},       /* 25 */
+  { "domain,", DOMAIN},           /* 26 */
+  { "dn,", DOMAIN},               /* 27 */
+  { "limerick,", LIMERICK},       /* 28 */
+  { "domain,", DOMAIN},           /* 29 */
+  { "ipv6-site,", IPV6_SITE},     /* 30 */
 /* defined in irrd.h
-#define IRR_MAX_MCMDS           32 
+#define IRR_MAX_MCMDS           30
 */
 };
 
@@ -79,22 +78,16 @@ m_command_t m_info [] = {
  */
 
 static void return_version (irr_connection_t *irr);
-void update_autnum_list (int expand_flag, LINKED_LIST *ll_macro_examined, 
-			 LINKED_LIST *ll_aslist, LINKED_LIST *ll_as,
-			 STACK **stack, char *db, irr_connection_t *irr);
-char *macro_expand_add (char *name, irr_connection_t *irr, char *dbname);
-void irr_exact (irr_connection_t *irr, prefix_t *prefix, int flag);
-void irr_less_all (irr_connection_t *irr, prefix_t *prefix, 
-		       int flag, int mode);
+void irr_exact (irr_connection_t *irr, prefix_t *prefix, int flag, int mode);
+void irr_less_all (irr_connection_t *irr, prefix_t *prefix, int flag, int mode);
 void irr_show_sources (irr_connection_t *irr);
 int irr_set_sources (irr_connection_t *irr, char *sources, int mode);
 int irr_set_ALL_sources (irr_connection_t *irr, int mode); 
 void irr_more_all (irr_connection_t *irr, prefix_t *prefix, int mode);
-void irr_origin (irr_connection_t *irr, char *origin);
-void irr_ripewhois(irr_connection_t *irr, char * key);
+void irr_ripewhois(irr_connection_t *irr);
 void irr_m_command (irr_connection_t *irr);
-void show_hash_spec_answer (irr_connection_t *irr, char *key); 
-void irr_community (irr_connection_t *irr, char *name); 
+void irr_inversequery (irr_connection_t *irr, enum IRR_OBJECTS type, int mode, char *key);
+void show_gas_answer (irr_connection_t *irr, char *key); 
 void irr_journal_range (irr_connection_t *irr, char *db);
 void irr_journal_add_answer (irr_connection_t *irr);
 
@@ -104,9 +97,7 @@ void irr_journal_add_answer (irr_connection_t *irr);
 void irr_process_command (irr_connection_t * irr) {
   char tmp[BUFSIZE];
   char *return_str = NULL;
-  int update_done = 0, i;
-  int n_updates;
-  int tmp_fd;
+  int update_done = 0, i, mode, n_updates, tmp_fd;
   
   if (irr->state == IRR_MODE_LOAD_UPDATE) {
     irr->begin_line = !irr->line_cont;
@@ -154,10 +145,10 @@ void irr_process_command (irr_connection_t * irr) {
       
       /* rewind */
       if (fseek (irr->update_fp, 0L, SEEK_SET) < 0) {
-	trace (ERROR, default_trace, "IRRd ERROR: !ue file rewind positioning"
+	trace (ERROR, default_trace, "!ue file rewind positioning"
 	       " error.\n");
 	irr_update_unlock (irr->database);
-	irr_send_error (irr, "IRRd ERROR: Transaction aborted!  "
+	irr_send_error (irr, "ERROR: Transaction aborted!  "
 			"!ue file rewind positioning error.");
 	fclose (irr->update_fp);
 	unlink (irr->update_file_name);
@@ -174,7 +165,7 @@ void irr_process_command (irr_connection_t * irr) {
 	  trace (ERROR, default_trace, "Could not create transaction files: "
 		 "%s\n", return_str);
 	  irr_update_unlock (irr->database);
-	  irr_send_error (irr, "IRRd ERROR: Transaction aborted!  "
+	  irr_send_error (irr, "ERROR: Transaction aborted!  "
 			  "Could not build transaction files.");
 	  fclose (irr->update_fp);
 	  unlink (irr->update_file_name);
@@ -183,9 +174,7 @@ void irr_process_command (irr_connection_t * irr) {
       }
       
       /* update the DB */
-      trace (NORM, default_trace, "call scan_irr_file ()\n");
       return_str = scan_irr_file (irr->database, "update", 1, irr->update_fp);
-      trace (NORM, default_trace, "after scan_irr_file ()\n");
 
       /* rollback the DB to it's original state if the transaction
        * could not be applied successfully in it's entirety */
@@ -217,7 +206,6 @@ void irr_process_command (irr_connection_t * irr) {
       fclose (irr->update_fp);
       irr_update_unlock (irr->database);
       
-      trace (NORM, default_trace, "sending client response...\n");
       /* Send the client the transaction result */
       if (return_str == NULL) {
 	irr_send_okay(irr);
@@ -239,30 +227,57 @@ void irr_process_command (irr_connection_t * irr) {
     
     return;
   }
-  
-  trace (NORM, default_trace, "Command: %s\n", irr->cp);
 
-  if ( strlen(irr->cp) > IRR_MAXCMDLEN ) {
-      trace (NORM, default_trace, "ERROR -- query exceeds max length\n",irr->cp);
-      irr_send_error (irr, "Command/Query exceeds max length!");
-      return;
-  }
-  
-  if (irr->stay_open == 0 && 
-      (!strncmp (irr->cp, "!!", 2) ||
-       !strncmp (irr->cp, "-k", 2))) {
-    irr->stay_open = 1;
-    irr->short_fields = 1; /* this is what rawhoisd does */
+  if (*irr->cp == '\0') {
+    irr_write_nobuffer(irr, "% No search key specified\n\n");
     return;
   }
   
-  /* quit or stay open */
-  if (!strcasecmp (irr->cp, "quit") ||
-      !strcasecmp (irr->cp, "exit") ||
-      !strcasecmp (irr->cp, "!q")   ||
-      !strcasecmp (irr->cp, "q")    ||
-      !strcasecmp (irr->cp, "-k")) {
+  trace (NORM, default_trace, "Command: %s\n", irr->cp);
+
+  if (*irr->cp != '!')
+    mode = RIPEWHOIS_MODE;
+  else
+    mode = RAWHOISD_MODE;
+
+  if ( strlen(irr->cp) > IRR_MAXCMDLEN ) {
+      irr_mode_send_error (irr, mode, "Command/Query exceeds max length!");
+      return;
+  }
+  
+  /* Process normal queries and any ripe flags.
+   */
+  if (mode == RIPEWHOIS_MODE) {
+    irr_ripewhois(irr);
+    /* need to clear flags */
+    irr->ripe_flags = 0;
+    return;      
+  }
+
+  if (!strncmp (irr->cp, "!!", 2)) {
+    irr->stay_open = 1;
+    return;
+  }
+
+  if (!strncmp (irr->cp, "!q", 2)) {
     irr->stay_open = 0;
+    return;
+  }
+
+  /* Get routes with specified origin.   !gas1234 */
+  if (!strncasecmp (irr->cp, "!gas", 4)) {
+    char gas_key[BUFSIZE];
+
+    irr->cp += 4;
+    make_gas_key (gas_key, irr->cp);
+    show_gas_answer (irr, gas_key);
+    return;
+  }
+
+  /* rawhoisd match command !man,as1243 */
+  if (!strncasecmp (irr->cp, "!m", 2)) {
+    irr->cp += 2;
+    irr_m_command (irr);
     return;
   }
 
@@ -281,25 +296,22 @@ void irr_process_command (irr_connection_t * irr) {
     
     /* see if we know of this DB */
     if ((irr->database = find_database (irr->cp)) == NULL) {
-      trace (NORM, default_trace, "ERROR -- Database not found %s\n",irr->cp);
-      irr_send_error (irr, "Database not found!");
+      irr_send_error (irr, "database not found");
       return;
     }
     
     /* check authoritative if !us*/
     if ( !(irr->database->flags & IRR_AUTHORITATIVE) ) {
-      trace (NORM, default_trace, 
-	     "ERROR -- Request to update non-authoritative database %s with !us\n",irr->cp);
-      irr_send_error (irr, "Request to update non-authoritative database!");
+      irr_send_error (irr, "cannot update non-authoritative database");
       return;
     }
     
     /* check security -- general */
     if ((irr->database->access_list > 0) &&
 	(!apply_access_list (irr->database->access_list, irr->from))) {
-      trace (NORM | INFO, default_trace, "Updated access to %s denied for %s...\n",
+      trace (NORM | INFO, default_trace, "Update access to %s denied for %s\n",
 	     irr->database->name, prefix_toa (irr->from));
-      irr_send_error (irr, "General access permission to denied!");
+      irr_send_error (irr, "General access permission to denied");
       return;
     }
     
@@ -308,19 +320,18 @@ void irr_process_command (irr_connection_t * irr) {
      */
     if (irr->database->write_access_list == 0) {
       if (!prefix_is_loopback (irr->from)) {
-	trace (NORM | INFO, default_trace, "No write access list sepcified -- only loopback allowed\n");
-	trace (NORM | INFO, default_trace, "Updated access to %s denied for %s...\n",
+	trace (NORM | INFO, default_trace, "No write access list sepcified -- Update access to %s denied for %s...\n",
 	       irr->database->name, prefix_toa (irr->from));
-	irr_send_error (irr, "Write permission denied!");
+	irr_send_error (irr, "update permission denied -- non-loopback");
 	return;
       }
     }
     
     if ((irr->database->write_access_list > 0) &&
 	(!apply_access_list (irr->database->write_access_list, irr->from))) {
-      trace (NORM | INFO, default_trace, "Updated access to %s denied for %s...\n",
+      trace (NORM | INFO, default_trace, "Update access to %s denied for %s...\n",
 	     irr->database->name, prefix_toa (irr->from));
-      irr_send_error (irr, "Write permission denied!");
+      irr_send_error (irr, "update permission denied - failed access list");
       return;
     }
     
@@ -333,7 +344,7 @@ void irr_process_command (irr_connection_t * irr) {
     /* create a file to dump the update to */
     if ((tmp_fd = mkstemp (irr->update_file_name)) < 0) {
       irr_send_error (irr, "IRRd error: initial !us file mkstemp () error");
-      trace (ERROR, default_trace, "IRRd error: initial !us mkstemp () error\n");
+      trace (ERROR, default_trace, "initial !us mkstemp () error\n");
       return;
     }
     
@@ -390,38 +401,21 @@ void irr_process_command (irr_connection_t * irr) {
     return;
   }
   
-  /* long or short fields global flag */
-  /* =1 -> short fields (fast!); =0 -> long fields (default)*/
-  /* this will go away in rpsl because short fields are not used */
+  /* recurse or not */
+  /* =1 -> no recursion; =0 -> recursion (default)*/
   if (!strncmp (irr->cp, "!uF", 3)) {
     irr->cp +=3;
     if (!strncmp (irr->cp, "=0", 2)) {
-      irr->short_fields = 0;
       irr->ripe_flags &= ~(FAST_OUT | RECURS_OFF);
       irr_send_okay(irr);
     }
     else if (!strncmp (irr->cp, "=1", 2)) {
-      irr->short_fields = 1;
       irr->ripe_flags |= FAST_OUT | RECURS_OFF;
       irr_send_okay(irr);
     }
     else
       irr_send_error (irr, NULL);
     
-    return;
-  }
-  
-  /* set timeout, !t<seconds> (for programs like Roe, Aoe, etc */
-  if (!strncasecmp (irr->cp, "!t", 2)) {
-    irr->cp +=2;
-    irr->timeout = atoi (irr->cp);
-    
-    if ((irr->timeout < 0) || (irr->timeout > 30*60)) {
-      irr_send_error (irr, NULL);
-      irr->timeout = 5*60;
-    }
-    else
-      irr_send_okay (irr);
     return;
   }
   
@@ -450,7 +444,7 @@ void irr_process_command (irr_connection_t * irr) {
       
       /* do we know about this DB? */
       if ((irr->database = find_database (name)) == NULL) {
-	trace (NORM, default_trace, "ERROR -- Database not found %s\n", name);
+	trace (ERROR, default_trace, "Database not found %s\n", name);
 	irr_send_error (irr, NULL);
 	break;
       }
@@ -482,52 +476,25 @@ void irr_process_command (irr_connection_t * irr) {
 
       name = strtok_r(NULL, ",", &last);
     }
+    return;
+  }
 
-    return;
-  }
-  
-  /* Get routes with specified origin.   !gas1234 */
-  if (!strncasecmp (irr->cp, "!gas", 4)) {
-    irr->cp += 4;
-    irr_origin (irr, irr->cp);
-    
-    return;
-  }
-  
-  /* Get routes with specified community.  !hCOMM_NFSNET */
-  if (!strncasecmp (irr->cp, "!h", 2)) {
+  /* Get list of objects associated with a maintainer.  !omaint-as237 */
+  if (!strncasecmp (irr->cp, "!o", 2)) {
+    char maint_key[BUFSIZE];
+
     irr->cp += 2;
-    irr_community (irr, irr->cp);
+    irr->ll_answer = LL_Create (LL_DestroyFunction, free, 0);
+    irr_lock_all (irr);
+    make_mntobj_key (maint_key, irr->cp);
+    irr_inversequery (irr, NO_FIELD, RAWHOISD_MODE, maint_key);
     return;
   }
   
-  /* ASMacro expansion !iAS-ESNETEU[,1] */
+  /* AS-SET/ROUTE-SET expansion !iAS-ESNETEU[,1] */
   if (!strncasecmp (irr->cp, "!i", 2)) {
     irr->cp += 2;
-    irr_as_set_expand (irr, irr->cp);
-    return;
-  }
-  
-  /* rawhoisd match command !man,as1243 */
-  if (!strncasecmp (irr->cp, "!m", 2)) {
-    irr->cp += 2;
-    irr_m_command (irr);
-    return;
-  }
-  
-  /* return a version */
-  if ((!strncasecmp (irr->cp, "!ver", 4)) || 
-      (!strcasecmp (irr->cp, "!v"))       || 
-      (!strcasecmp (irr->cp, "!-v"))      ||
-      (!strcasecmp (irr->cp, "version"))) {
-    irr->cp += 5;
-    return_version(irr);
-    return;
-  }
-  
-  /* name of tool, !nroe  -- this should already be logged earlier */
-  if (!strncasecmp (irr->cp, "!n", 2)) { 
-    irr_send_okay (irr);
+    irr_set_expand (irr, irr->cp);
     return;
   }
   
@@ -545,16 +512,16 @@ void irr_process_command (irr_connection_t * irr) {
     cp = strrchr(irr->cp, ',');
     
     if (cp == NULL) {
-      if ((prefix = ascii2prefix (AF_INET, irr->cp)) == NULL)
+      if ((prefix = ascii2prefix (0, irr->cp)) == NULL)
 	irr_send_error (irr, NULL);
       else {
-	irr_exact (irr, prefix, SHOW_FULL_OBJECT);
+	irr_exact (irr, prefix, SHOW_FULL_OBJECT, RAWHOISD_MODE);
 	Delete_Prefix (prefix);
       }
     }
     else if (!strncmp (",l", cp, 2)) {
       *cp = '\0';
-      if ((prefix = ascii2prefix (AF_INET, irr->cp)) == NULL) {
+      if ((prefix = ascii2prefix (0, irr->cp)) == NULL) {
 	irr_send_error (irr, NULL);
       }
       else {
@@ -564,7 +531,7 @@ void irr_process_command (irr_connection_t * irr) {
     }
     else if (!strncmp (",L", cp, 2)) {
       *cp = '\0';
-      if ((prefix = ascii2prefix (AF_INET, irr->cp)) == NULL) {
+      if ((prefix = ascii2prefix (0, irr->cp)) == NULL) {
 	irr_send_error (irr, NULL);
       }
       else {
@@ -574,17 +541,17 @@ void irr_process_command (irr_connection_t * irr) {
     }
     else if (!strncasecmp (",o", cp, 2)) {
       *cp = '\0';
-      if ((prefix = ascii2prefix (AF_INET, irr->cp)) == NULL) {
+      if ((prefix = ascii2prefix (0, irr->cp)) == NULL) {
 	irr_send_error (irr, NULL);
       }
       else {
-	irr_exact (irr, prefix, SHOW_JUST_ORIGIN);
+	irr_exact (irr, prefix, SHOW_JUST_ORIGIN, RAWHOISD_MODE);
 	Delete_Prefix (prefix);
       }
     }
     else if (!strncasecmp (",M", cp, 2)) {
       *cp = '\0';
-      if ((prefix = ascii2prefix (AF_INET, irr->cp)) == NULL) {
+      if ((prefix = ascii2prefix (0, irr->cp)) == NULL) {
 	irr_send_error (irr, NULL);
       }
       else {
@@ -593,8 +560,8 @@ void irr_process_command (irr_connection_t * irr) {
       }
     }
     else {
-      /* error */
-      irr_send_answer (irr);
+      /* error, unrecognized flag */
+      irr_send_error (irr, "unrecognized flag");
       return;
     }
     return;
@@ -614,6 +581,35 @@ void irr_process_command (irr_connection_t * irr) {
     return;
   }
   
+  /* return a version */
+  if ((!strncasecmp (irr->cp, "!ver", 4)) || 
+      (!strcasecmp (irr->cp, "!v"))       || 
+      (!strcasecmp (irr->cp, "!-v"))) {
+    irr->cp += 5;
+    return_version(irr);
+    return;
+  }
+  
+  /* set timeout, !t<seconds> (for programs like Roe, Aoe, etc */
+  if (!strncasecmp (irr->cp, "!t", 2)) {
+    irr->cp +=2;
+    irr->timeout = atoi (irr->cp);
+    
+    if ((irr->timeout < 0) || (irr->timeout > 30*60)) {
+      irr_send_error (irr, NULL);
+      irr->timeout = 5*60;
+    }
+    else
+      irr_send_okay (irr);
+    return;
+  }
+
+  /* name of tool, !nroe  -- this should already be logged earlier */
+  if (!strncasecmp (irr->cp, "!n", 2)) { 
+    irr_send_okay (irr);
+    return;
+  }
+
   /* j command.  Show the journal ranges.  See irr_journal_range for
      more info.  -* is valid, just like !s, but is implemented in
      the function. */
@@ -621,31 +617,41 @@ void irr_process_command (irr_connection_t * irr) {
     irr_journal_range (irr, irr->cp+2);
     return;
   }
-  
-  /* we are a mirror server, e.g. -g RADB:1:232-LAST */
-  if (!strncasecmp (irr->cp, "-g", 2)) {
-    irr_service_mirror_request (irr, irr->cp+2);
-    return;
-  }
 
-  /* Process ripe whois commands.
-   * ie, command does not start with "!". 
-   */
-  if (strncasecmp(irr->cp, "!", 1)) {
-    irr_ripewhois(irr, irr->cp);
-    return;      
-  }
-  
   /* error -- command unrecognized */
-  sprintf (tmp, "F\n");
-  irr_write_nobuffer (irr, tmp, strlen (tmp));
-  
+  irr_send_error(irr, "unrecognized command");
 }
 
-/* !m... rawhoisd command, eg "!man,as1234" */
+/* do an inverse lookup and return objects  */
+void irr_inversequery (irr_connection_t *irr, enum IRR_OBJECTS obj_type, int mode,  char *key) {
+  irr_database_t *db;
+  hash_spec_t *hash_sval;
+  objlist_t *obj_p;
+  LINKED_LIST *ll;
+
+  ll = LL_Create (LL_DestroyFunction, Delete_hash_spec, 0);
+
+  LL_ContIterate (irr->ll_database, db) {
+    if ((hash_sval = fetch_hash_spec (db, key, UNPACK)) != NULL) {
+      LL_Iterate (hash_sval->ll_2, obj_p) {
+        if (obj_type == NO_FIELD || obj_type == obj_p->type) 
+	  irr_build_answer (irr, db, obj_p->type, obj_p->offset, 
+				obj_p->len, NULL);
+      }
+      LL_Add (ll, hash_sval);
+    }
+  }
+
+  send_dbobjs_answer (irr, DISK_INDEX, mode);
+  irr_unlock_all (irr);
+  irr_write_buffer_flush (irr);
+  LL_Destroy (irr->ll_answer);
+  LL_Destroy (ll);
+}
+
+/* !m... command, eg "!man,as1234" */
 void irr_m_command (irr_connection_t *irr) {
   int found = 0, i;
-  char tmp[BUFSIZE];
 
   for (i = 0; i < IRR_MAX_MCMDS; i++) {
     if (!strncasecmp (irr->cp, m_info[i].command, strlen (m_info[i].command))) {
@@ -655,8 +661,8 @@ void irr_m_command (irr_connection_t *irr) {
 
       irr_lock_all (irr);
 
-      if (m_info[i].type == ROUTE)
-        lookup_route_exact (irr, irr->cp);
+      if (m_info[i].type == ROUTE || m_info[i].type == ROUTE6 || m_info[i].type == INET6NUM)
+        lookup_prefix_exact (irr, irr->cp, m_info[i].type);
       else
         irr_database_find_matches (irr, irr->cp, PRIMARY, 
                                    RAWHOISD_MODE|TYPE_MODE, m_info[i].type, 
@@ -666,14 +672,12 @@ void irr_m_command (irr_connection_t *irr) {
   }
 
   if (found) {
-    send_dbobjs_answer (irr, DISK_INDEX, DB_OBJ, RAWHOISD_MODE);
+    send_dbobjs_answer (irr, DISK_INDEX, RAWHOISD_MODE);
     irr_unlock_all (irr);
     irr_write_buffer_flush (irr);
     LL_Destroy (irr->ll_answer);
-  }
-  else  {
-    sprintf (tmp, "F\n");
-    irr_write_nobuffer (irr, tmp, strlen (tmp));
+  } else  {
+    irr_write_nobuffer (irr, "D\n");
   }
 
   return;
@@ -682,145 +686,171 @@ void irr_m_command (irr_connection_t *irr) {
 /* irr_ripewhois
  * Ripe whois commands, eg "whois AS2"
  */
-void irr_ripewhois (irr_connection_t *irr, char * key) {
+void irr_ripewhois (irr_connection_t *irr) {
   prefix_t *prefix;
+  int lookup_mode;
+  char *key = irr->cp;
+  char lookupkey[BUFSIZE];
+  enum IRR_OBJECTS lookup_type;
 
-  /* New ripe flag stuff */
-  /* want to retain fast output and recursive-off choices for
-     ripe stay open mode while turning all other flags off */
-  irr->ripe_flags &= (FAST_OUT | RECURS_OFF);
+  /* special mirror request command, e.g. -g RADB:1:232-LAST */
+  if (!strncmp (key, "-g", 2)) {
+    irr_service_mirror_request (irr, irr->cp+2);
+    return;
+  }
+
+  /* special persistent connection command */
+#ifdef NOTDEF
+/* moved to parse_ripe_flags */
+  if (!strncmp (key, "-k", 2)) {
+    irr_write_nobuffer (irr, "\n"); /* IRRToolset wants a return */
+    if (irr->stay_open == 0) {
+      irr->stay_open = 1;
+    } else
+      irr->stay_open = 0;	/* if already persistent, close connection */
+    return;
+  }
+#endif
+
+  /* special "quit" keywords recognized by IRRd, note that RIPE software
+     does not recognize these as special */
+  if (!strcasecmp (key, "quit") ||
+      !strcasecmp (key, "exit") ||
+      !strcasecmp (key, "q")) { 
+    irr->stay_open = 0;
+    return;
+  }
+
+   /* clear flags to be consistent with RIPE server */
+  irr->ripe_flags = 0;
   if (parse_ripe_flags (irr, &key) < 0)
     return;
 
-  
   if (irr->ripe_flags & TEMPLATE) {
-    if (irr->ripe_type >= 0 && irr->ripe_type < IRR_MAX_KEYS)
-      irr_write_nobuffer (irr, obj_template[irr->ripe_type], 
-						 strlen (obj_template[irr->ripe_type]));
-      return;
+    if (irr->ripe_type >= 0 && irr->ripe_type < IRR_MAX_CLASS_KEYS)
+      irr_write_nobuffer (irr, obj_template[irr->ripe_type]);
+    return;
   }
   
-  if (irr->ripe_flags & FAST_OUT)
-    irr->short_fields = 1; 
-
   if ((irr->ripe_flags & SOURCES_ALL) &&
       (irr_set_ALL_sources (irr, RIPEWHOIS_MODE) == 0))
     return;
 
   if ((irr->ripe_flags & SET_SOURCE) && 
-      (irr_set_sources (irr, irr->ripe_tmp, RIPEWHOIS_MODE) == 0))
+      (irr_set_sources (irr, irr->ripe_sources, RIPEWHOIS_MODE) == 0))
     return;
 
   irr_lock_all (irr);
   irr->ll_answer = LL_Create (LL_DestroyFunction, free, 0);
 
   if (*key >= '0' && *key <= '9' &&
-      (((irr->ripe_flags & OBJ_TYPE) == 0) ||
-       irr->ripe_type == ROUTE)) {
-    if (strchr (key, ':') != NULL)
-      prefix = ascii2prefix (AF_INET6, key);
-    else
-      prefix = ascii2prefix (AF_INET, key);
+      ( ((irr->ripe_flags & OBJ_TYPE) == 0) || irr->ripe_type == ROUTE || irr->ripe_type == ROUTE6 || irr->ripe_type == INET6NUM || irr->ripe_type == IPV6_SITE)) {
+    /* let ascii2prefix figure out if it is an IPv4 or IPv6 address */
+    prefix = ascii2prefix (0, key);
 
     if (prefix) {
       /* New RIPE stuff */
       if (irr->ripe_flags & LESS_ALL)
         irr_less_all (irr, prefix, SEARCH_ALL_LEVELS, RIPEWHOIS_MODE);
-      else if (irr->ripe_flags & (MORE_ONE | MORE_ALL))
+      else if (irr->ripe_flags & LESS_ONE)
+        irr_less_all (irr, prefix, SEARCH_ONE_LEVEL_NOT_EXACT, RIPEWHOIS_MODE);
+      else if (irr->ripe_flags & MORE_ALL) /* still need MORE_ONE support */
         irr_more_all (irr, prefix, RIPEWHOIS_MODE);
+      else if (irr->ripe_flags & EXACT_MATCH)
+	irr_exact(irr, prefix, SHOW_FULL_OBJECT, RIPEWHOIS_MODE);
       else
         irr_less_all (irr, prefix, SEARCH_ONE_LEVEL, RIPEWHOIS_MODE);
       Delete_Prefix (prefix);
     }
   }
 
-  if (irr->ripe_flags & OBJ_TYPE) 
-    irr_database_find_matches (irr, key, PRIMARY, TYPE_MODE, irr->ripe_type, 
-                               NULL, NULL);
-  else
-    irr_database_find_matches (irr, key, PRIMARY, 0, 0, NULL, NULL);
+  if (irr->ripe_flags & OBJ_TYPE)  {
+    lookup_mode = TYPE_MODE;
+    lookup_type = irr->ripe_type;
+  }  else {
+    lookup_mode = 0;
+    lookup_type = NO_FIELD;
+  }
 
-  if ((irr->ripe_flags & (FAST_OUT | RECURS_OFF | OBJ_TYPE)) == 0)
-    lookup_object_references (irr);  /* dupe ripe whois behavior */
+  if ( irr->ripe_flags & INVERSE_ATTR ) {
+    if (irr->inverse_type == MNT_BY) {  /* check for inverse mnt-by lookup */
+      make_mntobj_key (lookupkey, key);
+      irr_inversequery(irr, lookup_type, RIPEWHOIS_MODE, lookupkey); 
+    } else if (irr->inverse_type == ORIGIN) { /* check for inverse origin lookup */
+      if (!strncasecmp (key, "as", 2)) /* skip initial AS in string */
+        key += 2;
+      make_gas_key (lookupkey, key);
+      irr_inversequery(irr, lookup_type, RIPEWHOIS_MODE, lookupkey); 
+    } else if (irr->inverse_type == MEMBER_OF) { /* check for set membership */
+      make_spec_key (lookupkey, NULL, key);
+      irr_inversequery(irr, lookup_type, RIPEWHOIS_MODE, lookupkey); 
+    } else {
+      irr_unlock_all (irr);
+      irr_write_buffer_flush (irr);
+      LL_Destroy (irr->ll_answer);
+    }
+  } else {
+    irr_database_find_matches (irr, key, PRIMARY, lookup_mode, lookup_type, NULL, NULL);
 
-  send_dbobjs_answer (irr, DISK_INDEX, DB_OBJ, RIPEWHOIS_MODE);
-  irr_unlock_all (irr);
-  irr_write_buffer_flush (irr);
+    if ((irr->ripe_flags & (FAST_OUT | RECURS_OFF | OBJ_TYPE | INVERSE_ATTR)) == 0)
+      lookup_object_references (irr);  /* dupe ripe whois behavior */
 
-  LL_Destroy (irr->ll_answer);
+    send_dbobjs_answer (irr, DISK_INDEX, RIPEWHOIS_MODE);
+    irr_unlock_all (irr);
+    irr_write_buffer_flush (irr);
+    LL_Destroy (irr->ll_answer);
+  }
 }
 
-
-/* Get routes with specified community.  !hCOMM_NFSNET */
-void irr_community (irr_connection_t *irr, char *name) {
-
-  char comm_key[BUFSIZE];
-  
-  make_comm_key (comm_key, name);
-  show_hash_spec_answer (irr, comm_key);
-}
-
-/* this is the !gas command, eg, !gas1234 gives list of
- * routes with origin as1234.
- */
-void irr_origin (irr_connection_t *irr, char *name) {
-
-  char gas_key[BUFSIZE];
-  
-  make_gas_key (gas_key, name);
-  show_hash_spec_answer (irr, gas_key);
-}
-
-void show_hash_spec_answer (irr_connection_t *irr, char *key) {
+void show_gas_answer (irr_connection_t *irr, char *key) {
   irr_database_t *db;
   int empty_answer = 1;
   hash_spec_t *hash_item;
   LINKED_LIST *ll;
   
-  irr_lock_all (irr);
   irr->ll_answer = LL_Create (LL_DestroyFunction, free, 0);
   ll = LL_Create (LL_DestroyFunction, Delete_hash_spec, 0);
 
+  irr_lock_all (irr);
   LL_ContIterate (irr->ll_database, db) {
-
     if ((hash_item = fetch_hash_spec (db, key, FAST)) != NULL) {
-
-      irr_build_answer (irr, db->db_fp, NO_FIELD, 0, 
-			hash_item->len1, hash_item->gas_answer, RIPE181);
-      /* JW: later put into a ll and destroy after showing answer 
-       * Delete_hash_spec (hash_item);
-       */
+      if (hash_item->len1 > 0) {
+        if (!empty_answer) /* need to add a space between AS'es */
+          irr_build_answer (irr, NULL, NO_FIELD, 0, 1, " ");
+        irr_build_answer (irr, db, NO_FIELD, 0, 
+			hash_item->len1 - 1, hash_item->gas_answer);
+        empty_answer = 0;
+      }
       LL_Add (ll, hash_item);
-
-      empty_answer = 0;
     }
   }
 
   /* tack on a carriage return */
   if (!empty_answer)
-    irr_build_answer (irr, NULL, NO_FIELD, 0, 1, "\n", RIPE181);
-  send_dbobjs_answer (irr, MEM_INDEX, PRECOMP_OBJ, RAWHOISD_MODE);
+    irr_build_answer (irr, NULL, NO_FIELD, 0, 1, "\n");
+  send_dbobjs_answer (irr, MEM_INDEX, RAWHOISD_MODE);
   irr_unlock_all (irr);
   irr_write_buffer_flush (irr);
   LL_Destroy (irr->ll_answer);
   LL_Destroy (ll);
-} /* new_irr_origin() */
+} 
 
 
 /* Route searches.  L -  all level less specific eg, !r141.211.128/24,L
    Route searches.  l - one-level less specific eg, !r141.211.128/24,l
    Both these searches are inclusive (ie, the supplied route will be 
    returned if it exits.
-   flag=0 -> "l" search; flag=1 -> "L" search */
+   The RIPE -l search is NOT inclusive and hence uses a different flag 
+   flag=0 -> "l" search; flag=1 -> RIPE "-l" search; flag=2 -> "L" search */
 void irr_less_all (irr_connection_t *irr, prefix_t *prefix, 
 		   int flag, int mode) {
   radix_node_t *node = NULL;
   LINKED_LIST *ll_attr;
-  irr_route_object_t *rt_object;
+  irr_prefix_object_t *prefix_object;
   irr_answer_t *irr_answer;
   irr_database_t *database;
   prefix_t *tmp_prefix = NULL;
-  int route_found = 0;
+  int prefix_found = 0;
 
   if (mode == RAWHOISD_MODE) {
      irr->ll_answer = LL_Create (LL_DestroyFunction, free, 0);
@@ -828,114 +858,113 @@ void irr_less_all (irr_connection_t *irr, prefix_t *prefix,
   }
 	
   LL_ContIterate (irr->ll_database, database) {
-    route_found = 0;
+    prefix_found = 0;
 
     tmp_prefix = prefix;
 
-    /* first check if this node exists */
-    if ((node = route_search_exact (database, database->radix, prefix)) != NULL) {
+    /* first check if this node exists  */
+    /* NOTE: do not show exact matches for RIPE -l searches */
+    if ((node = prefix_search_exact (database, prefix)) != NULL && flag != SEARCH_ONE_LEVEL_NOT_EXACT) {
       ll_attr = (LINKED_LIST *) node->data;
-      LL_Iterate (ll_attr, rt_object) {
+      LL_Iterate (ll_attr, prefix_object) {
 	if (mode == RIPEWHOIS_MODE ||
 	    irr->withdrawn == 1    || 
-	    rt_object->withdrawn == 0) {
+	    prefix_object->withdrawn == 0) {
 	  if (mode == RAWHOISD_MODE && irr->full_obj == 0)
-	    irr_build_key_answer (irr, database->db_fp, database->name, ROUTE, 
-				  rt_object->offset, rt_object->origin);
+	    irr_build_key_answer (irr, database->db_fp, database->name, prefix_object->type, prefix_object->offset, prefix_object->origin);
 	  else
-	    irr_build_answer (irr, database->db_fp, ROUTE, rt_object->offset, 
-			      rt_object->len, NULL, database->db_syntax);
+	    irr_build_answer (irr, database, prefix_object->type, prefix_object->offset, prefix_object->len, NULL);
 	}
       }
     }
 
+    if (flag == SEARCH_ONE_LEVEL && node != NULL)
+       continue;	/* skip less specific if we got a match */
+
     /* now check all less specific */
-    while ((flag == SEARCH_ALL_LEVELS || node == NULL) && 
-	   (node = route_search_best (database, database->radix, 
-				      tmp_prefix)) != NULL) {
-      if (node != NULL) { 
+    while ( (node = prefix_search_best (database, tmp_prefix)) != NULL) {
 	tmp_prefix = node->prefix;
 
 	ll_attr = (LINKED_LIST *) node->data;
-	LL_Iterate (ll_attr, rt_object) {
+	LL_Iterate (ll_attr, prefix_object) {
 	  if (mode == RIPEWHOIS_MODE ||
 	      irr->withdrawn == 1    || 
-	      rt_object->withdrawn == 0) {
-	    route_found = 1;
+	      prefix_object->withdrawn == 0) {
+	    prefix_found = 1;
 	    if (mode == RAWHOISD_MODE && irr->full_obj == 0)
-	      irr_build_key_answer (irr, database->db_fp, database->name, ROUTE, 
-				    rt_object->offset, rt_object->origin);
+	      irr_build_key_answer (irr, database->db_fp, database->name, prefix_object->type, prefix_object->offset, prefix_object->origin);
 	    else {
-	      irr_build_answer (irr, database->db_fp, ROUTE, rt_object->offset, 
-				rt_object->len, NULL, database->db_syntax);
+	      irr_build_answer (irr, database, prefix_object->type, prefix_object->offset, prefix_object->len, NULL);
             }
 	  }
-	}
-      }
-      /* break out after one loop for "l" case */
-      if (route_found && (flag == SEARCH_ONE_LEVEL)) break; 
+        }
+      /* break out after one loop for ",l" and RIPE "-l" searches */
+      if (prefix_found && (flag != SEARCH_ALL_LEVELS)) break; 
     }
   }
   
-  if (mode == RAWHOISD_MODE) {
-    if (irr->full_obj == 0) {
-      send_dbobjs_answer (irr, MEM_INDEX, PRECOMP_OBJ, RAWHOISD_MODE);
-      LL_ContIterate (irr->ll_answer, irr_answer) {
-	free (irr_answer->blob);
-      }
+  if (mode != RAWHOISD_MODE) /* if using RIPE mode, data will be sent later */
+    return;
+
+  if (irr->full_obj == 0) {
+    send_dbobjs_answer (irr, MEM_INDEX, RAWHOISD_MODE);
+    LL_ContIterate (irr->ll_answer, irr_answer) {
+      free (irr_answer->blob);
     }
-    else
-      send_dbobjs_answer (irr, DISK_INDEX, DB_OBJ, RAWHOISD_MODE);
-    irr_unlock_all (irr);
-    irr_write_buffer_flush (irr);
-    LL_Destroy(irr->ll_answer);
-  }
+  } else
+    send_dbobjs_answer (irr, DISK_INDEX, RAWHOISD_MODE);
+  irr_unlock_all (irr);
+  irr_write_buffer_flush (irr);
+  LL_Destroy(irr->ll_answer);
 }
 
 /* Route searches. M - all more specific eg, !r199.208.0.0/16,M */
-/* Also does m - one level only more specific */
+/* TODO: Need to implement m for one level only more specific */
 void irr_more_all (irr_connection_t *irr, prefix_t *prefix, int mode) {
   radix_node_t *node, *start_node, *last_node;
   LINKED_LIST *ll_attr;
-  irr_route_object_t *rt_object;
+  irr_prefix_object_t *prefix_object;
+  radix_tree_t *radix;
   irr_answer_t *irr_answer;
   irr_database_t *database;
   
-  if (prefix->bitlen < 16) {
-    irr_send_error (irr, "We only allow more searches >= /16");
+  if (prefix->bitlen < 8) {
+    irr_mode_send_error (irr, mode, "only allow more specific searches >= /8");
     return;
   }
 
-  if (mode == RAWHOISD_MODE) {
+  if (mode == RAWHOISD_MODE) { /* ll_answer already created if using RIPE mode */
     irr->ll_answer = LL_Create (LL_DestroyFunction, free, 0);
     irr_lock_all (irr);
   }
 
   LL_ContIterate (irr->ll_database, database) {
-
     last_node = NULL;
     start_node = NULL;
     node = NULL;    
 
+    if (prefix->family == AF_INET6)
+      radix = database->radix_v6;
+    else
+      radix = database->radix_v4;
+
     /* memory  -- find the prefix, or the best large node */
-    start_node = radix_search_exact_raw (database->radix, prefix);
+    start_node = radix_search_exact_raw (radix, prefix);
 
     if (start_node != NULL) {
       RADIX_WALK (start_node, node) {
 	trace (TRACE, default_trace, "  -M %s\n", prefix_toax (node->prefix));
 	if ((node->prefix != NULL) &&
-	    (node->prefix->bitlen >= prefix->bitlen) &&
+	    (node->prefix->bitlen > prefix->bitlen) &&
 	    (comp_with_mask ((void *) prefix_tochar (node->prefix), 
 			     (void *) prefix_tochar (prefix),  prefix->bitlen))) {
 	  ll_attr = (LINKED_LIST *) node->data;
-	  LL_Iterate (ll_attr, rt_object) {
-	    if ((irr->withdrawn == 1) || (rt_object->withdrawn == 0)) {
-	      if (irr->full_obj == 0)
-		irr_build_key_answer (irr, database->db_fp, database->name, ROUTE, 
-				      rt_object->offset, rt_object->origin);
+	  LL_Iterate (ll_attr, prefix_object) {
+	    if ((irr->withdrawn == 1) || (prefix_object->withdrawn == 0)) {
+	      if (mode == RAWHOISD_MODE && irr->full_obj == 0)
+		irr_build_key_answer (irr, database->db_fp, database->name, prefix_object->type, prefix_object->offset, prefix_object->origin);
 	      else
-		irr_build_answer (irr, database->db_fp, ROUTE, rt_object->offset, 
-				  rt_object->len, NULL, database->db_syntax);
+		irr_build_answer (irr, database, prefix_object->type, prefix_object->offset, prefix_object->len, NULL);
 	    }
 	  }
 	}
@@ -944,83 +973,75 @@ void irr_more_all (irr_connection_t *irr, prefix_t *prefix, int mode) {
     }
   }
   
-  if (mode == RAWHOISD_MODE) {
-    if (irr->full_obj == 0) {
-      send_dbobjs_answer (irr, MEM_INDEX, PRECOMP_OBJ, RAWHOISD_MODE);
-      LL_ContIterate (irr->ll_answer, irr_answer) {
-        free (irr_answer->blob);
-      }
-    }
-    else
-      send_dbobjs_answer (irr, DISK_INDEX, DB_OBJ, RAWHOISD_MODE);
-    irr_unlock_all (irr);
-    irr_write_buffer_flush (irr);
-    LL_Destroy(irr->ll_answer);
-  }
+  if (mode != RAWHOISD_MODE)  /* if using RIPE MODE, data will be sent later*/
+    return;
 
+  if (irr->full_obj == 0) {
+    send_dbobjs_answer (irr, MEM_INDEX, RAWHOISD_MODE);
+    LL_ContIterate (irr->ll_answer, irr_answer) {
+      free (irr_answer->blob);
+    }
+  } else
+    send_dbobjs_answer (irr, DISK_INDEX, RAWHOISD_MODE);
+  irr_unlock_all (irr);
+  irr_write_buffer_flush (irr);
+  LL_Destroy(irr->ll_answer);
 }
 
 /* Route searches.  o - return origin of exact match(es) eg, !r141.211.128/24,o 
  * flag == 1 means just return the ASorigin. If not 1, return the full object 
  */
-void irr_exact (irr_connection_t *irr, prefix_t *prefix, int flag) {
+void irr_exact (irr_connection_t *irr, prefix_t *prefix, int flag, int mode) {
   radix_node_t *node = NULL;
   LINKED_LIST *ll_attr;
-  irr_route_object_t *rt_object;
+  irr_prefix_object_t *prefix_object;
   irr_database_t *database;
   irr_answer_t *irr_answer;
-  char buffer[BUFSIZE], *p;
   int first = 1;
 
-  if (flag == SHOW_FULL_OBJECT)
-    irr->ll_answer = LL_Create (LL_DestroyFunction, free, 0);
-  else
-    buffer[0] = '\0';
+  if (mode == RAWHOISD_MODE) {
+    if (flag == SHOW_FULL_OBJECT)
+      irr->ll_answer = LL_Create (LL_DestroyFunction, free, 0);
+    irr_lock_all (irr);
+  }
 
-  irr_lock_all (irr);
   LL_ContIterate (irr->ll_database, database) {
 
-    node = route_search_exact (database, database->radix, prefix);
+    node = prefix_search_exact (database, prefix);
 
     if (node != NULL) { 
       ll_attr = (LINKED_LIST *) node->data;
-      LL_Iterate (ll_attr, rt_object) {
-	if (irr->withdrawn == 1 || rt_object->withdrawn == 0) {
+      LL_Iterate (ll_attr, prefix_object) {
+	if (irr->withdrawn == 1 || prefix_object->withdrawn == 0) {
 	  if (flag == SHOW_JUST_ORIGIN) {
-	    if (irr->full_obj == 0) {
+	    if (mode == RAWHOISD_MODE && irr->full_obj == 0) {
 	      if (first != 1) irr_add_answer (irr, "\n");
 	      first = 0;
-	      irr_add_answer (irr, "%s AS%d", database->name, rt_object->origin);
+	      irr_add_answer (irr, "%s AS%d", database->name, prefix_object->origin);
+	    } else {
+	      irr_add_answer (irr, "AS%d ", prefix_object->origin);
 	    }
-	    else {
-	      /* irr_add_answer (irr, "AS%d", rt_object->origin); */
-	      p = buffer + strlen (buffer);
-	      sprintf (p, "AS%d ", rt_object->origin);
-	    }
-	  }
-	  else {
-	    if (irr->full_obj == 1)
-	      irr_build_answer (irr, database->db_fp, ROUTE, rt_object->offset, 
-				rt_object->len, NULL, database->db_syntax);
+	  } else {
+	    if (mode == RAWHOISD_MODE && irr->full_obj == 0)
+	      irr_build_key_answer (irr, database->db_fp, database->name, prefix_object->type, prefix_object->offset, prefix_object->origin);
 	    else 
-	      irr_build_key_answer (irr, database->db_fp, database->name, ROUTE, 
-				    rt_object->offset, rt_object->origin);
+	      irr_build_answer (irr, database, prefix_object->type, prefix_object->offset, prefix_object->len, NULL);
 	  }
 	}
       }
     }
   }
-  
+
+  if (mode != RAWHOISD_MODE) /* if using RIPE mode, data will be sent later */
+    return;
+
   if (flag == SHOW_JUST_ORIGIN) {
-    if (irr->full_obj == 1 && strlen (buffer) > 0)
-      irr_add_answer (irr, "%s", buffer); 
     irr_send_answer (irr);
-  }
-  else {
+  } else {
     if (irr->full_obj == 1)
-      send_dbobjs_answer (irr, DISK_INDEX, DB_OBJ, RAWHOISD_MODE);
+      send_dbobjs_answer (irr, DISK_INDEX, RAWHOISD_MODE);
     else {
-      send_dbobjs_answer (irr, MEM_INDEX, PRECOMP_OBJ, RAWHOISD_MODE);
+      send_dbobjs_answer (irr, MEM_INDEX, RAWHOISD_MODE);
       LL_ContIterate (irr->ll_answer, irr_answer) {
 	free (irr_answer->blob);
       }
@@ -1109,12 +1130,12 @@ int irr_set_sources (irr_connection_t *irr, char *sources, int mode) {
 
   if (mode == RAWHOISD_MODE) {
     if (ret_code == 0) 
-      irr_send_error (irr, NULL);
+      irr_send_error (irr, "source(s) unavailable");
     else
       irr_send_okay (irr);
   }
   else if (buf[0] != '\0') /* in RIPEWHOIS_MODE and errors, tell user */
-    irr_write_nobuffer (irr, buf, strlen (buf));
+    irr_write_nobuffer (irr, buf);
 
   return (ret_code);
 }
@@ -1154,12 +1175,12 @@ int irr_set_ALL_sources (irr_connection_t *irr, int mode) {
 
   if (mode == RAWHOISD_MODE) {
     if (ret_code == 0) 
-      irr_send_error (irr, NULL);
+      irr_send_error (irr, "access denied for db");
     else
       irr_send_okay (irr);
   }
   else if (buf[0] != '\0')  /* in RIPEWHOIS_MODE and errors, tell user */
-      irr_write_nobuffer (irr, buf, strlen (buf));
+      irr_write_nobuffer (irr, buf);
 
   return (ret_code);
 }
@@ -1174,7 +1195,6 @@ void irr_show_sources (irr_connection_t *irr) {
     first = 0;
     irr_add_answer (irr, "%s", database->name);
   }
-
   irr_send_answer (irr);
 }
 
@@ -1224,13 +1244,13 @@ void irr_journal_range (irr_connection_t *irr, char *db) {
     else {
       /* Does the database exist? */
       if ((irr->database = find_database(p_db)) == NULL) {
-	char db_canon[BUFSIZE];
+	char db_canon[MAX_DB_NAME];
 
-	db_canon[BUFSIZE - 1] = '\0';
-	strncpy (db_canon, db, BUFSIZE-1);
+	strncpy (db_canon, p_db, MAX_DB_NAME - 1);
+	db_canon[MAX_DB_NAME - 1] = '\0';  /* null terminate */
 	convert_toupper(db_canon);
 
-	trace (NORM, default_trace, "ERROR -- Database not found %s\n", db_canon);
+	trace (ERROR, default_trace, "Database not found %s\n", db_canon);
 	irr_add_answer (irr, "%s:X:Database does not exist.\n", db_canon);
 	p_db = strtok_r(NULL, ",", &last);
 	continue;
@@ -1247,11 +1267,11 @@ void irr_journal_range (irr_connection_t *irr, char *db) {
 
 void irr_journal_add_answer (irr_connection_t *irr) {
   enum { UNDETERMINED, DENIED, READONLY, MIRRORABLE } status = UNDETERMINED;
-  char db_canon[BUFSIZE], *p_last_export;
+  char db_canon[MAX_DB_NAME], *p_last_export;
   u_long oldest_serial, current_serial, last_export = 0L;
 
-  db_canon[BUFSIZE - 1] = '\0';
-  strncpy (db_canon, irr->database->name, BUFSIZE-1);
+  strncpy (db_canon, irr->database->name, MAX_DB_NAME - 1);
+  db_canon[MAX_DB_NAME - 1] = '\0';
   convert_toupper(db_canon);
 
   /* If we're going to administratively deny access, do it here */
@@ -1305,6 +1325,4 @@ void irr_journal_add_answer (irr_connection_t *irr) {
 		   ( status == READONLY ) ? "N" : "Y",
 		   oldest_serial, current_serial);
   }
-
 }
-

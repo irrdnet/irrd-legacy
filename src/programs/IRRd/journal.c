@@ -1,5 +1,5 @@
 /*
- * $Id: journal.c,v 1.9 2002/02/04 20:53:56 ljb Exp $
+ * $Id: journal.c,v 1.11 2002/10/17 20:02:30 ljb Exp $
  * originally Id: journal.c,v 1.13 1998/06/23 23:30:44 gerald Exp 
  */
 
@@ -26,51 +26,46 @@ void make_journal_name (char * dbname, int journal_ext, char * journal_name);
 /* JW this routine can be speeded up.  We know the offset and length
    of the object, lets read it and write it with two sys calls
 */
-void journal_write_serial (int mode, FILE *src_fp, int offset, irr_database_t *database) {
+void journal_irr_update (irr_database_t *db, irr_object_t *object, 
+                         int mode, int skip_obj) {
   char buffer[BUFSIZE+1];
   char *sadd = "ADD\n\n";
   char *sdelete = "DEL\n\n";
-  /*
-  char *snomode = "\n\n";
-  */
-  
-  journal_log_serial_number (database);
-
-  if (mode == IRR_UPDATE) 
-    write (database->journal_fd, sadd, strlen (sadd));
-  else if (mode == IRR_DELETE) 
-    write (database->journal_fd, sdelete, strlen (sdelete));
-  else {
-    trace (ERROR, default_trace,"ERROR journal.c: journal_write_serial(): unrecognized mode (%d) db-(%s)\n", mode, database->name);
-    return;
-    /*
-    write (database->journal_fd, snomode, strlen (snomode));
-    */
-  }
-
-  fseek (src_fp, offset, SEEK_SET);
-    
-  while (fgets (buffer, BUFSIZE, src_fp) != NULL) {
-    if (strlen (buffer) < 2) break;
-    write (database->journal_fd, buffer, strlen (buffer));
-  }
-  strcpy (buffer, "\n");
-  write (database->journal_fd, buffer, strlen (buffer));
-
-  /* whew! The change is on disk, so we can save the new serial number */
-  write_irr_serial (database); 
-  
-  return;
-}
-
-
-void journal_irr_update (irr_database_t *db, irr_object_t *object, 
-                         int mode, u_long db_offset) {
 
   db->serial_number++;
 
   /* until we have our syntax checker, just copy the serial as is */
-  journal_write_serial (mode, object->fp, object->offset, db);
+#ifdef notdef /* serial numbers will get messed up if we actually skip */
+  if (!skip_obj)	/* don't put bogus/filtered objects in journal file */
+#endif
+  {
+    journal_log_serial_number (db);
+
+    if (mode == IRR_UPDATE) 
+      write (db->journal_fd, sadd, strlen (sadd));
+    else if (mode == IRR_DELETE) 
+      write (db->journal_fd, sdelete, strlen (sdelete));
+    else {
+      trace (ERROR, default_trace,"ERROR journal.c: journal_write_serial(): unrecognized mode (%d) db-(%s)\n", mode, db->name);
+      return;
+      /*
+      write (db->journal_fd, snomode, strlen (snomode));
+      */
+    }
+
+    fseek (object->fp, object->offset, SEEK_SET);
+    
+    while (fgets (buffer, BUFSIZE, object->fp) != NULL) {
+      if (strlen (buffer) < 2) break;
+      write (db->journal_fd, buffer, strlen (buffer));
+    }
+    strcpy (buffer, "\n");
+    write (db->journal_fd, buffer, strlen (buffer));
+  }
+
+  /* whew! The change is on disk, so we can save the new serial number */
+  write_irr_serial (db);
+  return;
 }
 
 /* journal_log_serial_number
@@ -118,16 +113,16 @@ void journal_maybe_rollover (irr_database_t *database) {
  * return value of first good serial found if possible
  */
 int find_oldest_serial (char *dbname, int journal_ext, u_long *oldestserial) {
-  char file[BUFSIZE], buf[BUFSIZE];
+  char file[256], buf[BUFSIZE];
   FILE *fp;
 
   make_journal_name (dbname, journal_ext, file);
 
   if ((fp = fopen (file, "r")) != NULL) {
-    while (fgets (buf, sizeof (buf) - 1, fp) != NULL) { 
-      if (sscanf (buf, "%% SERIAL %s", file) == 1) {
+    while (fgets (buf, BUFSIZE, fp) != NULL) { 
+      if (!strncmp (buf, "% SERIAL", 8)) {
 	fclose (fp);
-        if (convert_to_lu (file, oldestserial) < 0)
+        if (convert_to_lu (buf+9, oldestserial) < 0)
           return (0);
 	return (1);
       }
@@ -140,13 +135,12 @@ int find_oldest_serial (char *dbname, int journal_ext, u_long *oldestserial) {
   return (0);
 }
 
-
 /*
  * return 1 if *.CURRENTSERIAL is read without error
  * else return -1
  */
 int get_current_serial (char *dbname, u_long *currserial) {
-  char tmp[BUFSIZE], file[BUFSIZE];
+  char tmp[BUFSIZE], file[256];
   int ret_val = -1;
   FILE *fp;
 
@@ -185,7 +179,7 @@ void make_journal_name (char * dbname, int journal_ext, char * journal_name) {
  */
 
 int find_last_serial (char *dbname, int journal_ext, u_long *last_serial) {
-  char file[BUFSIZE], sz_serialno[BUFSIZE];
+  char file[256];
   char buf [FLS_BUFSIZE + FLS_OVERFLOW + 1]; 
   off_t offset;
   ssize_t bytes_read, bytes_to_read = FLS_BUFSIZE;
@@ -225,8 +219,9 @@ int find_last_serial (char *dbname, int journal_ext, u_long *last_serial) {
         /* We've found the % */
 	/* It either at start of file or has a preceding NL */
         if ((i == 0) || (buf[i-1] == '\n')) {
-	  sscanf(buf+i, "%% SERIAL %s\n", sz_serialno);
-	  if (convert_to_lu (sz_serialno, last_serial) < 0)
+	  if (strncmp(buf+i, "% SERIAL",8) != 0)
+	    goto FAIL;
+	  if (convert_to_lu (buf+i+9, last_serial) < 0)
 	    goto FAIL;
           else {
 	    fclose (fp); 

@@ -1,5 +1,5 @@
 /*
- * $Id: hdr_comm.h,v 1.7 2001/06/04 16:59:36 ljb Exp $
+ * $Id: hdr_comm.h,v 1.9 2002/10/17 19:41:44 ljb Exp $
  */
 
 
@@ -13,8 +13,12 @@
 #undef socket
 #include <read_conf.h>
 
+#define newline_remove(p)  { char *_z = (p) + strlen((p)) - 1; \
+        if (*_z == '\n') \
+           *_z = '\0';}
+
 /* max size of any object line */
-#define MAXLINE 4024
+#define MAXLINE 4096
 
 /* The maximum number of lines for IRRd DB 
  * object retrieval.  This will limit the size
@@ -23,9 +27,6 @@
 #define MAX_IRRD_OBJ_SIZE 350
 
 /* Transaction types */
-/* WARNING: if you change these you must change
- * irrd_ops.h also
- */
 #define ADD_OP     "ADD"
 #define DEL_OP     "DEL"
 #define REPLACE_OP "REPLACE"
@@ -36,13 +37,9 @@
 /* give a name to the non-email user */
 #define TCP_USER   "TCP"
 
-#define newline_remove(p) if (*((p) + strlen ((p)) - 1) == '\n') \
-                           *((p) + strlen ((p)) - 1) = '\0'
-
-
 typedef struct _trans_info_t {
   int trans_success;
-  char sender_addrs[256];
+  char sender_addrs[MAXLINE];
   char *snext;
   char *subject;
   char *date;
@@ -53,12 +50,14 @@ typedef struct _trans_info_t {
   char *pgp_key;
   char *override;
   char *keycertfn;
+  char *web_origin_str;
   int  syntax_errors;
   int  syntax_warns;
   int  del_no_exist;
   int  authfail;
   char *otherfail;
   int  new_mnt_error;
+  int  del_mnt_error;
   int  bad_override;
   int  unknown_user;
   char *check_notify;
@@ -81,15 +80,8 @@ typedef struct _trans_info_t {
   u_int hdr_fields;
 } trans_info_t;
 
-/* JW note: the number of fields has grown well beyond 2 bytes.
- * Routines using the flag field 'hdr_field' is of type 'u_int'
- * which (luckily) turns out to be 4 bytes on bsdi and solaris.
- * However, if u_int is defined as 2 bytes on another machine
- * the program will break.  So later we should change 'hdr_field'
- * to long to be safe.
- */
 #define NOTIFY_REQUIRED_FLDS (FROM_F|DATE_F|SUBJECT_F|MSG_ID_F|HDR_END_F)
-#define ERROR_FLDS (SYNTAX_ERRORS_F|DEL_NO_EXIST_F|OTHERFAIL_F|AUTHFAIL_F|MAINT_NO_EXIST_F|NEW_MNT_ERROR_F|BAD_OVERRIDE_F|UNKNOWN_USER_F)
+#define ERROR_FLDS (SYNTAX_ERRORS_F|DEL_NO_EXIST_F|OTHERFAIL_F|AUTHFAIL_F|MAINT_NO_EXIST_F|NEW_MNT_ERROR_F|DEL_MNT_ERROR_F|BAD_OVERRIDE_F|UNKNOWN_USER_F)
 enum HDR_FLDS_T {
   FROM_F           = 01,
   SOURCE_F         = 02,
@@ -118,8 +110,9 @@ enum HDR_FLDS_T {
   PASSWORD_F       = 0100000000,
   KEYCERTFN_F      = 0200000000,
   NEW_MNT_ERROR_F  = 0400000000,
-  BAD_OVERRIDE_F   = 01000000000,
-  UNKNOWN_USER_F   = 02000000000
+  DEL_MNT_ERROR_F  = 01000000000,
+  BAD_OVERRIDE_F   = 02000000000,
+  UNKNOWN_USER_F   = 04000000000
 };
 
 
@@ -135,6 +128,7 @@ extern const char UPD_TO[];
 extern const char OLD_OBJ_FILE[];
 extern const char OTHERFAIL[];
 extern const char NEW_MNT_ERROR[];
+extern const char DEL_MNT_ERROR[];
 extern const char BAD_OVERRIDE[];
 
 /* hdr info from irr_check */
@@ -178,10 +172,13 @@ extern const char WARN_TAG[];
 
 /* function prototypes */
 
-void print_hdr_struct  (FILE *, trans_info_t *);
-void free_ti_mem       (trans_info_t *);
-int  parse_header      (trace_t *tr, FILE *, long *, trans_info_t *);
-int  update_has_errors (trans_info_t *);
-void my_mktemp         (trace_t *, char *);
+void print_hdr_struct	(FILE *, trans_info_t *);
+void free_ti_mem	(trans_info_t *);
+int  parse_header	(trace_t *tr, FILE *, long *, trans_info_t *);
+int  update_has_errors	(trans_info_t *);
+char *myconcat		(char *, char *);
+char *myconcat_nospace  (char *, char *);
+int  find_token		(char **, char **);
+char *free_mem		(char *);
 
 #endif  /* _HDR_COMM_H */

@@ -4,12 +4,7 @@
 
 #include <mrt.h>
 #define _VARARGS_H /* for solaris */
-#ifdef NT
-#include <process.h>
-int _getpid( void );
-#else
 #include <syslog.h>
-#endif /* NT */
 #include <sys/stat.h>
 #include "timer.h"
 
@@ -27,12 +22,10 @@ init_trace (name, syslog_flag)
      const char *name;
      int syslog_flag;
 {
-#ifndef NT
     if (syslog_flag) {
 	openlog (name, LOG_PID, LOG_DAEMON);
 	syslog_notify = 1;
     }
-#endif /* NT */
     init_struct ();
     return (1);
 }
@@ -108,12 +101,8 @@ trace (int flag, trace_t * tr, ...)
     else
 	buffer_reset (tr->buffer);
 
-#ifdef NT
-	_my_strftime (ptime, 0, "%c");
-#else
     _my_strftime (ptime, 0, "%h %e %T");
-#endif /* NT */
-    buffer_printf (tr->buffer, "%s [%d] ", ptime, pthread_self ());
+    buffer_printf (tr->buffer, "%s [%u] ", ptime, pthread_self ());
     if (tr->prepend && /* XXX */ !isspace(format[0])) {
         if (BIT_TEST (flag, TR_WARN))
 	    buffer_printf (tr->buffer, "*WARN* ");
@@ -128,10 +117,8 @@ trace (int flag, trace_t * tr, ...)
     trace_len = buffer_data_len (tr->buffer);
 
     if (BIT_TEST (flag, TR_WARN | TR_ERROR | TR_FATAL)) {
-#ifndef NT
         if (syslog_notify)
 	    syslog (LOG_INFO, buffer_data (tr->buffer) + strlen (ptime) + 1);
-#endif /* NT */
 	if (tr->error_list)
 	    add_error_list (tr->error_list, buffer_data (tr->buffer));
     }
@@ -208,7 +195,7 @@ trace (int flag, trace_t * tr, ...)
 	tr->logfile->logfd = get_trace_fd(tr);
 	if (!tr->logfile->logfd) {	/* No more log file! */
 	  fprintf(stderr, 
-		  "MRT Trace Panic!  Unable to open logfile %s: %s!\n",
+		  "Trace Panic!  Unable to open logfile %s: %s!\n",
 		  tr->logfile->logfile_name, strerror(errno));
 	  return -1;
 	}
@@ -231,9 +218,7 @@ trace (int flag, trace_t * tr, ...)
 
     /* check if errors */
     if (ret < 0) {
-#ifndef NT
 	syslog (LOG_INFO, "fprintf failed: %s", strerror (errno));
-#endif /* NT */
 	/*mrt_exit (1);*/
 	/* turn off tracing? Or is it okay if we keep on failing?
 	* probably not -- we don't want to fill up syslog with messages
@@ -279,7 +264,7 @@ New_Trace2 (char *app_name)
     tmp->syslog_flag = TR_DEFAULT_SYSLOG;
     tmp->logfile->logfd = get_trace_fd (tmp);
     if (!tmp->logfile->logfd) {
-      fprintf(stderr, "MRT Trace Panic!  Unable to open logfile %s: %s!\n",
+      fprintf(stderr, "Trace Panic!  Unable to open logfile %s: %s!\n",
 		  tmp->logfile->logfile_name, strerror(errno));
 	  return (NULL);
     }

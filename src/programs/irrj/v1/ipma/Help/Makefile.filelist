@@ -1,3 +1,0 @@
-ALLCLASSFILES = CErrorWindow.class \
-CHelpWindow.class \
-CHelpWindowParent.class 

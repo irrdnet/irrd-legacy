@@ -141,7 +141,7 @@ main(int argc, char * argv[]){
   char c;
   pthread_t mirror_thread, user_thread, poll_thread;
 
-  default_trace = New_Trace();
+  default_trace = New_Trace2("rpsdist");
 
   while( (c = getopt(argc, argv, "f:p:P:Dv")) != -1 ){
     switch(c){

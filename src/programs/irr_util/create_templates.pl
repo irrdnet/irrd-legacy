@@ -1,6 +1,5 @@
 #!/usr/bin/perl
 
-
 %obj = ();
 @attrs = ();
 @obj_order = ();
@@ -79,7 +78,6 @@ while (<STDIN>) {
     }
 }
 
-
 ########################################################################
 
 # compute the attr max length foreach obj
@@ -99,22 +97,6 @@ foreach $type (@obj_order) {
 $n = 0;
 foreach $type (@obj_order) {
 
-    if ($n == 8) {
-	no_temp (2);
-    }
-
-    if ($n == 9) {
-	no_temp (7);
-    }
-
-    if ($n == 10) {
-	no_temp (6);
-    }
-
-    if ($n == 12) {
-	no_temp (1);
-    }
-    
 # for each attribute for this object
     $width = $max_attr_len{$type} + 1;
     $first_line = 1;
@@ -155,10 +137,21 @@ foreach $type (@obj_order) {
 	}
 	
 	if ($first_line) {
+            $savefirst = $j;
+	    if ($map_long{$j} eq "person" || $map_long{$j} eq "role") {
+	    	print "[look-up key]\\n\"";
+	    } else {
+		print "[primary/look-up key]\\n\"";
+	    }
+	}
+	elsif ($map_long{$j} eq "origin" && $map_long{$savefirst} ne "ipv6-site") {
+	    print "[primary key]\\n\"";
+	}
+	elsif ($map_long{$j} eq "nic-hdl") {
 	    print "[primary/look-up key]\\n\"";
 	}
-	elsif ($map_long{$j} eq "origin") {
-	    print "[primary key]\\n\"";
+	elsif ($map_long{$j} eq "prefix") {
+	    	print "[look-up key]\\n\"";
 	}
 	else {
 	    print "[ ]\\n\"";

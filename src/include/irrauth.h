@@ -1,5 +1,5 @@
 /*
- * $Id: irrauth.h,v 1.8 2000/09/19 21:54:47 gerald Exp $
+ * $Id: irrauth.h,v 1.11 2002/10/17 19:41:44 ljb Exp $
  */
 
 
@@ -46,7 +46,8 @@ enum AUTH_CODE {
   DEL_NO_EXIST_C  = 020, 
   NOOP_C          = 040,
   NEW_MNT_ERROR_C = 0100,
-  BAD_OVERRIDE_C  = 0200
+  DEL_MNT_ERROR_C = 0200,
+  BAD_OVERRIDE_C  = 0400
 };
 
 /* types used in pgpdecodefile () to identify 
@@ -57,8 +58,8 @@ enum PGPKEY_TYPE {
   DETACHED_SIG
 };
 
-#define CLEAR_NOTIFY (MNT_NO_EXIST_C|DEL_NO_EXIST_C|NOOP_C|OTHER_FAIL_C|AUTH_FAIL_C|NEW_MNT_ERROR_C|BAD_OVERRIDE_C)
-#define CLEAR_FORWARD (MNT_NO_EXIST_C|DEL_NO_EXIST_C|NOOP_C|OTHER_FAIL_C|AUTH_PASS_C|NEW_MNT_ERROR_C|BAD_OVERRIDE_C)
+#define CLEAR_NOTIFY (MNT_NO_EXIST_C|DEL_NO_EXIST_C|NOOP_C|OTHER_FAIL_C|AUTH_FAIL_C|NEW_MNT_ERROR_C|DEL_MNT_ERROR_C|BAD_OVERRIDE_C)
+#define CLEAR_FORWARD (MNT_NO_EXIST_C|DEL_NO_EXIST_C|NOOP_C|OTHER_FAIL_C|AUTH_PASS_C|NEW_MNT_ERROR_C|DEL_MNT_ERROR_C|BAD_OVERRIDE_C)
 
 extern const char blankline[];
 extern const char cookie[];
@@ -142,7 +143,7 @@ int pgpdecodefile_new (FILE *file, char *, FILE *, char *, trace_t *tr);
 int addmailcookies (trace_t *, int, char *, char *);
 int writecookietofile (char *, char *);
 int callsyntaxchk (trace_t *tr, char *, char *, char *);
-int callnotify (trace_t *, char *, int, int, int, int, char *, int, 
+int callnotify (trace_t *, char *, int, int, int, char *, int, char *, int, 
 		char *, char *, char *, char *, long, FILE *, char *);
 int auth_check (trace_t *, char *, char *, char *, int, char *);
 
@@ -153,6 +154,7 @@ obj_lookup_t *find_trans_object (trace_t *, lookup_info_t *, char *, char *, cha
 void new_kc_obj (trace_t *, kc_info_t *, char *);
 
 /* util.c */
+int update_cryptpw (trace_t *, FILE *, long, char *);
 int noop_check (trace_t *, FILE *, long, FILE *, long);
 char *myconcat (char *, char *);
 int find_token (char **, char **);
@@ -169,6 +171,6 @@ int in_DB (trace_t *, char *, char *, char *, char *, int);
 int new_pgpdecodefile (FILE *, char *, FILE *, 
 		       char *, char *, int, trace_t *);
 int good_signature (trace_t *, char *, kc_obj_t *, char *);
-void call_pipeline (trace_t *, FILE *, int, int, int);
+void call_pipeline (trace_t *, FILE *, char *, int, int, int);
 
 #endif /* _IRR_AUTH_H */

@@ -572,13 +572,11 @@ config_write (uii_connection_t * uii)
 	return (-1);
     }
 
-#ifndef NT
     if (access (filename, F_OK) == 0) {
 	uii_send_data (uii, "Overwrite to %s (yes/no)? ", filename);
 	if (!uii_yes_no (uii))
 	    return (0);
     }
-#endif /* NT */
     if ((fd = fopen (filename, "w")) == NULL) {
 	config_notice (NORM, uii,
 	       "Write to config file %s failed (%m)\n", filename);

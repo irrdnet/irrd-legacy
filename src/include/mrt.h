@@ -1,16 +1,12 @@
 /*
- * $Id: mrt.h,v 1.5 2001/08/09 20:01:10 ljb Exp $
+ * $Id: mrt.h,v 1.7 2002/10/17 19:41:44 ljb Exp $
  */
 
 #ifndef _MRT_H
 #define _MRT_H
 
 #include <version.h>
-#ifndef NT
 #include <config.h>
-#else
-#include <ntconfig.h>
-#endif /* NT */
 
 #include <stdlib.h>
 #include <sys/types.h>
@@ -20,9 +16,7 @@
 /* to avoid it defined in stdio.h */
 #include <stdarg.h>
 #else
-#ifndef NT
 #include <sys/varargs.h>
-#endif /* NT */
 #endif /* __GNUC__ */
 #include <errno.h>
 #if TIME_WITH_SYS_TIME
@@ -35,11 +29,9 @@
 #  include <time.h>
 # endif
 #endif
-#ifndef NT
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <unistd.h>
-#endif /* NT */
 #include <ctype.h>
 #ifdef HAVE_STRING_H
 #include <string.h>
@@ -68,12 +60,8 @@ char *alloca ();
 # endif
 #endif
 
-#ifndef NT
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#else
-#include <winsock2.h>
-#endif /* NT */
 #ifdef HAVE_RESOLV_H
 #include <arpa/nameser.h>
 #include <resolv.h>
@@ -106,13 +94,6 @@ typedef void *(*thread_fn_t)(void *);
 #define INET_ADDRSTRLEN   16
 #endif /* INET_ADDRSTRLEN */
 
-#ifdef NT
-#ifdef HAVE_IPV6
-#include <ip6.h> 
-#include <ws2ip6.h>
-#endif /* HAVE_IPV6 */
-#endif /* NT */
-
 #ifndef HAVE_STRUCT_IN6_ADDR
 /* IPv6 address */
 struct in6_addr {
@@ -135,10 +116,6 @@ typedef struct _prefix_pair_t {
     prefix_t *prefix1;
     prefix_t *prefix2;
 } prefix_pair_t;
-
-#ifdef NT
-#undef interface
-#endif /* NT */
 
 typedef struct _gateway_t {
     prefix_t *prefix;
@@ -283,6 +260,8 @@ typedef struct _mrt_thread_t {
 #define ASSERT(x) { if (!(x)) \
 	err_dump ("\nAssert failed line %d in %s", __LINE__, __FILE__); }
 
+#define NETSHORT_SIZE 2		/* size of our NETSHORT in bytes */
+#define NETLONG_SIZE 4		/* size of our NETLONG in bytes */
 #define UTIL_GET_NETSHORT(val, cp) \
 	{ \
             register u_char *val_p; \
@@ -374,7 +353,6 @@ char *prefix_toa2x (prefix_t * prefix, char *tmp, int with_len);
 prefix_t *ascii2prefix (int family, char *string);
 int my_inet_pton (int af, const char *src, void *dst);
 
-char *my_strftime (long t, char *fmt);
 int init_mrt (trace_t *tr);
 mrt_thread_t *mrt_thread_create (char *name, schedule_t * schedule,
 				 thread_fn_t callfn, void *arg);
@@ -449,21 +427,6 @@ int mrt_close (int d, char *s, int l);
 int mrt_socket (int domain, int type, int protocol, char *s, int l);
 int mrt_accept (int d, struct sockaddr *addr, int *addrlen, char *s, int l);
 
-#ifdef NT
-/* I don't know exactly but it would reduce code changes */
-#define socket_errno()	WSAGetLastError()
-
-#define EWOULDBLOCK     WSAEWOULDBLOCK
-#define EINPROGRESS     WSAEINPROGRESS
-#define ECONNREFUSED    WSAECONNREFUSED
-#define ETIMEDOUT       WSAETIMEDOUT
-#define ENETUNREACH     WSAENETUNREACH
-#define EHOSTUNREACH    WSAEHOSTUNREACH
-#define EHOSTDOWN       WSAEHOSTDOWN
-#define EISCONN         WSAEISCONN
-//#define EINVAL          WSAEINVAL
-#else
 #define socket_errno()	errno
-#endif /* NT */
 
 #endif /* _MRT_H */

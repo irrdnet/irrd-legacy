@@ -25,23 +25,6 @@ static char *append_list_attr (char *, char *);
 int F_IR = -1, F_NH = -1, F_MN = -1;
 */
 
-void convert_toupper (char *_z) {
-
-  while (*_z) {
-    *_z = toupper(*_z);
-    _z++;
-  }
-}
-
-void convert_tolower (char *_z) {
-
-  while (*_z) {
-    *_z = tolower(*_z);
-    _z++;
-  }
-}
-
- 
 /* This routine concat's x and y, putting a space
  * beteen x and y.  It assumes that the
  * caller is placing the result in x, so the routine
@@ -112,8 +95,7 @@ void display_header_info (parse_info_t *hi) {
 
   if (hi->op != NULL)
     fprintf (ofile, "%s%s\n", OP, hi->op); /* could be 'DEL'
-					    * see syntax_attrs.c
-					    */
+					    * see syntax_attrs.c */
 
   if (hi->source != NULL)
     fprintf (ofile, "%s %s\n", SOURCE, hi->source);
@@ -145,7 +127,6 @@ void display_header_info (parse_info_t *hi) {
 
 
 void build_header_info (parse_info_t *obj, char *attr_val) {
-
 
   if (attr_val == NULL)
     return;

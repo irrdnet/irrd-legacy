@@ -10,6 +10,7 @@
 #include <errno.h>
 
 #include <irr_rpsl_check.h>
+#include <irr_defs.h>
 
 extern int verbose;
 
@@ -31,7 +32,6 @@ extern int int_size;
 extern int start_of_object;
 
 int ERROR_BUFFER_FULL = 0;
-
 
 void check_object_end (parse_info_t *obj, canon_info_t *canon_info) {
   char buf[MAXLINE], *estr = "errors", *wstr = "warnings";
@@ -55,7 +55,7 @@ void check_object_end (parse_info_t *obj, canon_info_t *canon_info) {
   }
 
   if (!skip_checks) {
-    if (verbose) fprintf (dfile, "JW: checking for legal fields (type=%s)...\n", obj_type[type]);
+    if (verbose) fprintf (dfile, "checking for legal fields (type=%s)...\n", obj_type[type]);
     /* first we'll check for legal fields */
     /*    obj->curr_attr = F_NOATTR; ensure this message gets printed */
     for (i = 0; i < MAX_ATTRS; i++)
@@ -64,7 +64,7 @@ void check_object_end (parse_info_t *obj, canon_info_t *canon_info) {
 	error_msg_queue (obj, buf, INFO_MSG);
       }
 
-    /*if (verbose) fprintf (dfile, "JW: checking for mult fields...\n");*/
+    /*if (verbose) fprintf (dfile, "checking for mult fields...\n");*/
     /* next we check for multiple fields */
     for (i = 0; i < MAX_ATTRS; i++)
       if (obj->attrs[i] > 1 && !mult_attrs[type][i]) {
@@ -72,7 +72,7 @@ void check_object_end (parse_info_t *obj, canon_info_t *canon_info) {
 	error_msg_queue (obj, buf, INFO_MSG);
       }
 
-    /*if (verbose) fprintf (dfile, "JW: checking for mando fields...\n"); */
+    /*if (verbose) fprintf (dfile, "checking for mando fields...\n"); */
     /* finally check the mandatory fields */
     for (i = 0; (j = mand_attrs[type][i]) >= 0; i++)
       if (obj->attrs[j] == 0) {
@@ -85,7 +85,7 @@ void check_object_end (parse_info_t *obj, canon_info_t *canon_info) {
   if (!obj->errors && obj->type == O_KC)
     add_machine_gen_attrs (obj, canon_info);
   
-  /*if (verbose) fprintf (dfile, "JW: calling display_canonicalized_object()...\n");*/
+  /*if (verbose) fprintf (dfile, "calling display_canonicalized_object()...\n");*/
   /* Show the user his/her nice shiney new object.
    * Also prepend the header information if we are part of
    * a pipeline of processing.
@@ -229,11 +229,11 @@ fprintf (dfile, "\nstarting new object....\n");
     unlink (canon_info->lflushfn);
   }
     
-  /*if (verbose) fprintf (dfile, "JW: start_new_object (sizeof(obj)-(%d))\n",sizeof (*obj));*/
+  /*if (verbose) fprintf (dfile, "start_new_object (sizeof(obj)-(%d))\n",sizeof (*obj));*/
 }
 
 int irrcheck_find_token (char **x, char **y) {
-  /*if (verbose) fprintf (dfile, "JW: enter irrcheck_find_token(%s)...\n",*x);*/
+  /*if (verbose) fprintf (dfile, "enter irrcheck_find_token(%s)...\n",*x);*/
   *x = *y;
   /* fprintf (dfile, "p-(%c)\n",**x); */
   while (**x != '\0' && **x != '\n' && (**x == ' ' || **x == '\t')) (*x)++;
@@ -244,10 +244,9 @@ int irrcheck_find_token (char **x, char **y) {
   *y = *x + 1;
   while (**y != '\0' && isgraph (**y)) (*y)++;
 
-  /* fprintf (dfile, "JW: irrcheck_find_token () returns 1..\n"); */
+  /* fprintf (dfile, "irrcheck_find_token () returns 1..\n"); */
   return 1;  
 }
-
 
 /* Error message format:
  * 
@@ -290,9 +289,9 @@ void error_msg_queue (parse_info_t *obj, char *emsg, int msg_type) {
 
   /* make the error message */
   if (msg_type == INFO_MSG)
-    sprintf (buf, "%s%s\n", ERROR_TAG, emsg);
+    snprintf (buf, MAXLINE, "%s%s\n", ERROR_TAG, emsg);
   else
-    sprintf (buf, "%s%d: %s: %s\n", 
+    snprintf (buf, MAXLINE, "%s%d: %s: %s\n", 
 	     ((msg_type == WARN_MSG || msg_type == WARN_OVERRIDE_MSG ||
 	       msg_type == EMPTY_ATTR_MSG) ? WARN_TAG : ERROR_TAG),
 	     obj->start_lineno + obj->elines - 1,
@@ -301,7 +300,6 @@ void error_msg_queue (parse_info_t *obj, char *emsg, int msg_type) {
 
   slen = strlen (buf);
   /* here is error message CHL */
-
 
   /* Our error message buffer is sated */
   if (((obj->errp - obj->err_msg) + slen + 2*n + 2*m + too_many_size + 2) 
@@ -329,18 +327,15 @@ void error_msg_queue (parse_info_t *obj, char *emsg, int msg_type) {
   obj->errp += slen + 1; /* want each message terminated with a '\0' */
 
   if (verbose) 
-    fprintf (dfile, "JW: error_msg_queue(), copied n bytes-(%d) curr attr-(%d)\n",n,obj->curr_attr); 
-  if (verbose) fprintf (dfile, "JW: error_msg_queue(), msg-(%s)\n",emsg);
+    fprintf (dfile, "error_msg_queue(), copied n bytes-(%d) curr attr-(%d)\n",n,obj->curr_attr); 
+  if (verbose) fprintf (dfile, "error_msg_queue(), msg-(%s)\n",emsg);
   if (msg_type == WARN_MSG          ||
       msg_type == WARN_OVERRIDE_MSG ||
       msg_type == EMPTY_ATTR_MSG)
     obj->warns++;
   else /* must be an error message */
     obj->errors++;
-
 }
-
-
 
 void report_errors (parse_info_t *obj) {
   short attr;
@@ -356,8 +351,8 @@ void report_errors (parse_info_t *obj) {
     memcpy (&attr, ebuf, n);
     ebuf += n;
 /*
-if (verbose) fprintf (dfile, "\nJW: report_errors (attr-(%d))\n",attr);
-if (verbose) fprintf (dfile, "JW: report_errors (emsg-(%s))\n",ebuf);
+if (verbose) fprintf (dfile, "\nreport_errors (attr-(%d))\n",attr);
+if (verbose) fprintf (dfile, "report_errors (emsg-(%s))\n",ebuf);
 */
     /* Want to suppress syntax errors on illegal attributes,
      * a single msg "illegal attr" is enough. 
@@ -399,7 +394,6 @@ if (verbose) fprintf (dfile, "JW: report_errors (emsg-(%s))\n",ebuf);
   }
 }
 
-
 /*
  * See if a given source DB exists.
  * If yes return pointer into sources list.
@@ -412,24 +406,7 @@ source_t *is_sourcedb (char *source_name, source_t *j) {
     if (!strcasecmp (source_name, i->source))
       break;
   }
-
-
   return i;
-}
-
-/* JW will have to see if this is needed in
- * the end.  Possibly remove.
- */
-/*
- * See if the token begins with a keyword:
- * ^(ANY|OR|NOT|AS|LIM-)
- */
-int starts_with_keyword (char *token) {
-
-  if (regexec(&re[RE_COMM2], token, (size_t) 0, NULL, 0))
-    return 0;
-
-  return 1;
 }
 
 /* Determine if '*s' is an RPSL reserved word.
@@ -485,8 +462,8 @@ rp_attr_t *is_RPattr(rp_attr_t_ll *ll, char *s) {
   if (s == NULL)
     return NULL;
 
-  for (p = ll->first; p != NULL; p = p->next)
-    fprintf (dfile, "method (%s)\n", p->name);
+/*  for (p = ll->first; p != NULL; p = p->next)
+    fprintf (dfile, "method (%s)\n", p->name); */
   
   for (p = ll->first; p != NULL; p = p->next)
     if (!strcasecmp (s, p->name))
@@ -524,7 +501,7 @@ int is_special_suffix (char *p) {
 }
 
 /*
- * The countries are derived from the ripedb.config
+ * The countries are derived from the rpsl.config
  * and are two letter uppercase abbreviations.  They
  * are used as a check for valid nic handle suffix's
  */
@@ -561,9 +538,8 @@ char *my_strcat (parse_info_t *o, int num_args, u_int skipfree, ...) {
 	k = 1;
 	continue;
       }
-      /*
-fprintf (dfile, "my_strcat () p: (%s)\n", p);
-*/
+      /* fprintf (dfile, "my_strcat () p: (%s)\n", p); */
+
       /* The intended effect is that if a string is NULL and
        * the next string is a " " (ie, blank space seperator)
        * then skip the " " so the line doesn't have an extra space.
@@ -591,9 +567,8 @@ fprintf (dfile, "my_strcat () p: (%s)\n", p);
 
       if (n & skipfree)
 	continue;
-      /*
-fprintf (dfile, "my_strcat ():  free (%s)\n", p);
-*/
+
+      /* fprintf (dfile, "my_strcat ():  free (%s)\n", p); */
       free (p);
   }
 
@@ -601,9 +576,7 @@ fprintf (dfile, "my_strcat ():  free (%s)\n", p);
 
  buf[j] = '\0';
 
- /*
-fprintf (dfile, "my_strcat () returns (%s)\n", buf);
-*/
+ /* fprintf (dfile, "my_strcat () returns (%s)\n", buf); */
  return strdup (buf);
 }
 
@@ -702,17 +675,11 @@ void init_regexes () {
   regex_compile (re, (int) RE_EMAIL3, 
 		 "@[[:alnum:]]+([.-][[:alnum:]]+)*$");
   regex_compile (re, (int) RE_CRYPT_PW, "^[[:alnum:]./]{13}$");
-  regex_compile (re, (int) RE_TITLES, "^([Mm][rs]s?|[Dd]rs?|[Ss]ir|ing|sign|herr|hr|frau|prof[[:graph:]]*)\\.?");
-  /* JW this does not seem right to allow numbers in a persons name
-   * but ripe-2.1 allows it so I am following along.
-   */
   regex_compile (re, (int) RE_NAME, "^[[:alpha:]][[:alnum:].'`|-]*$");
   regex_compile (re, (int) RE_APNIC_HDL, "^[A-Z]{2}[[:digit:]]{3}JP(-JP)?$");
   regex_compile (re, (int) RE_LCALPHA, "[a-z]");
   regex_compile (re, (int) RE_STD_HDL, "^[A-Z]{2,4}([1-9][[:digit:]]{0,5})?(-[[:graph:]]+)?(-NIC)?$");
   regex_compile (re, (int) RE_RIPE_HDL, "^AUTO-[[:digit:]]+[A-Z]*$");
-  regex_compile (re, (int) RE_COMM1, "^[A-Z][A-Z0-9_-]+$");
-  regex_compile (re, (int) RE_COMM2, "^(ANY|AND|OR|NOT|AS|LIM-)");
   regex_compile (re, (int) RE_REAL, "^[+-]?([[:digit:]]+)?.[[:digit:]]+(E[+-]?[[:digit:]]+)?$");
   regex_compile (re, (int) RE_ASNAME, "^[A-Z][A-Z0-9-]+$");
   /* needed by lc_lex () */

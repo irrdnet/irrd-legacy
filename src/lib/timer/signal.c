@@ -5,13 +5,6 @@
 #include <mrt.h>
 #include <timer.h>
 
-#ifdef NT
-#include <signal.h>
-#ifndef SIGALRM
-#define SIGALRM		SIGTERM                 // NT does not use SIGTERM and SIGALRM is not supported
-#endif /* SIGALRM */
-#endif	/* NT */	
-
 #if defined(__linux__) && defined(HAVE_LIBPTHREAD)
 /* Linux pthread is different from Posix Pthread on asynchronous
    signal handling of SIGALRM that is used to run timers in MRT.
@@ -74,10 +67,6 @@ alarm_interrupt (/* void */)
 {
     alarm_pending++;
 #ifdef HAVE_LIBPTHREAD
-#ifdef NT
-	// not sure why but need to "rebind" SIGALRM to alarm_interrupt. Ken 6/21/99
-	signal (SIGALRM,  (void *) alarm_interrupt); 
-#endif /* NT */
     thread_id = pthread_self ();
 #endif
 }
@@ -160,9 +149,7 @@ recover_signal (sigset_t old)
 void
 init_signal (trace_t *tr, void_fn_t fn)
 {
-#ifndef NT
     sigset_t set;
-#endif /* NT */
 
 #if !defined(HAVE_LIBPTHREAD) || defined(__linux__)
 #ifdef HAVE_SIGACTION /* POSIX actually */
@@ -187,19 +174,15 @@ init_signal (trace_t *tr, void_fn_t fn)
 
    /* This init routine must be called from the main thread
       that handles alarm interrupts before creations of threads */
-#ifndef NT
     sigemptyset (&set);
     sigaddset (&set, SIGALRM);
-#endif /* NT */
 #if defined(HAVE_LIBPTHREAD) && !defined(__linux__)
     /* sigwait() will be used so that ALARM must be blocked 
        even in the main thread */
     pthread_sigmask (SIG_BLOCK, &set, NULL);
 #else
     /* enables alarm interrupts */
-#ifndef NT
     pthread_sigmask (SIG_UNBLOCK, &set, NULL);
-#endif /* NT */
 #endif /* HAVE_LIBPTHREAD */
     timer_fire_fn = fn;
 }

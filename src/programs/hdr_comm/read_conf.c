@@ -1,5 +1,5 @@
 /*
- * $Id: read_conf.c,v 1.19 2001/07/13 18:28:08 ljb Exp $
+ * $Id: read_conf.c,v 1.20 2002/10/17 20:12:01 ljb Exp $
  */
 
 
@@ -18,20 +18,15 @@
 #include <hdr_comm.h>
 #include <irr_defs.h>
 
-#ifndef HAVE_SNPRINTF
-extern int snprintf(char *, size_t, const char *, /*args*/ ...);
-#endif
-
 extern config_info_t ci;
+char     *free_mem        (char *);
 
-static int      find_token       (char **, char **);
+static int      find_conf_token       (char **, char **);
 static void     db_line          (char *, src_t *);
 static char     *char_line       (char *, char *);
 static int      port_line        (char *, int *);
-static char     *free_mem        (char *);
 static source_t *find_src_object (src_t *, char *);
 static char     *get_footer_msg  (char *);
-static char     *myconcat        (char *, char *);
 static int      string_trim      (char *, char *);
 static char     *make_pgpname    (char *);
 static int      add_acl          (char *, char *, acl **);
@@ -124,7 +119,7 @@ int parse_irrd_conf_file (char *config_fname, trace_t *tr) {
   /* pick off the value of relavent fields */
   while (fgets (buf, MAXLINE, fin) != NULL) {
     p = q = buf;
-    if (find_token (&p, &q) > 0) {
+    if (find_conf_token (&p, &q) > 0) {
       len = (int) (q - p);
       if (len > 5 && !strncmp (p, "irr_database", len)) {
 	/* authoritative */
@@ -184,30 +179,25 @@ int parse_irrd_conf_file (char *config_fname, trace_t *tr) {
 	temp_ci.irrd_host = char_line (q, temp_ci.irrd_host);
       else if (len > 3 && !strncmp (p, "override_cryptpw", len))
 	temp_ci.super_passwd = char_line (q, temp_ci.super_passwd);
-      else if (len > 0 && !strncmp (p, "pgp_dir", len))
+      else if (len > 4 && !strncmp (p, "pgp_dir", len))
 	temp_ci.pgp_dir = char_line (q, temp_ci.pgp_dir);
       else if (len > 5 && !strncmp (p, "irr_directory", len))
 	irr_dir = char_line (q, irr_dir);
       else if (len > 3 && !strncmp (p, "db_admin", len))
 	temp_ci.db_admin = char_line (q, temp_ci.db_admin);
-      else if (len > 4                    && 
-	       !strncmp (p, "debug", len) &&
-	       (*q == ' ' || *q == '\t')  &&
-	       !strncmp (q + 1, "submission file-name", 20)) {
-	config_trace_local (tr, strdup (p));
-      }
-      else if (ci.footer_msg == NULL &&
+      else if (len > 4  && !strncmp (p, "debug", len)) 
+	config_trace_local (tr, q);
+      else if (len > 10 && ci.footer_msg == NULL &&
 	       !strncmp (p, "response_footer", len))
-	temp_ci.footer_msg = myconcat (temp_ci.footer_msg, get_footer_msg (q));
-      else if (ci.header_notify_msg == NULL &&
-	       !strncmp (p, "response_header_notify", len))
-	temp_ci.header_notify_msg =
-	  myconcat (temp_ci.header_notify_msg, get_footer_msg (q));
-      else if (ci.header_forward_msg == NULL &&
-	       !strncmp (p, "response_header_forward", len))
-	temp_ci.header_forward_msg = 
-	  myconcat (temp_ci.header_forward_msg, get_footer_msg (q));
- 	
+	temp_ci.footer_msg = myconcat_nospace (temp_ci.footer_msg, get_footer_msg (q));
+      else if (len > 10 && ci.notify_header_msg == NULL &&
+	       !strncmp (p, "response_notify_header", len))
+	temp_ci.notify_header_msg =
+	  myconcat_nospace (temp_ci.notify_header_msg, get_footer_msg (q));
+      else if (len > 10 && ci.forward_header_msg == NULL &&
+	       !strncmp (p, "response_forward_header", len))
+	temp_ci.forward_header_msg = 
+	  myconcat_nospace (temp_ci.forward_header_msg, get_footer_msg (q));
       else if (len > 5 && !strncmp (p, "irr_database", len)) {
 
       }
@@ -237,6 +227,20 @@ int parse_irrd_conf_file (char *config_fname, trace_t *tr) {
     if (temp_ci.footer_msg != NULL) {
         ci.footer_msg = strdup (temp_ci.footer_msg);
   	free_mem (temp_ci.footer_msg);
+    }
+  } 
+
+  if (ci.notify_header_msg == NULL) {
+    if (temp_ci.notify_header_msg != NULL) {
+        ci.notify_header_msg = strdup (temp_ci.notify_header_msg);
+  	free_mem (temp_ci.notify_header_msg);
+    }
+  } 
+
+  if (ci.forward_header_msg == NULL) {
+    if (temp_ci.forward_header_msg != NULL) {
+        ci.forward_header_msg = strdup (temp_ci.forward_header_msg);
+  	free_mem (temp_ci.forward_header_msg);
     }
   } 
 
@@ -316,7 +320,7 @@ int port_line (char *line, int *port) {
   char *p, *q;
 
   p = q = line;
-  if (find_token (&p, &q) > 0) {
+  if (find_conf_token (&p, &q) > 0) {
     *q = '\0';
     return atoi (p);
   }
@@ -341,7 +345,7 @@ char *char_line (char *line, char *host) {
   char *p, *q;
 
   p = q = line;
-  if (find_token (&p, &q) > 0) {
+  if (find_conf_token (&p, &q) > 0) {
     *q = '\0';
     free_mem (host);
     return strdup (p);
@@ -366,13 +370,13 @@ void db_line (char *line, src_t *start) {
 
   /* first find the DB name */
   p = q = line;
-  if (find_token (&p, &q) > 0) {
+  if (find_conf_token (&p, &q) > 0) {
     auth = 0;
     source = p;
     r = q;
 
     /* now find the keyword following the DB name */
-    if (find_token (&p, &q) > 0) {
+    if (find_conf_token (&p, &q) > 0) {
       len = (int) (q - p);
       if (len > 1 && !strncmp (p, "authoritative", len))
 	auth = 1;
@@ -452,27 +456,24 @@ void add_src_obj (src_t *start, source_t *obj) {
   start->last = obj;
 }
 
-/* JW later make this routine globally accessible; many routines use
- * this routine (ie, reduce code size).
- */
 /* This routine finds a token in the string.  *x will
  * point to the first character in the string and *y will
  * point to the first character after the token.  A token
  * is a printable character string.  A '\n' is not considered
  * part of a legal token.  
- *   This function is rpsl-capable.  It will look for '#'s in
+ *    It will look for !'s in
  * the string and assume everything after is a comment.
  * Invoke this routine by setting 'x' and 'y' to the beginning
  * of the target string like this: 'x = y = target_string;
- * if (find_token (&x, &y) > 0) ...
- * each successive call to find_token () will move the char 
+ * if (find_conf_token (&x, &y) > 0) ...
+ * each successive call to find_conf_token () will move the char 
  * pointers along.
  *
  * Return:
  *   1 if a token is found (*x points to token, *y first char after)
  *  -1 if no token is found (*x and *y are to be ignored)
  */
-int find_token (char **x, char **y) {
+int find_conf_token (char **x, char **y) {
 
   /* It's possible the target string is NULL 
    * or we are in an rpsl comment 
@@ -492,21 +493,6 @@ int find_token (char **x, char **y) {
   while (**y != '\0' && (isgraph ((int) **y) && **y != '!')) (*y)++;
 
   return 1;  
-}
-
-/* 
- * Free the memory pointed to by *p.  p may be NULL.
- * Function should be invoked as 'x = free_mem (x)'
- *
- * Return:
- *  NULL
- */
-char *free_mem (char *p) {
-
-  if (p != NULL)
-    free (p);
-  
-  return NULL;
 }
 
 /* Return a footer message line.  The line should
@@ -566,25 +552,6 @@ char *get_footer_msg (char *s) {
       return strdup (s);
     }
   }
-}
-
-char *myconcat (char *x, char *y) {
-  char buf[2048];
-
-  if (x == NULL)
-    buf[0] = '\0';
-  else {
-    strcpy (buf, x);
-    free_mem (x);
-  }
-
-  if (y != NULL)
-    strcat (buf, y);
-
-  if (buf[0] == '\0')
-    return NULL;
-  else
-    return strdup (buf);
 }
 
 /* return string 's' with spaces removed in 't' and
@@ -663,7 +630,7 @@ char *dir_chks (char *dir, int creat_dir) {
   
   /* see if we can create a temp file in the directory */
   snprintf (file, MAXLINE, "%s/cache-test.%d", dir, (int) getpid ());
-  if ((fp = fopen (file, "w+")) == NULL) {
+  if ((fp = fopen (file, "a")) == NULL) {
 
     /* dir does not exist, try to make it */
     if (creat_dir &&
@@ -676,8 +643,7 @@ char *dir_chks (char *dir, int creat_dir) {
     snprintf (file, MAXLINE, 
 	      "Could not create the directory: %s", strerror (errno));
     return strdup (file);
-  }
-  else {
+  } else {
     fclose (fp);
     remove (file);
   }
@@ -716,23 +682,3 @@ static int add_acl(char * host, char * db_name, acl ** acl_list){
   return 1;
 }
 
-/* JW code junkyard?  Will we need it someday?
-   core dumps on linux if dir = NULL
-
-int create_dir (char *dir) {
-    DIR *dirp;
-
-  if ((dirp = opendir (dir)) != NULL) {
-    closedir (dirp);
-
-    return 1;
-  }
-    
-  if (mkdir (dir, 00755)) {
-    return 0;
-  }  
-
-  return 1;
-}
-
-*/

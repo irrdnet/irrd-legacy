@@ -1,5 +1,5 @@
  /*
- * $Id: main.c,v 1.35 2002/02/04 20:53:56 ljb Exp $
+ * $Id: main.c,v 1.37 2002/10/17 20:02:31 ljb Exp $
  * originally Id: main.c,v 1.57 1998/08/03 17:29:08 gerald Exp 
  */
 
@@ -17,12 +17,10 @@
 #include <pwd.h>
 #include <grp.h>
 #include <unistd.h>
-#ifndef NT 
 #include <sys/ioctl.h>
 #ifndef SETPGRP_VOID
 #include <sys/termios.h>
 #endif /* SETPGRP_VOID */
-#endif /* NT */
 #include "mrt.h"
 #include "trace.h"
 #include "config_file.h"
@@ -39,9 +37,7 @@ int atomic_trans;
 /* local functions */
 void init_irrd_commands ();
 void init_rps_regexes();
-#ifndef NT
 static void daemonize ();
-#endif /* NT */
 
 int main (int argc, char *argv[])
 {
@@ -76,21 +72,8 @@ int main (int argc, char *argv[])
 "   [-w <irr_port>]\n"
 "   [-x cancel bootstrap missing DB auto-fetch]\n";
 
-#ifdef NT
-    char *config_file = "C:/irrd.conf";
-#else
     char *config_file = "/etc/irrd.conf";
-#endif /* NT */
     int UNPRIV_FLAG = 0;
-
-#ifdef NT
-    WSADATA WinsockData;
-	
-    if (WSAStartup(MAKEWORD(2, 2), &WinsockData) != 0) {
-        printf ("Failed to find Winsock 2.2!\n"); 
-        return -1;
-    }
-#endif /* NT */
 
     default_trace = New_Trace2 ("irrd");
     IRR.submit_trace = New_Trace2 ("irrd");
@@ -100,11 +83,10 @@ int main (int argc, char *argv[])
     /*
      * set some defaults 
      */
+    IRR.expansion_timeout = 0;	/* timeout of zero means no timeout */
     IRR.max_connections = 25;
     IRR.mirror_interval = 60*10; /* mirror every ten minutes */
     IRR.irr_port = IRR_DEFAULT_PORT;
-    IRR.use_cache = 0; /* cache for "!gas queries */
-    IRR.database_syntax = EMPTY_DB; /* determine syntax when loading db's */
     IRR.tmp_dir = IRR_TMP_DIR;
     IRR.path = NULL;
     IRR.statusfile = NULL;
@@ -232,8 +214,7 @@ int main (int argc, char *argv[])
     if (IRR.statusfile == NULL) {
       char statusfilename[512];
 
-      *statusfilename = 0;
-      strcat(statusfilename, IRR.database_dir);
+      strcpy(statusfilename, IRR.database_dir);
       strcat(statusfilename, "/IRRD_STATUS");
       IRR.statusfile = InitStatusFile(statusfilename);
     }
@@ -266,9 +247,7 @@ int main (int argc, char *argv[])
 	 * Now going into daemon mode 
 	 */
 	MRT->daemon_mode = 1;
-#ifndef NT
 	daemonize ();
-#endif /* NT */
     }
 
     /* listen for UII commands */
@@ -387,7 +366,6 @@ int main (int argc, char *argv[])
     return(-1);
 }
 
-#ifndef NT
 static void daemonize ()
 {
     int pid, t;
@@ -449,12 +427,10 @@ static void daemonize ()
 #endif
 #endif /* HAVE_SETSID */
 
-    /*  chdir ("/"); code rewrite needed in some places */
-    umask (022);
+    umask (0022);
     if (time_left)
       alarm (time_left);
 }
-#endif /* NT */
 
 void init_irrd_commands (int UNPRIV_FLAG) { 
   /* if unpriv flag NOT set, allow privlidged commands */
@@ -479,11 +455,9 @@ void init_irrd_commands (int UNPRIV_FLAG) {
 		      (int (*)()) uii_irr_reload, 
 		      "Reload an IRR database file");
 
-#ifndef NT
     uii_add_command2 (UII_NORMAL, COMMAND_NORM, "irrdcacher %s", 
 		      (int (*)()) uii_irr_irrdcacher, 
 		      "Fetch a remote database and reload using irrdcacher");
-#endif /* NT */
 
     uii_add_command2 (UII_NORMAL, COMMAND_NORM, "mirror %s", 
 		      (int (*)()) uii_irr_mirror_last,
@@ -523,7 +497,7 @@ void init_irrd_commands (int UNPRIV_FLAG) {
   uii_add_command2 (UII_NORMAL, COMMAND_NORM, "show database", 
 		    (int (*)()) show_database,
 		    "Show database status");
-  uii_add_command2 (UII_NORMAL, COMMAND_NORM, "show ip %p [less|more]", 
+  uii_add_command2 (UII_NORMAL, COMMAND_NORM, "show ip %p [%s]", 
 		    (int (*)()) uii_show_ip,
 		    "Show exact, less or more specific routes");
 
@@ -548,7 +522,6 @@ void init_irrd_commands (int UNPRIV_FLAG) {
 		    (int (*)()) config_irr_database_export,
 		    "Configure the database for ftp export");
 
-#ifndef NT
   uii_add_command2 (UII_CONFIG, COMMAND_NORM, 
 		    "irr_database %s remote_ftp_url %s", 
 		    (int (*)()) config_irr_remote_ftp_url,
@@ -567,7 +540,6 @@ void init_irrd_commands (int UNPRIV_FLAG) {
 		    (int (*)()) config_irr_pgppass,
 		    "PGP password for this DB used to sign floods");
   */
-#endif /* NT */
 
   uii_add_command2 (UII_CONFIG, COMMAND_NORM, 
 		    "rpsdist_database %s",
@@ -626,13 +598,20 @@ void init_irrd_commands (int UNPRIV_FLAG) {
   uii_add_command2 (UII_CONFIG, COMMAND_NORM, "irr_database %s write-access %d", 
 		    (int (*)()) config_irr_database_access_write,
 		    "Access list for updates for IRR database");
-  uii_add_command2 (UII_CONFIG, COMMAND_NORM, "irr_database %s  access %d", 
+  uii_add_command2 (UII_CONFIG, COMMAND_NORM, "irr_database %s cryptpw-access %d",
+                    (int (*)()) config_irr_database_access_cryptpw,
+                    "Access list for CRYPTPW info for IRR database");
+  uii_add_command2 (UII_CONFIG, COMMAND_NORM, "irr_database %s access %d", 
 		    (int (*)()) config_irr_database_access,
 		    "Access list for IRR database");
   uii_add_command2 (UII_CONFIG, COMMAND_NORM, "irr_database %s mirror-access %d", 
 		    (int (*)()) config_irr_database_mirror_access,
 		    "Access list for IRR mirroring");
   
+  uii_add_command2 (UII_CONFIG, COMMAND_NORM, "irr_database %s compress_script %s", 
+		    (int (*)()) config_irr_database_compress_script, 
+		    "Configure the compress script for db exports");
+
   uii_add_command2 (UII_CONFIG, COMMAND_NORM, "irr_database %s filter %s", 
 		    (int (*)()) config_irr_database_filter,
 		    "Filter object from database");
@@ -656,6 +635,9 @@ void init_irrd_commands (int UNPRIV_FLAG) {
   uii_add_command2 (UII_CONFIG, COMMAND_NORM, "irr_mirror_interval %d", 
 		    (int (*)()) config_irr_mirror_interval,
 		    "How often (seconds) between mirror updates");
+  uii_add_command2 (UII_CONFIG, COMMAND_NORM, "irr_expansion_timeout %d", 
+		    (int (*)()) config_irr_expansion_timeout,
+		    "The maximum number of seconds a set expansion query is allowed to consume");
   uii_add_command2 (UII_CONFIG, COMMAND_NORM, "irr_max_connections %d", 
 		    (int (*)()) config_irr_max_con,
 		    "The maximum number of simultaneous connections");
@@ -693,7 +675,6 @@ void init_irrd_commands (int UNPRIV_FLAG) {
   uii_add_command2 (UII_CONFIG, COMMAND_NORM, "debug submission syslog", 
 		    config_debug_submission_syslog, 
 		    "Use syslog for submission logging");
-
   
   uii_add_command2 (UII_CONFIG, COMMAND_NORM, "tmp directory %s", 
 		    config_tmp_directory, 
@@ -717,11 +698,11 @@ void init_irrd_commands (int UNPRIV_FLAG) {
 		    "Text at bottom of email responses");
 
   uii_add_command2 (UII_CONFIG, COMMAND_NORM, "response_notify_header %S",
-		    (int (*)()) config_response_footer,
+		    (int (*)()) config_response_notify_header,
 		    "Text at top of email responses");
 
   uii_add_command2 (UII_CONFIG, COMMAND_NORM, "response_forward_header %S",
-		    (int (*)()) config_response_footer,
+		    (int (*)()) config_response_forward_header,
 		    "Text at top of forwarded email responses");
 
 }

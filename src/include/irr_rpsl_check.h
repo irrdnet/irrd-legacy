@@ -1,5 +1,5 @@
-#ifndef _IRR_CHECK_H
-#define _IRR_CHECK_H
+#ifndef _IRR_RPSL_CHECK_H
+#define _IRR_RPSL_CHECK_H
 
 #include <regex.h>
 #include <hdr_comm.h>
@@ -15,11 +15,8 @@
 				       */
 #define     MAX_ATTR_SIZE 66560       /* maximum chars for an attribute */
 
-
-#define     MAX_COUNTRIES 0	  /* number of countries in countries array */
-/* This is good for long/rpsl */
-#define     ATTR_ID_LENGTH 20  /* MAX(response-auth-type) = 18 */
-/*#define     ATTR_ID_LENGTH 5  eg, "*rt: " */
+#define     MAX_COUNTRIES 241	/* number of countries in countries array */
+#define     ATTR_ID_LENGTH 12	/* number of positions indent attribute vals */
 #define     CANON_DISK 0 /* build canonicalized object to disk   */
 #define     CANON_MEM  1 /* build canonicalized object in memory */
 #define     CANON_LINES_MAX 1000  /* maximum number of lines an object can have */
@@ -36,16 +33,6 @@
 #define     NO_OBJECT      -1
 #define     EMPTY_LINE_MSG -2
 
-/* as-in/as-out line continuation.  Insert this 'hook' into the
- * string so in the end the hook can be replaced by the continuation
- * part of the line (eg, "as-in: from AS1 1 accept").  The hook
- * will be replaced by the aforementioned text .
- */
-#define LC_HOOK "@"
-#define LC_CHOOK '@'
-#define HOOK_LEN 1
-#define lc_filter(x) (*(x) == LC_CHOOK ? (x + 1) : (x))
-
 /* tag for line continuation */
 #define 	PLUS	2
 #define         SPACE	1
@@ -61,39 +48,41 @@
 #define     WARN_OVERRIDE_MSG  4
 #define     EMPTY_ATTR_MSG     5
 
-
 /* data from the ripedb.config file */
 
 #define     F_NOATTR      -1
-#define     MAX_ATTRS 91
-#define     MAX_OBJS 16
-#define     MAX_ATSQ_LEN 23
-#define     MAX_MANDS 15
+#define     MAX_ATTRS 117
+#define     MAX_OBJS 21
+#define     MAX_ATSQ_LEN 24
+#define     MAX_MANDS 14
 
 /* --------Bison enum FIELDS--------*/
 enum ATTRS {
-    F_DN = 0, F_ZC, F_NS, F_SD, F_DI, F_RF, F_IN, F_NA,
-    F_CY, F_AY, F_II, F_GW, F_RZ, F_SU, F_RE, F_QA,
-    F_RU, F_SA, F_ST, F_RC, F_EX, F_HI, F_RA, F_KC,
-    F_MH, F_OW, F_FP, F_CT, F_DC, F_AC, F_TD, F_RP,
-    F_PL, F_EN, F_CH, F_DE, F_HO, F_MB, F_NY, F_OR,
-    F_RM, F_RT, F_SO, F_MO, F_IJ, F_CO, F_AB, F_AR,
-    F_EC, F_AN, F_AA, F_IP, F_EP, F_DF, F_TC, F_MF,
-    F_IR, F_AZ, F_LA, F_IF, F_PE, F_MR, F_RI, F_RX,
-    F_AS, F_MS, F_MY, F_RS, F_ME, F_RR, F_MG, F_PS,
-    F_PR, F_FS, F_FR, F_PN, F_AD, F_PH, F_FX, F_EM,
-    F_NH, F_RO, F_TB, F_MT, F_DT, F_MN, F_AT, F_UD,
-    F_UO, F_UP, F_UC
+    F_CH = 0, F_DE, F_AC, F_TC, F_MB, F_NY, F_OR, F_RM,
+    F_SO, F_PH, F_FX, F_EM, F_NH, F_DL, F_IT, F_ML,
+    F_MR, F_RL, F_NR, F_RB, F_AY, F_RE, F_QA, F_RU,
+    F_SA, F_SU, F_RC, F_EP, F_HI, F_DN, F_ZC, F_NS,
+    F_SD, F_DI, F_RF, F_IN, F_NA, F_CY, F_RZ, F_ST,
+    F_I6, F_KC, F_MH, F_OW, F_FP, F_CE, F_DC, F_TD,
+    F_RP, F_PL, F_AF, F_RT, F_R6, F_HO, F_IJ, F_MO,
+    F_CO, F_AB, F_AG, F_EC, F_AN, F_AA, F_IP, F_MI,
+    F_EX, F_MX, F_DF, F_MD, F_MA, F_AK, F_IR, F_AZ,
+    F_LA, F_IF, F_PE, F_MZ, F_PM, F_IE, F_RI, F_RX,
+    F_MY, F_AS, F_MS, F_RS, F_ME, F_MM, F_IS, F_MG,
+    F_MJ, F_PS, F_PG, F_MP, F_FS, F_FI, F_MF, F_PN,
+    F_AD, F_RO, F_TB, F_MT, F_DT, F_MN, F_AT, F_S6,
+    F_LO, F_PR, F_AP, F_TU, F_CT, F_UL, F_LI, F_TE,
+    F_AU, F_UD, F_UO, F_UP, F_UC
 };
+
 /*--------Bison enum OBJS--------*/
 enum OBJS {
-    O_RT = 0, O_DC, O_AN, O_IR, O_AS, O_RS, O_RR, O_PS,
-    O_FS, O_PN, O_RO, O_MT, O_KC, O_RE, O_IN, O_DN,
-
+    O_AN = 0, O_AS, O_MT, O_RT, O_R6, O_RS, O_IR, O_IS,
+    O_PN, O_RO, O_FS, O_PS, O_KC, O_DC, O_RE, O_IN,
+    O_I6, O_AK, O_DN, O_LI, O_S6
 };
 
 /* data from the ripedb.config file */
-
 
 /* copy a lex token to our token buffer, strp points to the next free
  * spot in the buffer.  yyleng is incremented to account for the '\0'.
@@ -160,15 +149,13 @@ enum RX_OPTS {
 };
 
 #define MAX_RESERVED_PREFIXES 5
-#define MAX_RESERVED_WORDS 35
-       
-
+#define MAX_RESERVED_WORDS 36
 
 enum REGEX_TOKENS {
   RE_DATE = MAX_ATTRS, RE_EMAIL1, RE_EMAIL2, RE_EMAIL3,
   RE_CRYPT_PW, RE_TITLES, RE_NAME, RE_APNIC_HDL, 
   RE_LCALPHA, RE_STD_HDL, RE_RIPE_HDL, RE_COMM1, RE_COMM2, 
-  RE_ASNAME, RE_ASNUM, RE_ASMACRO, RE_ARIN_HDL, RE_REAL,
+  RE_ASNAME, RE_ASNUM, RE_ARIN_HDL, RE_REAL,
   RE_SANITY_HDL
 };
 #define REGEX_TOKEN_COUNT 19
@@ -241,11 +228,9 @@ typedef struct _key_cert_t {
   int owner_count;
 } key_cert_t;
 
-
 typedef struct _parse_info_t {
   short type;		/* object type, eg O_RT, O_MT, for route, maint */ 
   short curr_attr;	/* current attr, eg F_RT, R_MT */
-  /*JW take out  int attr_lineno;	line number of the current attr */
   int start_lineno;     /* line number of attr start on outputed object */
   int num_lines;	/* index into the lineptr[] array.  because of line 
 			 * continuation a lineptr[] line can have more than 
@@ -293,10 +278,10 @@ enum RPSL_DATA_TYPE {
   UNKNOWN = -1, PREDEFINED, UNION, TYPEDEF, LIST
 };
 
-#define MAX_PREDEF_TYPES 19
+#define MAX_PREDEF_TYPES 20
 enum PREDEF_TYPE {
   INTEGER = 0, REAL, ENUM, STRING, BOOLEAN, RPSL_WORD, FREE_TEXT, EMAIL,
-  AS_NUMBER, IPV4_ADDRESS, ADDRESS_PREFIX, ADDRESS_PREFIX_RANGE,
+  AS_NUMBER, IPV4_ADDRESS, IPV6_ADDRESS, ADDRESS_PREFIX, ADDRESS_PREFIX_RANGE,
   DNS_NAME, FILTER, AS_SET_NAME, ROUTE_SET_NAME, RTR_SET_NAME,
   FILTER_SET_NAME, PEERING_SET_NAME
 };
@@ -389,11 +374,20 @@ typedef struct _proto_t {
   struct _proto_t  *next;
 } proto_t;
 
-
 typedef struct _proto_t_ll {
   struct _proto_t *first;
   struct _proto_t *last;
 } proto_t_ll;
+
+typedef struct _afi_t {
+  char *name;
+  struct _afi_t  *next;
+} afi_t;
+
+typedef struct _afi_t_ll {
+  struct _afi_t *first;
+  struct _afi_t *last;
+} afi_t_ll;
 
 typedef struct _ph_t { /* place holder */
   struct _method_t *method;
@@ -407,8 +401,6 @@ typedef struct _ph_t { /* place holder */
 #define create_placeholder(p) p  = (ph_t *) malloc (sizeof (ph_t))
 
 /* New..............................*/
-
-
 
 /* syntax_attrs.c: syntax checking routines */
 
@@ -426,6 +418,7 @@ extern char         *rp_word[];
 extern type_t_ll    type_ll;
 extern rp_attr_t_ll rp_attr_ll;
 extern proto_t_ll   proto_ll;
+extern afi_t_ll     afi_ll;
 extern char         *predef_type[];
 extern char         RPSL_dictionary[];
 extern int          parse_RPSL_dictionary;
@@ -434,12 +427,6 @@ extern int          start_new_line;
 extern short        legal_attrs[MAX_OBJS][MAX_ATTRS];
 extern char         *attr_name[MAX_ATTRS]; 
 extern const char   tmpfntmpl[];
-
-
-/* JW take out
-extern int eline_len;
-extern int elines;
-*/
 
 extern int INFO_HEADERS_FLAG;
 
@@ -495,8 +482,6 @@ int       is_nichdl           (char *);
 int       is_country          (char *, char *[]);
 int       is_special_suffix   (char *);
 source_t  *is_sourcedb        (char *, source_t *);
-int       starts_with_keyword (char *);
-void      comm_syntax         (char *, parse_info_t *);
 char      *my_strcat          (parse_info_t *, int, u_int, ...);
 void      wrap_up             (canon_info_t *);
 int       irrorder_syntax     (parse_info_t *, char *, char *);
@@ -520,11 +505,10 @@ void canonicalize_key_attr        (parse_info_t *, canon_info_t *, int);
 void display_canonicalized_object (parse_info_t *, canon_info_t *);
 void add_canonical_error_line     (parse_info_t *, canon_info_t *, int);
 void start_new_canonical_line     (canon_info_t *, parse_info_t *);
-void finish_lcline                (parse_info_t *, canon_info_t *);
 int  irrcheck_find_token          (char **, char **);
 void set_skip_attr                (canon_info_t *, parse_info_t *);
 
-/* header_construction.c */
+/* hdr_build.c */
 
 void build_header_info (parse_info_t *, char *);
 void display_header_info (parse_info_t *);
@@ -549,6 +533,9 @@ void      add_rp_attr        (rp_attr_t_ll *, rp_attr_t *);
 proto_t   *create_proto_attr (char *, method_t *);
 void      add_new_proto      (proto_t_ll *, proto_t *);
 proto_t   *find_protocol     (proto_t_ll *, char *);
+afi_t     *create_afi_attr   (char *);
+void      add_new_afi        (afi_t_ll *, afi_t *);
+afi_t     *find_afi          (afi_t_ll *, char *);
 void      print_typedef_list (type_t_ll *);
 void      print_parm_list    (param_t *);
 void      print_predef       (type_t *);
@@ -557,14 +544,15 @@ void      print_typedef      (type_t *);
 void      print_method_list  (method_t *);
 void      print_rp_list      (rp_attr_t_ll *);
 void      print_proto_list   (proto_t_ll *);
+void      print_afi_list     (afi_t_ll *);
 enum ARG_CONTEXT find_arg_context (param_t *, int);
 
-/* ripe181.fl */
+/* rpsl.fl */
 void reset_token_buffer ();
 
 /* prefix.c */
 int _is_ipv4_prefix (parse_info_t *, char *, int);
-int net_mask_syntax (parse_info_t *, char *);
+int _is_ipv6_prefix (parse_info_t *, char *, int);
 int irrd_inet_pton  (int, const char *, void *);
 
-#endif /* IRR_CHECK_H */
+#endif /* IRR_RPSL_CHECK_H */

@@ -2,7 +2,7 @@
 include ../../Make.include
 
 GOAL = libcompat.a
-OBJS = snprintf.o mkstemp.o inet_ntop.o inet_pton.o
+OBJS = snprintf.o mktemp.o inet_ntop.o inet_pton.o
 
 $(GOAL): $(OBJS)
 	$(AR) $(ARFLAGS) $@ $(OBJS)

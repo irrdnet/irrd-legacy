@@ -3,10 +3,6 @@
  */
 
 #include <mrt.h>
-#ifdef NT
-#include <ntconfig.h>
-#include <direct.h>
-#endif /* NT */
 
 int init_mrt_reboot (int argc, char *argv[]) {
   char tmp[BUFSIZE];
@@ -23,7 +19,6 @@ void
 mrt_reboot (void)
 {
 
-#ifndef NT
   char tmp[BUFSIZE], *cp;
   int i = 0;
 
@@ -48,6 +43,4 @@ mrt_reboot (void)
   execvp (MRT->argv[0], MRT->argv);
   trace (TR_ERROR, MRT->trace, "MRT ERROR rebooting %s\n", tmp);
   exit (1);
-
-#endif /* NT */
 }

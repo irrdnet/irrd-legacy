@@ -1,5 +1,5 @@
 /* 
- * $Id: syntax_attrs.c,v 1.20 2001/10/18 17:10:44 ljb Exp $
+ * $Id: syntax_attrs.c,v 1.21 2002/10/17 20:22:10 ljb Exp $
  */
 
 #include <stdio.h>
@@ -9,21 +9,17 @@
 #include <unistd.h>
 #include <regex.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <time.h>
 #include <irr_rpsl_check.h>
+#include <irr_defs.h>
 #include <pipeline_defs.h>
-#include <sys/stat.h>
 #include <pgp.h>
 
 extern char *attr_name[];
 extern regex_t re[];
 extern char *countries[];
 static const char tmpfntmpl[] = "/var/tmp/irrsyntax.XXXXXX";
-
-/* JW: must define later 
-int F_RO = -1, F_PN = -1;
-*/
-
 
 int xx_set_syntax (char *target, char *s) {
   char *p;
@@ -152,14 +148,10 @@ void source_syntax (char *source_name, parse_info_t *obj) {
     error_msg_queue (obj, "Unknown database", ERROR_MSG);      
 }
 
-
-
 /*
  * em - e-mail
- * gd - guardian
  * mn - mnt-nfy
  * ny - notify
- * om - op-mail
  * dt - upd-to
  */
 int email_syntax (char *email_addr, parse_info_t *obj) {
@@ -259,7 +251,6 @@ char *date_syntax (char *date, parse_info_t *obj, int skip_future_check) {
   char strdate[9];
   char *now;
   int errors;
-
 
   /* ensure the date is 6 char's long and all numbers */
   if (regexec(&re[RE_DATE], date, (size_t) 0, NULL, 0)) {
@@ -440,7 +431,6 @@ char *time_interval_syntax (parse_info_t *obj, char *days,
   return strdup (buf);
 }
 
-
 void name_syntax (parse_info_t *obj, char *hdl) {
   char *p, *q, *r = NULL, c;
   int i;
@@ -455,13 +445,9 @@ void name_syntax (parse_info_t *obj, char *hdl) {
     /* email names not allowed */
     if (strchr (p, '@') != NULL)
       error_msg_queue (obj, "Syntax error.  Looks like an email address", ERROR_MSG);
-    /* no titles like Mr., Dr., sir, ... */
-    else if (i == 0 && 
-             !regexec(&re[RE_TITLES], p, (size_t) 0, NULL, 0))
-      error_msg_queue (obj, "Syntax error.  Titles not allowed", ERROR_MSG);       
     /* check the basic structure and legal characters */
     else if (regexec(&re[RE_NAME], p, (size_t) 0, NULL, 0)) {
-      error_msg_queue (obj, "Syntax error in name", ERROR_MSG);       
+      error_msg_queue (obj, "Syntax error in person name.  Non-alphanumeric or other formating error.", ERROR_MSG);       
     }
     /* check for abbreviation on first and last name */
     else {
@@ -601,22 +587,6 @@ void nichdl_syntax (char *nic_hdl, parse_info_t *obj) {
     error_msg_queue (obj, "Syntax error in NIC handle", ERROR_MSG);
 }
 
-/*
- * cm - community
- */
-void comm_syntax (char *comm_name, parse_info_t *obj) {
-  
-  if (regexec(&re[RE_COMM1], comm_name, (size_t) 0, NULL, 0)) {
-      error_msg_queue (obj, "Syntax error in community name(/^[A-Z][A-Z0-9_-]+$/) ", 
-		       ERROR_MSG);
-      return;
-  }
-
-  if (!regexec(&re[RE_COMM2], comm_name, (size_t) 0, NULL, 0))
-      error_msg_queue (obj, 
-	"Community names cannot start with (/^(ANY|AND|OR|NOT|AS|LIM-)/)", ERROR_MSG);
-}
-
 /* Given a maintainer reference, '*mntner' (ie, a list member from a 'mnt-by'
  * attribute), check for names that begin with a reserved prefix (eg, 'rs-').
  *
@@ -631,7 +601,7 @@ void mb_check (parse_info_t *o, char *mntner) {
     return;
 
   if (has_reserved_prefix (mntner)) {
-    sprintf (buf, "Maintainer reference begins with a reserved prefix (%s)\n", mntner);
+    snprintf (buf, MAXLINE, "Maintainer reference begins with a reserved prefix (%s)\n", mntner);
     error_msg_queue (o, buf, ERROR_MSG);
   }
 }
@@ -721,14 +691,12 @@ int get_fingerprint (parse_info_t *o, char *PGPPATH, pgp_data_t *pdat) {
  */
 char *hexid_check (parse_info_t *o) {
 #ifdef PGP
-  char curline[256], pgpinfn[256], tmp_pgp_dir[256];
+  char pgpinfn[256], tmp_pgp_dir[256], ebuf[1024];
   FILE *pgpin;
   char_list_t *p;
   pgp_data_t pdat;
-  int pgp_errors = 0;
+  int pgp_errors = 0, fd;
 #endif
-
-  fprintf (dfile, "Enter hexid_check:\n%s\n\n", o->u.kc.certif);
 
   /* If we don't have PGP installed then there is nothing to do. */
 #ifndef PGP
@@ -737,22 +705,20 @@ char *hexid_check (parse_info_t *o) {
 #else
 
   /* make a tmp directory for the pgp rings */
-  umask (0000);
+  umask (0022);
   strcpy (tmp_pgp_dir, "/var/tmp/pgp.XXXXXX");
-  mktemp (tmp_pgp_dir);
-  if (strlen (tmp_pgp_dir) == 0 ||
-      mkdir (tmp_pgp_dir, 00777)) {
+  if (mkdtemp (tmp_pgp_dir) == NULL) {
     error_msg_queue (o, "Internal error.  Couldn't create temp directory for PGP\n", ERROR_MSG);
     return NULL;
   }
 
   /* create a file and put the key certificate into it */
   strcpy (pgpinfn, tmpfntmpl);
-  mktemp (pgpinfn);
-  if ((pgpin = fopen (pgpinfn, "w")) == NULL) {
+  fd = mkstemp (pgpinfn);
+  if ((pgpin = fdopen (fd, "w")) == NULL) {
     error_msg_queue (o, 
 "Internal error.  Could not check 'key-cert:' temp file creation error", ERROR_MSG);
-    return NULL;
+    goto pgp_errors_jump;
   }
   fwrite (o->u.kc.certif, sizeof (char), strlen (o->u.kc.certif), pgpin);
   fclose (pgpin);
@@ -760,7 +726,7 @@ char *hexid_check (parse_info_t *o) {
   /* add the certificate to a temp ring */
   if (!pgp_add (default_trace, tmp_pgp_dir, pgpinfn, &pdat)) {
     error_msg_queue (o, "Couldn't add key-cert to ring.  Didn't get successful reply from PGP", ERROR_MSG);
-    return NULL;
+    goto pgp_errors_jump;
   }
 
   /* certificate checks */
@@ -772,9 +738,9 @@ char *hexid_check (parse_info_t *o) {
   }
   /* does the hex ID of the 'key-cert' attr match the certificate hex ID ? */
   else if (strcmp (pdat.hex_first->key, o->u.kc.kchexid)) {
-    sprintf (curline, "Hex-ID mistmatch: 'key-cert:' (%s)  'certif:' (%s)\n",
+    snprintf (ebuf, 1024, "Hex-ID mistmatch: 'key-cert:' (%s)  'certif:' (%s)\n",
 	     o->u.kc.kchexid, pdat.hex_first->key);
-    error_msg_queue (o, curline, ERROR_MSG);
+    error_msg_queue (o, ebuf, ERROR_MSG);
     pgp_errors = 1;
   }
   /* owner check */
@@ -794,16 +760,11 @@ char *hexid_check (parse_info_t *o) {
       !get_fingerprint (o, tmp_pgp_dir, &pdat)) 
     pgp_errors = 1;
 
-  /* clean up the PGP tmp files and directory 
-     rm_tmpdir (tmp_pgp_dir);*/
-
-  /* debug */
-  fprintf (dfile, "exit check_hexid ()\n");
   if (o->u.kc.owner != NULL)
-    fprintf (dfile, 
+    if (verbose) fprintf (dfile, 
 	     "owner count (%d) owner (%s)\n", o->u.kc.owner_count, o->u.kc.owner);
   if (o->u.kc.fingerpr != NULL)
-    fprintf (dfile, "fingerpr (%s)\n", o->u.kc.fingerpr);
+    if (verbose) fprintf (dfile, "fingerpr (%s)\n", o->u.kc.fingerpr);
 
   /* end debug */
 
@@ -812,15 +773,18 @@ char *hexid_check (parse_info_t *o) {
 
   /* if we have errors then we won't need the key file */
   if (pgp_errors) {
+pgp_errors_jump:
+    rm_tmpdir (tmp_pgp_dir);  /* can get rid of temporary directory */
     remove (pgpinfn); 
     return NULL;
   }
+
+  rm_tmpdir (tmp_pgp_dir);  /* can get rid of temporary directory */
 
   /* leave pgp key for possible addition to local ring */
   return strdup (pgpinfn);
 #endif
 }
-
 
 /* Given a comma seperated sources is (ie, rx-in: IRROrder(radb,ans,...)),
  * return an error if 'new_source' is already in the list 'sources_list'.
@@ -834,11 +798,9 @@ char *hexid_check (parse_info_t *o) {
  */
 int irrorder_syntax (parse_info_t *obj, char *sources_list, char *new_source) {
   char buf[MAXLINE], *p;
-  /* JW take out extern config_info_t ci */;
 
   /* See if we know of this DB 
   if (strcasecmp (new_source, "radb")  &&
-      strcasecmp (new_source, "ans")   &&
       strcasecmp (new_source, "mci")   &&
       strcasecmp (new_source, "canet") &&
       strcasecmp (new_source, "bell") &&
@@ -864,7 +826,7 @@ int irrorder_syntax (parse_info_t *obj, char *sources_list, char *new_source) {
       if (*p == ' ')
 	p++;
       if (!strcmp (p, new_source)) {
-	sprintf (buf, "Duplicate database \"%s\"", new_source);
+	snprintf (buf, MAXLINE, "Duplicate database \"%s\"", new_source);
 	error_msg_queue (obj, buf, ERROR_MSG);
 	return 1;
       }

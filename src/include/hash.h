@@ -57,8 +57,6 @@ enum HASH_ATTR {
    HASH_NextOffset       = (1 << 5),
    HASH_KeyOffset,
 
-   HASH_DynamicResize,
-   
    /* Functions */
    HASH_HashFunction,
    HASH_LookupFunction,
@@ -102,7 +100,6 @@ typedef struct _hash_table {
 
    unsigned size;
    unsigned count;
-   unsigned resize;
    
    unsigned short next_offset;
    unsigned short key_offset;
@@ -125,8 +122,6 @@ extern const char *HASH_errlist[];
 /*  Creation and Destruction */
 extern HASH_TABLE*     HASH_Create                _HASH_P((unsigned, int, ...));
 extern void            HASH_SetAttributes         _HASH_P((HASH_TABLE*, int, ...));
-extern void            HASH_GetAttributes         _HASH_P((HASH_TABLE*, int, ...));
-extern void            HASH_ChangeSize            _HASH_P((HASH_TABLE*, unsigned));
 extern void            HASH_ClearFn               _HASH_P((HASH_TABLE*, HASH_ProcessProc));
 extern void            HASH_DestroyFn             _HASH_P((HASH_TABLE*, HASH_ProcessProc));
 
@@ -134,8 +129,6 @@ extern void            HASH_DestroyFn             _HASH_P((HASH_TABLE*, HASH_Pro
 extern DATA_PTR        HASH_Insert                _HASH_P((HASH_TABLE*, DATA_PTR));
 extern void            HASH_RemoveFn              _HASH_P((HASH_TABLE*, DATA_PTR, HASH_DestroyProc));
 extern void            HASH_RemoveByKeyFn         _HASH_P((HASH_TABLE*, DATA_PTR, HASH_DestroyProc));
-extern void            HASH_ReHash                _HASH_P((HASH_TABLE*, DATA_PTR, DATA_PTR));
-    
 /*  Lookup  */
 extern DATA_PTR        HASH_Lookup                _HASH_P((HASH_TABLE*, DATA_PTR));
 
@@ -145,13 +138,6 @@ extern void            HASH_ProcessPlus           _HASH_P((HASH_TABLE*, HASH_Pro
 
 /*  iteration support */
 extern DATA_PTR        HASH_GetNext               _HASH_P((HASH_TABLE*, DATA_PTR));
-
-/*  Conversion  */
-extern DATA_PTR*       HASH_ToArray               _HASH_P((HASH_TABLE*, DATA_PTR*, unsigned*));
-extern HASH_TABLE*     HASH_FromArray             _HASH_P((HASH_TABLE*, DATA_PTR*, unsigned));
-
-extern LINKED_LIST*    HASH_ToLinkedList          _HASH_P((HASH_TABLE*, LINKED_LIST*));
-extern HASH_TABLE*     HASH_FromLinkedList        _HASH_P((HASH_TABLE*, LINKED_LIST*));
 
 /*  Error Handling  */
 extern HASH_ErrorProc  HASH_SetHandler            _HASH_P((HASH_ErrorProc, char*));
@@ -174,7 +160,6 @@ extern int             HASH_DefaultLookupFunction _HASH_P((char*, char*));
 #define HASH_RemoveByKey(h, d) HASH_RemoveByKeyFn(h, d, (h)->destroy)
 
 #define HASH_SetAttribute(h, a, v) HASH_SetAttributes(h, a, v, NULL);
-#define HASH_GetAttribute(h, a, v) HASH_GetAttributes(h, a, v, NULL);
     
 #define HASH_Offset(a, b) (((char*)b > (char*)a) ? (char*)b - (char*)a : (char*)a - (char*)b)
 

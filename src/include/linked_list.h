@@ -137,9 +137,8 @@ extern LINKED_LIST  *LL_Create         _LL_P((int, ...));
 extern void          LL_ClearFn        _LL_P((LINKED_LIST*, LL_DestroyProc));
 extern void          LL_DestroyFn      _LL_P((LINKED_LIST*, LL_DestroyProc));
 
-/*  Attribute Setting and Retrieval  */
+/*  Attribute Setting */
 extern void          LL_SetAttributes  _LL_P((LINKED_LIST*, enum LL_ATTR, ...));
-extern void          LL_GetAttributes  _LL_P((LINKED_LIST*, enum LL_ATTR, ...));
 
 /*  Insertion and Removal  */
 extern DATA_PTR      LL_Append         _LL_P((LINKED_LIST*, DATA_PTR));
@@ -204,7 +203,6 @@ extern LL_CONTAINER *LL_GetContainer   _LL_P((LINKED_LIST*, DATA_PTR));
 #define LL_ReSort(ll, data)  { LL_RemoveFn(ll, data, NULL); LL_Add(ll, data); }
     
 #define LL_SetAttribute(ll, attr, val)  LL_SetAttributes(ll, attr, val, NULL)
-#define LL_GetAttribute(ll, attr, val)  LL_GetAttributes(ll, attr, val, NULL)
 
 #define LL_GetCount(ll) (ll->count)
     

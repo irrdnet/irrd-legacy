@@ -1,5 +1,5 @@
 /*
- * $Id: config.c,v 1.24 2002/02/04 20:53:55 ljb Exp $
+ * $Id: config.c,v 1.25 2002/10/17 20:02:29 ljb Exp $
  * originally Id: config.c,v 1.50 1998/07/20 01:22:03 labovit Exp 
  */
 
@@ -18,28 +18,27 @@ extern trace_t *default_trace;
 
 find_filter_t o_filter[] = {
   {"unused",	  XXX_F	         },	
-  {"autnum",      AUTNUM_F       },
-  {"asmacro",     ASMACRO_F      },
-  {"community",   COMMUNITY_F    },
-  {"domain",      DOMAIN_F       },
-  {"inetnum",     INETNUM_F      },
-  {"inet6num",    INET6NUM_F     },
-  {"person",      PERSON_F       },
-  {"dom-prefix",  DOMAIN_PREFIX_F},
-  {"inet-rtr",    INET_RTR_F     },
-  {"limerick",    LIMERICK_F     },
+  {"autnum",      AUT_NUM_F      },
+  {"as-set",      AS_SET_F       },
   {"mntner",      MNTNER_F       },
   {"route",       ROUTE_F        },
-  {"role",        ROLE_F         },
-  {"ipv6-site",   IPV6_SITE_F    },
-  {"as-set",      AS_SET_F       },
+  {"route6",	  ROUTE6_F	 },
   {"route-set",   ROUTE_SET_F    },
-  {"filter-set",  FILTER_SET_F   },
+  {"inet-rtr",    INET_RTR_F     },
   {"rtr-set",     RTR_SET_F      },
+  {"person",      PERSON_F       },
+  {"role",        ROLE_F         },
+  {"filter-set",  FILTER_SET_F   },
   {"peering-set", PEERING_SET_F  },
-  {"dictionary",  DICTIONARY_F   },
   {"key-cert",    KEY_CERT_F     },
+  {"dictionary",  DICTIONARY_F   },
   {"repository",  REPOSITORY_F   },
+  {"inetnum",     INETNUM_F      },
+  {"inet6num",    INET6NUM_F     },
+  {"as-block",	  AS_BLOCK_F	 },
+  {"domain",      DOMAIN_F       },
+  {"limerick",    LIMERICK_F     },
+  {"ipv6-site",   IPV6_SITE_F    },
 };
 
 u_int as_lookup_fn (u_short *as1, u_short *as2) {  
@@ -76,6 +75,25 @@ void config_create_default () {
   */
 }
 #endif 
+
+void get_config_irr_expansion_timeout () {
+  config_add_output ("irr_expansion_timeout %d\r\n", IRR.expansion_timeout);
+}
+
+/* irr_expansion_timeout %d 
+ * number of seconds a "!i" set expansion is allowed to take before timing out
+ * and aborting.  A value of zero indicates no timeout.
+ */
+int config_irr_expansion_timeout (uii_connection_t *uii, int timeout) {
+
+  if (timeout < 0) {
+    config_notice (NORM, uii, "CONFIG Error -- expansion must non-negative\n", timeout);
+    return (-1);
+  }
+  IRR.expansion_timeout = timeout;
+  config_add_module (0, "irr_expansion_timeout", get_config_irr_expansion_timeout, NULL); 
+  return (1);
+}
 
 void get_config_irr_max_connections () {
   config_add_output ("irr_max_connections %d\r\n", IRR.max_connections);
@@ -202,10 +220,24 @@ void get_config_irr_database (irr_database_t *database) {
     atts =1;
   }
 
+  if (database->cryptpw_access_list != 0) {
+    config_add_output ("irr_database %s cryptpw-access %d\r\n",
+                       database->name,
+                       database->cryptpw_access_list);
+    atts =1;
+  }
+
   if (database->mirror_access_list != 0) {
     config_add_output ("irr_database %s mirror-access %d\r\n", 
 		       database->name,
 		       database->mirror_access_list);
+    atts =1;
+  }
+
+  if (database->compress_script != 0) {
+    config_add_output ("irr_database %s compress_script %s\r\n",
+                       database->name,
+                       database->compress_script);
     atts =1;
   }
 
@@ -330,7 +362,6 @@ int config_irr_path (uii_connection_t *uii, char *path) {
 }
 
 
-#ifndef NT
 /* Reset the ftp URL for DB (name)
  *
  * URL to be used by irrdcacher for remote DB retrievel.  
@@ -518,8 +549,6 @@ INPUT_ERROR:
 
   return ret_code;
 }
-
-#endif /* NT */
 
 /* Add (dbname) to the list of rpsdist managed DB's.
  *
@@ -960,8 +989,8 @@ int config_irr_database_mirror_access (uii_connection_t *uii, char *name, int nu
     return (-1);
   }
 
-  trace (NORM, default_trace, "CONFIG %s access-list write %d\n", name, num);
-  config_add_module (0, "sychronization", get_config_irr_database, database); 
+  trace (NORM, default_trace, "CONFIG %s access-list mirror %d\n", name, num);
+  config_add_module (0, "mirror access", get_config_irr_database, database); 
 
   database->mirror_access_list = num;
   Delete (name);
@@ -979,9 +1008,45 @@ int config_irr_database_access_write (uii_connection_t *uii, char *name, int num
   }
 
   trace (NORM, default_trace, "CONFIG %s access-list write %d\n", name, num);
-  config_add_module (0, "database access", get_config_irr_database, database); 
+  config_add_module (0, "write access", get_config_irr_database, database); 
 
   database->write_access_list = num;
+  Delete (name);
+  return (1);
+}
+
+/* config irr_database %s cryptpw-access %d */
+int config_irr_database_access_cryptpw (uii_connection_t *uii, char *name, int num) {
+  irr_database_t *database = NULL;
+                                                                                
+  if ((database = find_database (name)) == NULL) {
+    config_notice (ERROR, uii, "Database %s not found!\r\n", name);
+    Delete (name);
+    return (-1);
+  }
+                                                                                
+  trace (NORM, default_trace, "CONFIG %s access-list cryptpw %d\n", name, num);
+  config_add_module (0, "cryptpw access", get_config_irr_database, database);
+                                                                                
+  database->cryptpw_access_list = num;
+  Delete (name);
+  return (1);
+}
+
+/* config irr_database %s compress_script %s */
+int config_irr_database_compress_script (uii_connection_t *uii, char *name, char *script) {
+  irr_database_t *database = NULL;
+
+  if ((database = find_database (name)) == NULL) {
+    config_notice (ERROR, uii, "Database %s not found!\r\n", name);
+    Delete (name);
+    return (-1);
+  }
+
+  trace (NORM, default_trace, "CONFIG %s compress_script %s\n", name, script);
+  config_add_module (0, "compress script", get_config_irr_database, database);
+
+  database->compress_script = script;
   Delete (name);
   return (1);
 }
@@ -999,7 +1064,8 @@ int no_config_irr_database (uii_connection_t *uii, char *name) {
   config_notice (NORM, uii, "CONFIG database %s deleted\r\n", db->name);
   LL_Remove (IRR.ll_database, db);
   irr_update_lock (db);
-  radix_flush(db->radix);
+  radix_flush(db->radix_v4);
+  radix_flush(db->radix_v6);
   HASH_Destroy(db->hash);
   HASH_Destroy(db->hash_spec);
   Delete(db->name);
@@ -1150,13 +1216,50 @@ int config_response_footer (uii_connection_t *uii, char *st) {
 
   if (IRR.ll_response_footer == NULL)
     IRR.ll_response_footer = LL_Create (0);
-
   if (st == NULL) 
     st = " ";
-
   LL_Add (IRR.ll_response_footer, strdup (st));
-
   config_add_module (0, "responsefooter", get_config_responsefooter, NULL);
+  return (1);
+}
+
+void get_config_responsenotifyheader () {
+  char *st;
+
+  LL_Iterate (IRR.ll_response_notify_header, st) {
+    config_add_output ("response_notify_header %s\r\n", st);
+  }
+}
+
+/* response_notify_header %s */
+int config_response_notify_header (uii_connection_t *uii, char *st) {
+
+  if (IRR.ll_response_notify_header == NULL)
+    IRR.ll_response_notify_header = LL_Create (0);
+  if (st == NULL) 
+    st = " ";
+  LL_Add (IRR.ll_response_notify_header, strdup (st));
+  config_add_module (0, "responsenotifyheader", get_config_responsenotifyheader, NULL);
+  return (1);
+}
+
+void get_config_responseforwardheader () {
+  char *st;
+
+  LL_Iterate (IRR.ll_response_forward_header, st) {
+    config_add_output ("response_forward_header %s\r\n", st);
+  }
+}
+
+/* response_foward_header %s */
+int config_response_forward_header (uii_connection_t *uii, char *st) {
+
+  if (IRR.ll_response_forward_header == NULL)
+    IRR.ll_response_forward_header = LL_Create (0);
+  if (st == NULL) 
+    st = " ";
+  LL_Add (IRR.ll_response_forward_header, strdup (st));
+  config_add_module (0, "responseforwardheader", get_config_responseforwardheader, NULL);
   return (1);
 }
 
@@ -1167,7 +1270,7 @@ void get_config_pgpdir () {
 
 int config_pgpdir (uii_connection_t *uii, char *pgpdir) {
   IRR.pgp_dir = pgpdir;
-  config_add_module (0, "pipe_line configuration", 
+  config_add_module (0, "PGP directory configuration", 
 		     get_config_pgpdir, NULL);
   return (1);
 }
@@ -1179,7 +1282,7 @@ void get_config_override () {
 
 int config_override (uii_connection_t *uii, char *override) {
   IRR.override_password = override;
-  config_add_module (0, "override onfiguration", 
+  config_add_module (0, "override cryptpw", 
 		     get_config_override, NULL);
   return (1);
 }
@@ -1191,7 +1294,7 @@ void get_config_irr_host () {
 
 int config_irr_host (uii_connection_t *uii, char *host) {
   IRR.irr_host = host;
-  config_add_module (0, "pipe_line configuration", 
+  config_add_module (0, "irr_server configuration", 
 		     get_config_irr_host, NULL);
   return (1);
 }

@@ -26,15 +26,7 @@ const char *HASH_errlist[] = {
    "no member matching key",
 };
 
-/*
-static const char *tfs[] = {
-   "False",
-   "True",
-};
-*/
-
 /******************* Internal Macros ***********************/
-#define tfm(a) ((a) ? tfs[1] : tfs[0])  /* Returns "True" or "False" */
 
 /* Intrusive Macros for Next and Key */
 #define NextP(h, d) *(DATA_PTR*)((char*)d + h->next_offset)
@@ -79,10 +71,6 @@ static const char *tfs[] = {
     case HASH_KeyOffset:\
       val = va_arg(ap, int);\
       h->key_offset = val;\
-      break;\
-    case HASH_DynamicResize:\
-      val = va_arg(ap, int);\
-      h->resize = val;\
       break;\
     case HASH_HashFunction:\
       ptr = va_arg(ap, DATA_PTR);\
@@ -137,7 +125,6 @@ HASH_TABLE *HASH_Create(unsigned size, int first, ...)
 
    h->size = size;
    h->count = 0;
-   h->resize = 0;
    h->next_offset = sizeof(DATA_PTR);
    h->key_offset = 0;
    h->attr = (enum HASH_ATTR) 0;
@@ -164,9 +151,7 @@ HASH_TABLE *HASH_Create(unsigned size, int first, ...)
 	     (h->attr & HASH_Intrusive) ? "Intrusive" : "Container",
 	     (h->attr & HASH_ReportChange) ? "Report Change" : "No Change Report",
 	     (h->attr & HASH_ReportAccess) ? "Report Access" : "No Access Report");
-      if (h->resize) printf("HASH TABLE: 0x%.8x initial size = %u, resizeable at count/size > %u\n",
-			    h, h->size, h->resize);
-      else           printf("HASH TABLE: 0x%.8x static size = %u\n", h, h->size);
+      printf("HASH TABLE: 0x%.8x static size = %u\n", h, h->size);
       if (h->attr & HASH_Intrusive) {
 	 printf("HASH TABLE: 0x%.8x key offset = %u, next offset = %u\n",
 		h, h->key_offset, h->next_offset);
@@ -233,9 +218,7 @@ void HASH_SetAttributes(HASH_TABLE *h, int first, ...)
 	     (h->attr & HASH_Intrusive) ? "Intrusive" : "Container",
 	     (h->attr & HASH_ReportChange) ? "Report Change" : "No Change Report",
 	     (h->attr & HASH_ReportAccess) ? "Report Access" : "No Access Report");
-      if (h->resize) printf("HASH TABLE: 0x%.8x initial size = %u, resizeable at count/size > %u\n",
-			    h, h->size, h->resize);
-      else           printf("HASH TABLE: 0x%.8x static size = %u\n", h, h->size);
+      printf("HASH TABLE: 0x%.8x size = %u\n", h, h->size);
       if (h->attr & HASH_Intrusive) {
 	 printf("HASH TABLE: 0x%.8x key offset = %u, next offset = %u\n",
 		h, h->key_offset, h->next_offset);
@@ -253,187 +236,7 @@ void HASH_SetAttributes(HASH_TABLE *h, int first, ...)
 #endif
 }
 
-
-/*-----------------------------------------------------------
- *  Name: 	HASH_GetAttributes()
- *  Created:	Mon Sep 26 19:55:21 1994
- *  Author: 	Jonathan DeKock   <dekock@winter>
- *  DESCR:  	retrieves the attributes of a hash table
- */
-void HASH_GetAttributes(HASH_TABLE *h, int first, ...)
-{
-   va_list   ap;
-   enum HASH_ATTR attr;
-   DATA_PTR *ptr;
-   int      *val;
-   unsigned short *sh;
-   
-#ifdef HASH_DEBUG
-   if (!h) {
-      if (HASH_Handler) { (HASH_Handler)(h, HASH_BadArgument, "HASH_SetAttributes()"); }
-      return;
-   }
-#endif
-   
-   va_start(ap, first);
-   for (attr = (enum HASH_ATTR)first; attr; attr = va_arg(ap, enum HASH_ATTR)) {
-      switch (attr) {
-       case HASH_Intrusive:
-	 val = va_arg(ap, int*);
-	 *val = (h->attr & HASH_Intrusive) ? True : False;
-	 break;
-       case HASH_NonIntrusive:
-	 val = va_arg(ap, int*);
-	 *val = (h->attr & HASH_Intrusive) ? False : True;
-	 break;
-       case HASH_EmbeddedKey:
-	 val = va_arg(ap, int*);
-	 *val = (h->attr & HASH_EmbeddedKey) ? True : False;
-	 break;
-       case HASH_ReportChange:
-	 val = va_arg(ap, int*);
-	 *val = (h->attr & HASH_ReportChange) ? True : False;
-	 break;
-       case HASH_ReportAccess:
-	 val = va_arg(ap, int*);
-	 *val = (h->attr & HASH_ReportAccess) ? True : False;
-	 break;
-       case HASH_NextOffset:
-	 sh = va_arg(ap, unsigned short *);
-	 *sh = (h->attr & HASH_NextOffset) ? True : False;
-	 break;
-       case HASH_KeyOffset:
-	 sh = va_arg(ap, unsigned short *);
-	 *sh = (h->attr & HASH_KeyOffset) ? True : False;
-	 break;
-       case HASH_DynamicResize:
-	 val = va_arg(ap, int*);
-	 *val = h->resize;
-	 break;
-       case HASH_HashFunction:
-	 ptr = va_arg(ap, DATA_PTR*);
-	 *ptr = (DATA_PTR)h->hash;
-	 break;
-       case HASH_LookupFunction:
-	 ptr = va_arg(ap, DATA_PTR*);
-	 *ptr = (DATA_PTR)h->lookup;
-	 break;
-       case HASH_DestroyFunction:
-	 ptr = va_arg(ap, DATA_PTR*);
-	 *ptr = (DATA_PTR)h->destroy;
-	 break;
-       default:
-	 if (HASH_Handler) { (HASH_Handler)(h, HASH_BadArgument, "HASH_GetAttributes()"); }
-	 va_end(ap);
-	 return;
-      }
-   }
-   va_end(ap);
-   
-#ifdef HASH_DEBUG
-   if (h->attr & HASH_ReportAccess) {
-      printf("HASH TABLE: 0x%.8x GetAttributes() => %s, %s, %s\n", h,
-	     (h->attr & HASH_Intrusive) ? "Intrusive" : "Container",
-	     (h->attr & HASH_ReportChange) ? "Report Change" : "No Change Report",
-	     (h->attr & HASH_ReportAccess) ? "Report Access" : "No Access Report");
-      if (h->resize) printf("HASH TABLE: 0x%.8x initial size = %u, resizeable at count/size > %u\n",
-			    h, h->size, h->resize);
-      else           printf("HASH TABLE: 0x%.8x static size = %u\n", h, h->size);
-      if (h->attr & HASH_Intrusive) {
-	 printf("HASH TABLE: 0x%.8x key offset = %u, next offset = %u\n",
-		h, h->key_offset, h->next_offset);
-      }
-      else {
-	 printf("HASH TABLE: 0x%.8x key offset = %u\n", h, h->key_offset);
-      }
-      printf("HASH TABLE 0x%.8x functions: hash = 0x%.8x, lookup = 0x%.8x, destroy = 0x%.8x\n",
-	     h, h->hash, h->lookup, h->destroy);
-   }
-#endif
-
-#ifdef _HASH_INTERNAL_DEBUG
-   HASH_Verify(h);
-#endif
-}
-
-
-/*-----------------------------------------------------------
- *  Name: 	HASH_ChangeSize()
- *  Created:	Mon Sep 26 20:09:16 1994
- *  Author: 	Jonathan DeKock   <dekock@winter>
- *  DESCR:  	modifies the size of the hash table to x
- */
-void HASH_ChangeSize(HASH_TABLE *h, unsigned size)
-{
-   unsigned index;
-   
-#ifdef HASH_DEBUG
-   if (!h || !size) {
-      if (HASH_Handler) { (HASH_Handler)(h, HASH_BadArgument, "HASH_ChangeSize()"); }
-   }
-   if (h->attr & HASH_ReportChange) {
-      printf("HASH TABLE: 0x%.8x Resizing to %u slots\n", h, size);
-   }
-#endif
-   if (h->attr & HASH_Intrusive) {
-      DATA_PTR *array = NewArray(DATA_PTR, size);
-      DATA_PTR moving;
-      unsigned old;
-      if (!array) {
-	 if (HASH_Handler) { (HASH_Handler)(h, HASH_MemoryErr, "HASH_ChangeSize()"); }
-	 return;
-      }
-      else {
-	 for (old = 0; old < h->size; old++) {
-	    while ((moving = h->array.data[old])) {
-	       h->array.data[old] = NextP(h, moving);
-	       index = (h->hash)(KeyP(h, moving), size);
-#ifdef HASH_DEBUG
-	       if (index >= size) {
-		  if (HASH_Handler) { (HASH_Handler)(h, HASH_BadIndex, "HASH_ChangeSize()"); }
-		  return;
-	       }
-#endif
-	       NextP(h, moving) = array[index];
-	       array[index] = moving;
-	    }
-	 }
-	 Delete(h->array.data);
-	 h->array.data = array;
-      }
-   }
-   else {
-      HASH_CONTAINER **array = NewArray(HASH_CONTAINER*, size);
-      HASH_CONTAINER *moving;
-      unsigned old;
-      if (!array) {
-	 if (HASH_Handler) { (HASH_Handler)(h, HASH_MemoryErr, "HASH_ChangeSize()"); }
-	 return;
-      }
-      else {
-	 for (old = 0; old < h->size; old++) {
-	    while ((moving = h->array.cont[old])) {
-	       h->array.cont[old] = moving->next;
-	       index = (h->hash)(KeyP(h, moving->data), size);
-#ifdef HASH_DEBUG
-	       if (index >= size) {
-		  if (HASH_Handler) { (HASH_Handler)(h, HASH_BadIndex, "HASH_ChangeSize()"); }
-		  return;
-	       }
-#endif
-	       moving->next = array[index];
-	       array[index] = moving;
-	    }
-	 }
-	 Delete(h->array.cont);
-	 h->array.cont = array;
-      }
-   }
-   h->size = size;
-}
-
-/*-----------------------------------------------------------
- *  Name: 	HASH_ClearFn()
+ /*  Name: 	HASH_ClearFn()
  *  Created:	Thu Sep  8 14:56:40 1994
  *  Author: 	Jonathan DeKock   <dekock@winter>
  *  DESCR:  	clears all items from a hash table
@@ -483,9 +286,7 @@ void HASH_ClearFn(HASH_TABLE* h, HASH_DestroyProc destroy)
 #ifdef _HASH_INTERNAL_DEBUG
    HASH_Verify(h);
 #endif
-
 }
-
 
 /*-----------------------------------------------------------
  *  Name: 	HASH_DestroyFn()
@@ -510,8 +311,6 @@ void HASH_DestroyFn(HASH_TABLE* h, HASH_DestroyProc destroy)
 #endif
    Delete(h);
 }
-
-
 
 /*-----------------------------------------------------------
  *  Name: 	HASH_Insert()
@@ -540,13 +339,6 @@ DATA_PTR HASH_Insert(HASH_TABLE* h, DATA_PTR data)
    }
 #endif
 
-   /* check if we are going to have to re-hash the entire thing (dynamic) */
-   if ((h->resize) && (h->count >= (h->resize)*(h->size))) {
-      /* we must resize */
-      unsigned new_size = h->size*2;
-      HASH_ChangeSize(h, new_size);
-   }
-   
    index = (h->hash)(key, h->size);
 #ifdef HASH_DEBUG
    if (index >= h->size) {
@@ -581,9 +373,7 @@ DATA_PTR HASH_Insert(HASH_TABLE* h, DATA_PTR data)
 #ifdef _HASH_INTERNAL_DEBUG
    HASH_Verify(h);
 #endif
-
    return(data);
-   
 }
    
 /*-----------------------------------------------------------
@@ -746,7 +536,6 @@ void HASH_RemoveByKeyFn(HASH_TABLE *h, DATA_PTR key, HASH_DestroyProc destroy)
 #endif
 
 }
-
 
 /*-----------------------------------------------------------
  *  Name: 	HASH_ReHash()
@@ -1098,194 +887,6 @@ DATA_PTR HASH_GetNext(HASH_TABLE *h, DATA_PTR current)
 }
 	    
 /*-----------------------------------------------------------
- *  Name: 	HASH_ToArray()
- *  Created:	Thu Sep  8 23:49:47 1994
- *  Author: 	Jonathan DeKock   <dekock@winter>
- *  DESCR:  	reallocates array and coverts the hash table into it
- */
-DATA_PTR *HASH_ToArray(HASH_TABLE *h, DATA_PTR *array, unsigned *size)
-{
-   unsigned index;
-   unsigned array_index = 0;
-
-#ifdef HASH_DEBUG
-   if (!h) {
-      if (HASH_Handler) { (HASH_Handler)(h, HASH_BadArgument, "HASH_ToArray()"); }
-   }
-#endif
-
-   if (!array) { 
-      array = NewArray(DATA_PTR, h->count);
-      if (!array) {
-	 if (HASH_Handler) { (HASH_Handler)(h, HASH_MemoryErr, "HASH_ToArray()"); }
-	 return(NULL);
-      }
-   }
-
-   if (h->attr & HASH_Intrusive) {
-      DATA_PTR data;
-      for (index = 0; index < h->size; index++) {
-	 for (data = h->array.data[index]; data; data = NextP(h, data)) {
-	    array[array_index++] = data;
-	 }
-      }
-   }
-   else {
-      HASH_CONTAINER *cont;
-      for (index = 0; index < h->size; index++) {
-	 for (cont = h->array.cont[index]; cont; cont = cont->next) {
-	    array[array_index++] = cont->data;
-	 }
-      }
-   }
-#ifdef HASH_DEBUG
-   if (h->attr & HASH_ReportAccess) {
-      printf("HASH TABLE: 0x%.8x ToArray(0x%.8x, %u) count\n", h, array, h->count);
-   }
-#endif
-   
-   if (size) *size = h->count;
-
-#ifdef _HASH_INTERNAL_DEBUG
-   HASH_Verify(h);
-#endif
-
-   return(array);
-}
-
-
-/*-----------------------------------------------------------
- *  Name: 	HASH_FromArray()
- *  Created:	Thu Sep  8 23:53:36 1994
- *  Author: 	Jonathan DeKock   <dekock@winter>
- *  DESCR:  	converts an array to a hash table
- */
-HASH_TABLE *HASH_FromArray(HASH_TABLE *h, DATA_PTR *array, unsigned size)
-{
-   unsigned index;
-
-#ifdef HASH_DEBUG
-   if (!array) {
-      if (HASH_Handler) { (HASH_Handler)(h, HASH_BadArgument, "HASH_FromArray()"); }
-   }
-#endif
-
-   if (!h) {
-     h = HASH_Create(size, 0);  /* create default hash table */
-   }
-   else {
-      HASH_ClearFn(h, NULL);
-   }
-
-   for (index = 0; index < size; index++) {
-      HASH_Insert(h, array[index]);
-   }
-
-#ifdef HASH_DEBUG
-   if (h->attr & HASH_ReportChange) {
-      printf("HASH TABLE: 0x%.8x FromArray(0x%.8x, %u) complete\n", h, array, h->count);
-   }
-#endif
-
-#ifdef _HASH_INTERNAL_DEBUG
-   HASH_Verify(h);
-#endif
-
-   return(h);
-}
-
-
-/*-----------------------------------------------------------
- *  Name: 	HASH_ToLinkedList()
- *  Created:	Fri Sep  9 00:01:14 1994
- *  Author: 	Jonathan DeKock   <dekock@winter>
- *  DESCR:  	converts a hash table to a linked list
- */
-LINKED_LIST *HASH_ToLinkedList(HASH_TABLE *h, LINKED_LIST *ll)
-{
-   unsigned index;
-   
-#ifdef HASH_DEBUG
-   if (!h) {
-      if (HASH_Handler) { (HASH_Handler)(h, HASH_BadArgument, "HASH_ToLinkedList()"); }
-   }
-#endif
-
-   if (!ll) ll = LL_Create(0);
-
-   if (h->attr & HASH_Intrusive) {
-      DATA_PTR data;
-      for (index = 0; index < h->size; index++) {
-	 for (data = h->array.data[index]; data; data = NextP(h, data)) {
-	    LL_Add(ll, data);
-	 }
-      }
-   }
-   else {
-      HASH_CONTAINER *cont;
-      for (index = 0; index < h->size; index++) {
-	 for (cont = h->array.cont[index]; cont; cont = cont->next) {
-	    LL_Add(ll, cont->data);
-	 }
-      }
-   }
-#ifdef HASH_DEBUG
-   if (h->attr & HASH_ReportAccess) {
-      printf("HASH TABLE: 0x%.8x ToLinkedList(0x%.8x) complete\n", h, ll);
-   }
-#endif
-
-#ifdef _HASH_INTERNAL_DEBUG
-   HASH_Verify(h);
-#endif
-
-   return(ll);
-}   
-
-
-/*-----------------------------------------------------------
- *  Name: 	HASH_FromLinkedList()
- *  Created:	Fri Sep  9 00:04:37 1994
- *  Author: 	Jonathan DeKock   <dekock@winter>
- *  DESCR:  	converts a linked list into a hash table
- */
-HASH_TABLE *HASH_FromLinkedList(HASH_TABLE *h, LINKED_LIST *ll)
-{
-   DATA_PTR data;
-
-#ifdef HASH_DEBUG
-   if (!ll) {
-      if (HASH_Handler) { (HASH_Handler)(h, HASH_BadArgument, "HASH_FromLinkedList()"); }
-   }
-#endif
-
-   if (!h) {
-     h = HASH_Create(ll->count, 0);  /* create default hash table */
-   }
-   else {
-      HASH_ClearFn(h, NULL);
-   }
-   
-   LL_Iterate(ll, data) {
-      HASH_Insert(h, data);
-   }
-   
-#ifdef HASH_DEBUG
-   if (h->attr & HASH_ReportChange) {
-      printf("HASH TABLE: 0x%.8x FromLinkedList(0x%.8x, %u) complete\n", h, ll, h->key_offset);
-   }
-#endif
-
-#ifdef _HASH_INTERNAL_DEBUG
-   HASH_Verify(h);
-#endif
-
-   return(h);
-}
-
-
-
-/*-----------------------------------------------------------
  *  Name: 	HASH_SetHandler()
  *  Created:	Fri Sep  9 00:12:23 1994
  *  Author: 	Jonathan DeKock   <dekock@winter>
@@ -1322,8 +923,6 @@ void HASH_DefaultHandler(HASH_TABLE *h, enum HASH_ERROR num, char *fn)
    fprintf(out, "HASH TABLE: 0x%.8x Error in function %s: \"%s\"\n", (u_int)h, fn, HASH_errlist[num]);
    fflush(out);
 }
-
-
 
 /*-----------------------------------------------------------
  *  Name: 	HASH_Verify()
@@ -1411,9 +1010,7 @@ void HASH_Print(HASH_TABLE *h, HASH_PrintProc print)
 	  (h->attr & HASH_Intrusive) ? "Intrusive" : "Container",
 	  (h->attr & HASH_ReportChange) ? "Report Change" : "No Change Report",
 	  (h->attr & HASH_ReportAccess) ? "Report Access" : "No Access Report");
-   if (h->resize) printf("HASH TABLE: 0x%.8x initial size = %u, resizeable at count/size > %u\n",
-			 (u_int)h, h->size, h->resize);
-   else           printf("HASH TABLE: 0x%.8x static size = %u\n", (u_int)h, h->size);
+   printf("HASH TABLE: 0x%.8x size = %u\n", (u_int)h, h->size);
    if (h->attr & HASH_Intrusive) {
       printf("HASH TABLE: 0x%.8x key offset = %u, next offset = %u\n",
 	     (u_int)h, h->key_offset, h->next_offset);

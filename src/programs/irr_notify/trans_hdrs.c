@@ -1,5 +1,5 @@
 /* 
- * $Id: trans_hdrs.c,v 1.4 2001/02/01 02:08:38 labovit Exp $
+ * $Id: trans_hdrs.c,v 1.6 2002/10/17 20:25:57 ljb Exp $
  */
 
 #include <irr_notify.h>
@@ -14,17 +14,25 @@ int num_hdls;
 char tempfname[] = "/var/tmp/irr_notify.XXXXXX";
 
 const char SENDER_HEADER[] =
-"Your transaction:\n\n > From: %s\n > Subject: %s\n > Date: %s\n > Msg-Id: %s\n\nhas been processed by the IRRd database system.\nDiagnostic output:\n\n------------------------------------------------------------\n\n";
+"\nYour transaction has been processed by the\nIRRd routing registry system.\n";
+
+const char DIAG_HEADER[] =
+"\nDiagnostic output:\n\n------------------------------------------------------------\n\n";
 
 const char RESPONSE_FOOTER[] =
-"\n------------------------------------------------------------\n\nRADB services are provided with support from Merit Network, Inc.,\nVerio, Inc., Teleglobe International and connect.com.au pty ltd.\n\nIf you have any questions, please send them to db-admin@radb.net.\nFree database software, documentation and tools are\navailable at\nhttp://www.irrd.net.\n\n--IRRd Team\n";
-
+"\n------------------------------------------------------------\n\n";
 
 const char FORWARD_HEADER[] =
-"Dear Maintainer,\n\nThis is to notify you that some objects in which you are mentioned as\na maintainer were requested to be changed, but *failed* the proper\nauthorisation for any of the mentioned maintainers.\nPlease contact the sender of these changes about changes that\nneed to be made to the following objects.\n\nThe mail message causing these failures had the following mail headers:\n\n- From:    %s\n- Subject: %s\n- Date:    %s\n- Msg-Id:  %s\n";
+"Dear Maintainer,\n\n  This is to notify you that one or more objects in which you are\nlisted as a maintainer were the subject of an update attempt, but\n*failed* the proper authorization.\n";
 
 const char NOTIFY_HEADER[] =
-"Dear Colleague,\n\nThis is to notify you that some objects in which you are mentioned as\na notifier, guardian or maintainer of one of the guarded attributes\nin this object have been modified in the Merit RADB/IRR database.\nThe objects below are the NEW entries for these\nobjects in the database. In case of DELETIONS, the deleted object is\ndisplayed. NOOPs will not be reported.\n\nThe update causing these changes had the following mail headers:\n\n- From:    %s\n- Subject: %s\n- Date:    %s\n- Msg-Id:  %s\n";
+"Dear Colleague,\n\n  This is to notify you that one or more objects in which you are\ndesignated for notification have been modified in the %s routing\nregistry database.\n";
+
+const char MAIL_HEADERS[] =
+"The submission contained the following mail headers:\n\n- From: %s\n- Subject: %s\n- Date: %s\n- Msg-Id: %s\n\n";
+
+const char WEB_UPDATE[] =
+"\nThe Web submission originated from IP address:\n-   %s\n";
 
 /*
  * <OPERATION> FAILED: [<obj type>] <obj key>
@@ -42,7 +50,7 @@ const char SENDER_OP_SUCCESS[] =
 "%s OK: [%s] %s\n";
 
 const char SENDER_OP_NOOP[] = 
-"%s: [%s] %s\n";
+"NO CHANGE: [%s] %s\n";
 
 const char NULL_SUBMISSION_MSG[] =
 " No objects were found in your submission.\n";
@@ -73,7 +81,9 @@ const char DEL_NO_EXIST_MSG[] = "This object does not exist in DB \"%s\".\n";
 const char MAINT_NO_EXIST_MSG[] = "Maintainer references do not exist:\n";
 const char AUTHFAIL_MSG[] = "Authorization failure.\n";
 const char NEW_MNT_ERROR_MSG[] = "New maintainers must be added by a DB administrator.\n";
-const char NEW_MNT_ERROR_MSG_2[] = "New maintainers must be added by an DB administrator.  Sending to";
+const char NEW_MNT_ERROR_MSG_2[] = "New maintainers must be added by a DB administrator.\nForwarding new request to";
+const char DEL_MNT_ERROR_MSG[] = "Maintainers may only be deleted by a DB administrator.\n";
+const char DEL_MNT_ERROR_MSG_2[] = "Maintainers may only be deleted by a DB administrator.\nForwarding deletion request to";
 const char BAD_OVERRIDE_MSG[] = "Incorrect override password \"%s\"\n";
 const char UNKNOWN_USER_MSG[] = "Could not determine submitter\n";
 const char MSG_SEPERATOR[] = "\n---\n";

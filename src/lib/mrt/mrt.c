@@ -3,15 +3,6 @@
  */
 
 #include <mrt.h>
-#ifdef NT
-#include <ntconfig.h>
-#include <process.h>
-
-int _open(const char *filename, int oflag, ...);
-#ifndef SIGALRM
-#define SIGALRM	SIGTERM
-#endif /* SIGALRM */
-#endif /* NT */
 
 mrt_t *MRT;
 
@@ -190,11 +181,9 @@ mrt_thread_kill_all (void)
 #endif
 
 #ifndef HAVE_LIBPTHREAD
-#ifndef NT
 /* use real assert */
 #undef assert
 #include </usr/include/assert.h>
-#endif /* NT */
 int
 mrt_pthread_mutex_init (pthread_mutex_t *mutex, 
 	const pthread_mutexattr_t *attr, char *file, int line)
@@ -332,9 +321,6 @@ mrt_process_schedule (volatile int *force_exit_flag, int ok)
 {
     int i;
     int ret = 0;
-#ifdef NT
-	MSG msg = { 0, 0, 0, 0 };
-#endif /* NT */
     int imax = (MRT->initialization)? 1: 3;
 
     for (i = 0; i < imax; i++) {
@@ -349,26 +335,9 @@ mrt_process_schedule (volatile int *force_exit_flag, int ok)
             mrt_alarm ();
 	    break;
 	case 2:
-#ifdef NT
-				mrt_select2 (100);
-#else
             mrt_select2 (0); /* no wait select */
-#endif /* NT */
 	    break;
 		}
-
-#ifdef NT
-		// use PeekMessage(..), is nonblocking. note that second paramater is zero so we recieve
-		// all messages for this thread, I believe that the second and third paramater are simply
-		// telling the function to only look for WM_TIMER messages posted to the windows Queue.
-
-		if ( PeekMessage(&msg, 0, WM_TIMER, WM_TIMER, PM_REMOVE) > 0) {
-			DispatchMessage( &msg );
-	}
-#endif /* NT */
-
-
-
     }
     return (ret);
 }
@@ -445,11 +414,7 @@ mrt_set_force_exit (int code)
 {
     MRT->force_exit_flag = code;
     /* simulate sigalarm to wake up the thread */
-#ifdef NT
-	exit(0);
-#else
     kill (getpid (), SIGALRM);
-#endif /* NT */
 }
 
 /* init_mrt
@@ -469,11 +434,9 @@ int init_mrt (trace_t *tr) {
    thr_setconcurrency (40);
 #endif /* HAVE_THR_SETCONCURRENCY */
 
-#ifndef NT
    signal (SIGPIPE, mrt_process_signal);
    signal (SIGHUP, mrt_process_signal);
    signal (SIGINT, mrt_process_signal);
-#endif /* NT */
 
    MRT = New (mrt_t);
    MRT->start_time = time (NULL);
@@ -520,11 +483,7 @@ int init_mrt (trace_t *tr) {
 int 
 mrt_open (const char *path, int flags, mode_t mode, char *s, int l)
 {
-#ifdef NT
-	int r = _open (path, flags, mode);
-#else
     int r = open (path, flags, mode);
-#endif /* NT */
     trace (TR_TRACE, MRT->trace, "open (%s) -> %d in %s at %d\n", path,
 	   r, s, l);
     return (r);
@@ -533,12 +492,7 @@ mrt_open (const char *path, int flags, mode_t mode, char *s, int l)
 int 
 mrt_close (int d, char *s, int l)
 {
-
-#ifndef NT
-	int r = close (d);
-#else
-	int r = closesocket	(d);
-#endif /* NT */
+    int r = close (d);
 
     trace (TR_TRACE, MRT->trace, "close (%d) -> %d in %s at %d\n", d, 
 	   r, s, l);

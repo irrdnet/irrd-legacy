@@ -1,7 +1,6 @@
 /*
- * $Id: trace.c,v 1.3 2001/06/04 16:52:21 ljb Exp $
+ * $Id: trace.c,v 1.4 2002/10/17 20:12:02 ljb Exp $
  */
-
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -28,7 +27,6 @@
 /* internal routines */
 static FILE *get_trace_fd (trace_t * trace_struct);
 static char *_my_strftime (char *tmp, long in_time, char *fmt);
-char *uii_parse_line2 (char **line, char *word);
 char *uii_parse_line (char **line);
 
 static int syslog_notify = 0;
@@ -44,7 +42,6 @@ init_trace (name, syslog_flag)
     }
     return (1);
 }
-
 
 /* trace
  */
@@ -134,7 +131,7 @@ trace (int flag, trace_t * tr,...)
 
       tr->logfile->bytes_since_open = 0;
 
-      tr->logfile->logfd = freopen(tr->logfile->logfile_name, "a+", tr->logfile->logfd);
+      tr->logfile->logfd = freopen(tr->logfile->logfile_name, "a", tr->logfile->logfd);
 
       if (!tr->logfile->logfd) { 	/* oh, oh, try one more time */
 	tr->logfile->append_flag = FALSE;
@@ -147,7 +144,6 @@ trace (int flag, trace_t * tr,...)
 	}
       }
     }
-
 
     /* Print out the pregenerated string.
      * WARNING:  if this string contains any valid printf formatting 
@@ -199,8 +195,8 @@ New_Trace2 (char *app_name)
     if (!app_name) return NULL;
     sprintf(log_name, "/tmp/%s.log", app_name);
 
-    tmp = malloc (sizeof (trace_t));
-    tmp->logfile = malloc (sizeof (logfile_t));
+    tmp = calloc (sizeof (trace_t), 1);	/* need to use calloc to zero out */
+    tmp->logfile = calloc (sizeof (logfile_t), 1);
     tmp->logfile->ref_count = 1;
 
     /* Duplicate the logfile name now, so it can safely be freed later
@@ -208,16 +204,10 @@ New_Trace2 (char *app_name)
      */
     tmp->logfile->append_flag = 1;
     tmp->logfile->logfile_name = strdup(log_name);
-    tmp->logfile->prev_logfile = strdup("");
     tmp->logfile->logfd = get_trace_fd (tmp);
-    tmp->logfile->logsize = 0;
-    tmp->logfile->bytes_since_open = 0;
     tmp->logfile->max_filesize = TR_DEFAULT_MAX_FILESIZE;
     tmp->flags = TR_DEFAULT_FLAGS;
     tmp->syslog_flag = TR_DEFAULT_SYSLOG;
-    tmp->uii = NULL;
-    tmp->prepend = NULL;
-    tmp->error_list = NULL;
 
     return (tmp);
 }
@@ -232,29 +222,6 @@ New_Trace (void)
     return New_Trace2("irrd");
 }
 
-/* trace_copy
- */
-trace_t *
-trace_copy (trace_t * old)
-{
-    trace_t *tmp = NULL;
-
-    if (old == NULL)
-	return (NULL);
-
-    tmp = malloc (sizeof (trace_t));
-    tmp->slave = 1;	  /* we are a copy of the "master" who owns fd */
-    /* I'm not sure "slave" is still needed */
-    tmp->logfile = old->logfile;
-    tmp->logfile->ref_count++;
-    tmp->flags = old->flags;
-    if (old->prepend)
-        tmp->prepend = strdup (old->prepend);
-
-    return (tmp);
-}
-
-
 /*
  * Destroy_Trace
  */
@@ -262,7 +229,8 @@ void Destroy_Trace (trace_t * tr) {
 
   if (--tr->logfile->ref_count <= 0) {
       free (tr->logfile->logfile_name);
-      free (tr->logfile->prev_logfile);
+      if (tr->logfile->prev_logfile)
+        free (tr->logfile->prev_logfile);
       fflush (tr->logfile->logfd); /* I can not close */
       if (tr->logfile->logfd != stdout && tr->logfile->logfd != stderr)
          fclose (tr->logfile->logfd);
@@ -273,37 +241,42 @@ void Destroy_Trace (trace_t * tr) {
   free (tr);
 }
 
-
 /* get_trace_fd
  */
 static FILE *get_trace_fd (trace_t * tr) {
     char *type;
+    FILE *retval;
     struct stat stats;
     char error[255] = "";
 
     if (!tr)
 	return (stdout);
 
-    if (tr->logfile->logfd && (tr->logfile->logfd != stdout)) {
+    if (tr->logfile->logfd && tr->logfile->logfd != stdout && tr->logfile->logfd != stderr) {
 
 	fclose (tr->logfile->logfd);
 
 	/* If the previously opened file wasn't used 
 	 * (i.e. size = 0), delete it. */
-	stat (tr->logfile->prev_logfile, &stats);
-
-	if (!stats.st_size) {
+        if (tr->logfile->prev_logfile) {
+ 	  stat (tr->logfile->prev_logfile, &stats);
+	  if (!stats.st_size) {
 	    if (unlink(tr->logfile->prev_logfile) < 0) {
 		sprintf(error, "unlink %s:  %s\n", tr->logfile->prev_logfile,
 			strerror(errno));
 	    }
+	  }
 	}
     }
 
     if (!strcasecmp (tr->logfile->logfile_name, "stdout")) {
-	tr->logfile->logfd = (FILE *) stdout;
-	if (error[0]) fprintf(tr->logfile->logfd, error);
-	return (tr->logfile->logfd);
+	if (error[0]) fprintf(stdout, error);
+	return (stdout);
+    }
+
+    if (!strcasecmp (tr->logfile->logfile_name, "stderr")) {
+	if (error[0]) fprintf(stderr, error);
+	return (stderr);
     }
 
     if (tr->logfile->logfile_name) {
@@ -311,24 +284,20 @@ static FILE *get_trace_fd (trace_t * tr) {
 	    type = "a";
 	else
 	    type = "w";
-	if ((tr->logfile->logfd = fopen (tr->logfile->logfile_name, type))) {
+	if ((retval = fopen (tr->logfile->logfile_name, type))) {
 
-    tr->logfile->logsize = 0;
-    tr->logfile->bytes_since_open = 0;
-    tr->logfile->max_filesize = TR_DEFAULT_MAX_FILESIZE;
+	    tr->logfile->logsize = 0;
+	    tr->logfile->bytes_since_open = 0;
+	    tr->logfile->max_filesize = TR_DEFAULT_MAX_FILESIZE;
 
-	    if (error[0]) fprintf(tr->logfile->logfd, error);
-	    return (tr->logfile->logfd);
+	    if (error[0]) fprintf(retval, error);
+	    return (retval);
 	} /*else
 	  fprintf(stderr, "fopen %s:  %s\n", tr->logfile->logfile_name,
 		strerror(errno));*/
-
     }
-    tr->logfile->logfd = NULL;
     return (NULL);
 }
-
-
 
 /* my_strftime
  * Given a time long and format, return string. 
@@ -373,19 +342,10 @@ int set_trace (trace_t * tmp, int first,...) {
 	 attr = va_arg (ap, enum Trace_Attr)) {
 	switch (attr) {
 	case TRACE_LOGFILE:
- 	    if (tmp->slave) {
-	      tmp->slave = 0; /* slave no more */
-	      /* we should really make our own mutex lock here */
-	      tmp->logfile = malloc (sizeof (logfile_t));
-	      tmp->logfile->ref_count = 1;
-    	      tmp->logfile->prev_logfile = strdup ("");
-	    }
-	    else {
-	        if (tmp->logfile->logfile_name) {
-	            if (tmp->logfile->prev_logfile) 
-			free (tmp->logfile->prev_logfile);
-		    tmp->logfile->prev_logfile = tmp->logfile->logfile_name;
-	        }
+	    if (tmp->logfile->logfile_name) {
+	      if (tmp->logfile->prev_logfile)
+		free (tmp->logfile->prev_logfile);
+	      tmp->logfile->prev_logfile = tmp->logfile->logfile_name;
 	    }
 	    tmp->flags |= NORM;
 	    tmp->logfile->append_flag = 1;
@@ -406,7 +366,6 @@ int set_trace (trace_t * tmp, int first,...) {
 	    tmp->syslog_flag = (u_char) va_arg(ap, int);
 	    break;
 	case TRACE_MAX_FILESIZE:
-   	    if (tmp->slave) break; /* ignore */
 	    tmp->logfile->max_filesize = va_arg(ap, u_int);
 	    break;
 	case TRACE_PREPEND_STRING:
@@ -423,60 +382,8 @@ int set_trace (trace_t * tmp, int first,...) {
     return (1);
 }
 
-/* trace_generate_file_nam
- * what is this used for?
- */
-char *
-trace_generate_file_name (char *name)
-{
-    char *tmp;
-    int size;
-
-    size = strlen (name) + 10;
-    tmp = malloc (sizeof (char) * size);
-
-    sprintf (tmp, "%s.%d", name, (int) getpid ());
-
-    return (tmp);
-}
-
-
-
-/* trace_flag
- * convert ascii description of trace flag to flag bit
- */
-u_int 
-trace_flag (char *str)
-{
-
-    if (!strcasecmp (str, "info"))
-	return (TR_INFO);
-    if (!strcasecmp (str, "norm"))
-	return (TR_INFO);
-    if (!strcasecmp (str, "trace"))
-	return (TR_TRACE);
-    if (!strcasecmp (str, "parse"))
-	return (TR_PARSE);
-    if (!strcasecmp (str, "packet"))
-	return (TR_PACKET);
-    if (!strcasecmp (str, "state"))
-	return (TR_STATE);
-    if (!strcasecmp (str, "timer"))
-	return (TR_TIMER);
-    if (!strcasecmp (str, "all"))
-	return (TR_ALL);
-
-    return (0);
-}
-
-
-
 int config_trace_local (trace_t *tr, char *line) {
     char *token = NULL;
-
-    /* get rid of debug statement */
-    if ((token = (char *) uii_parse_line (&line)) == NULL)  
-      return (-1); 
 
     /* get server or submission */
     if ((token = (char *) uii_parse_line (&line)) == NULL)  
@@ -488,7 +395,6 @@ int config_trace_local (trace_t *tr, char *line) {
     if ((token = (char *) uii_parse_line (&line)) == NULL) { 
       return (-1); 
     } 
-
 
     /*verbose */
     if (!strcmp (token, "verbose")) {
@@ -514,15 +420,14 @@ int config_trace_local (trace_t *tr, char *line) {
       set_trace (tr, TRACE_MAX_FILESIZE, atoi(token), NULL);
       return (1);
     }
-
     return (1);
 }
 
+/* scan line for tokens and return pointer to next one */
 char *
-uii_parse_line2 (char **line, char *word)
+uii_parse_line (char **line)
 {
     char *cp = *line, *start;
-    int len;
 
     /* skip spaces */
     while (*cp && isspace ((int) *cp))
@@ -532,24 +437,12 @@ uii_parse_line2 (char **line, char *word)
     while (!isspace ((int) *cp) && (*cp != '\0') && (*cp != '\n'))
         cp++;
 
-    if ((len = cp - start) > 0) {
-        if (word == NULL) {
-            word = malloc (len + 1);
-            /*assert (word);*/
-        }
-        memcpy (word, start, len);
-        word[len] = '\0';
+    if ((cp - start) > 0) {
+        if (*cp != '\0')
+	  *cp++ = '\0';
         *line = cp;
-        return (word);
+        return (start);
     }
-
     return (NULL);
 }
 
-
-char *
-uii_parse_line (char **line)
-{
-  static char word[100];
-  return (uii_parse_line2 (line, word));
-}

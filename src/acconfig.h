@@ -4,9 +4,6 @@
 
 @TOP@
 
-/* Defined if you have IPV6 support */
-#undef HAVE_IPV6
-
 /* Define if you have pthread library (-lpthread) */
 #undef HAVE_LIBPTHREAD
 

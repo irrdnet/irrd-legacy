@@ -1,0 +1,21 @@
+
+ Oct 06, 2003
+
+  The parser does not currently allow embedded comments in multi-line
+non-freetext attributes.   Comments are allowed at the end
+of attributes which do not contain multiple lines.
+
+ For example,
+
+route-set:  RS-FOO
+members:   198.108.0.0/16,  #Merit
+           35.0.0.0/8       #MSU
+
+ is not allowed, but
+
+route-set:  RS-FOO
+members:   198.108.0.0/16  #Merit
+members:   35.0.0.0/8      #MSU
+
+ is okay.
+

@@ -4,17 +4,6 @@
 
 #include <mrt.h>
 
-#ifdef NT
-int _write( int handle, const void *buffer, unsigned int count );
-int _pipe ();
-#endif /* NT */
-/*
-#ifdef __linux__
-#include <sys/resource.h>
-#endif
-*/
-
-
 Select_Struct *SELECT_MASTER;
 
 static void
@@ -49,17 +38,13 @@ init_select (trace_t * tr)
 	
     pthread_mutex_init (&SELECT_MASTER->mutex_lock, NULL);
 	
-#ifndef NT
     pipe (fd);
     SELECT_MASTER->interrupt_fd[1] = fd[1];
     SELECT_MASTER->interrupt_fd[0] = fd[0];
     FD_SET (fd[0], &SELECT_MASTER->fdvar_read);
     /* setting nonblock is safer */
-
     socket_set_nonblocking (fd[1], 1);
 
-#endif /* NT */
-	
     return (1);
 }
 
@@ -158,9 +143,7 @@ select_add_fd_event_timed_vp (char *name, int fd, u_long type_mask, int on,
 			FD_SET (fd, &SELECT_MASTER->fdvar_write);
         if (type_mask & SELECT_EXCEPTION)
 			FD_SET (fd, &SELECT_MASTER->fdvar_except);
-#ifndef NT
         write (SELECT_MASTER->interrupt_fd[1], "", 1);
-#endif /* NT */
     }
 
     pthread_mutex_unlock (&SELECT_MASTER->mutex_lock);
@@ -268,9 +251,7 @@ select_delete_fd_mask (int fd, u_long mask, int close_at_select)
     }
 	
     if (found) {
-#ifndef NT
         write (SELECT_MASTER->interrupt_fd[1], "", 1);
-#endif /* NT */
         pthread_mutex_unlock (&SELECT_MASTER->mutex_lock);
 	return (1);
     }
@@ -395,7 +376,6 @@ sddsd
     }
 #endif 
 
-#ifndef NT
     /* okay, read hint to ourselves that a new socket has been added */
     if (FD_ISSET (SELECT_MASTER->interrupt_fd[0], &fdvar_read)) {
 		char c;
@@ -410,7 +390,6 @@ sddsd
 			return (0);
 		}
     }
-#endif /* NT */
 
     time (&now);
     LL_Iterate (SELECT_MASTER->ll_descriptors, dsp) {
@@ -473,11 +452,7 @@ sddsd
 }
 
 
-#ifdef NT
-#define MRT_SELECT_WAIT 100
-#else
 #define MRT_SELECT_WAIT 1000
-#endif /* NT */
 int 
 mrt_select (void) {
 	return (mrt_select2 (MRT_SELECT_WAIT));
@@ -530,10 +505,8 @@ select_disable_fd_mask (int fd, u_long mask)
     }
 	
     if (changed) {
-#ifndef NT	
 		write (SELECT_MASTER->interrupt_fd[1], "", 1);
         pthread_mutex_unlock (&SELECT_MASTER->mutex_lock);
-#endif /* NT */	
 		return (1);
     }
     pthread_mutex_unlock (&SELECT_MASTER->mutex_lock);
@@ -586,9 +559,7 @@ select_enable_fd_mask (int fd, u_long mask)
     }
 	
     if (changed) {
-#ifndef NT
 		write (SELECT_MASTER->interrupt_fd[1], "", 1);
-#endif /* NT */
 		pthread_mutex_unlock (&SELECT_MASTER->mutex_lock);
 		return (1);
     }

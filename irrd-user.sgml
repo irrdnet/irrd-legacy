@@ -5,7 +5,7 @@
 User/Configuration Guide</title>
 <bookinfo>
 <edition>IRRd User/Configuration Guide</edition>
-<pubdate>September 2001</pubdate>
+<pubdate>November 2004</pubdate>
 <corpauthor>Merit Network, Inc.</corpauthor>
 <revhistory>
    <revision>
@@ -29,7 +29,7 @@ User/Configuration Guide</title>
        <date>2001-10-18</date>
        <authorinitials>ljb</authorinitials>
        <revremark>
-          default install location for binaries is now /usr/local/sbin
+          default location for binaries is now /usr/local/sbin
        </revremark>
    </revision>
    <revision>
@@ -37,18 +37,50 @@ User/Configuration Guide</title>
        <date>2002-02-04</date>
        <authorinitials>ljb</authorinitials>
        <revremark>
-          provide better docs on !u command.  remove deprecated -m -and -r
-          option documentation for irrd.
+          document !u command.  remove deprecated -m and -r options.
+       </revremark>
+   </revision>
+   <revision>
+     <revnumber>2.1.5</revnumber>
+       <date>2002-10-07</date>
+       <authorinitials>ljb</authorinitials>
+       <revremark>
+	  new !o command. remove "redirect" command. RAToolSet now IRRToolSet.
+       </revremark>
+   </revision>
+   <revision>
+     <revnumber>2.2beta</revnumber>
+       <date>2003-08-08</date>
+       <authorinitials>ljb</authorinitials>
+       <revremark>
+	  new cryptpw-access list. -N flag for irr_rpsl_submit.
+       </revremark>
+   </revision>
+   <revision>
+     <revnumber>2.2.1</revnumber>
+       <date>2004-11-18</date>
+       <authorinitials>ljb</authorinitials>
+       <revremark>
+	  document irr_expansion_timeout command.
+       </revremark>
+   </revision>
+   <revision>
+     <revnumber>2.2.2</revnumber>
+       <date>2004-11-22</date>
+       <authorinitials>ljb</authorinitials>
+       <revremark>
+	  note that IRRd now support RPSLng and that the
+          !i and !g commands are IPv4-only.
        </revremark>
    </revision>
 </revhistory>
 <copyright>
-<year>1997</year>
-<year>1998</year>
 <year>1999</year>
 <year>2000</year>
 <year>2001</year>
 <year>2002</year>
+<year>2003</year>
+<year>2004</year>
 <holder>
 The Regents of the University of Michigan ("The Regents") and
 Merit Network, Inc.  All rights reserved.</holder>
@@ -59,7 +91,7 @@ Merit Network, Inc.  All rights reserved.</holder>
 Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
 <orderedlist>
 <listitem><para>
-Redistributions of source code must retain the above  copyright notice, this list of conditions and the following disclaimer.
+Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
 </para></listitem>
 <listitem><para>
 Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
@@ -82,9 +114,9 @@ Neither the name of the University, Merit Network, nor the names of their contri
 <chapter>
 <title>Introduction</title>
 <para>
-IRRd is a stand-alone Internet Routing Registry database server. IRRd can store information and answer queries about local network, campus and ISP backbone topology, address allocation and routing policies. IRRd can be used as an independent local database server, or as part of the global Internet Routing Registry (IRR). The Internet Routing Registry is the union of a growing number of world-wide routing policy databases, including servers operated by Cable &amp Wireless, APNIC, Merit, Bell Canada, RIPE, Verio, and many other organizations.  See http://www.irr.net/docs/list.html for an up-to-date list of registries.  </para>
+IRRd is a stand-alone Internet Routing Registry database server. IRRd can store information and answer queries about local network, campus and ISP backbone topology, address allocation and routing policies. IRRd can be used as an independent local database server, or as part of the global Internet Routing Registry (IRR). The Internet Routing Registry is the union of a growing number of world-wide routing policy databases, including servers operated by Cable &amp Wireless, APNIC, Merit, RIPE, Verio, and many other organizations.  See http://www.irr.net/docs/list.html for an up-to-date list of registries.  </para>
 <para>
-IRRd supports both RIPE-181 and Routing Registry Specification Language (RPSL) routing registry syntaxes. The IRRd distribution includes all needed IRR support services, including: automated real-time mirroring of other IRR databases, update syntax checking, update security checking, and update notification. The current version of IRRd also supports most RIPEdb whois flags.</para>
+IRRd supports the Routing Registry Specification Language (RPSL) routing registry syntax.  As of version 2.2.0, IRRd also supports the RPSLng IPv6 and Multicast extensions to RPSL.  The IRRd distribution includes all needed IRR support services, including: automated real-time mirroring of other IRR databases, update syntax checking, update security checking, and update notification. The current version of IRRd also supports several RIPEdb whois flags.</para>
 <para>
 When used in conjunction with policy tools such as RtConfig, Roe, and Aoe, the IRRd server allows: 
 </para>
@@ -100,8 +132,7 @@ Network trouble-shooting and debugging
 </para></listitem>
 </itemizedlist>
 <para>
-In addition to the usual RIPE/RPSL whois queries, the IRRd Server also provides a protocol for getting information from RIPE/RPSL-style database files that is not easily (or rapidly) obtainable using the standard whois queries.  These IRRd queries can be submitted one-at-a-time via whois, or by establishing a connection to the IRRd Server, issuing multiple queries, and then closing the connection.
-The IRRd distribution also includes the irr_rpsl_submit e-mail/TCP database update tool.</para>
+In addition to user-oriented whois queries, the IRRd Server also provides several query commands for performing RPSL set expansions and AS number to route prefix mappings which are useful for automated tools (such as IRRToolSet).  The IRRd distribution also includes the irr_rpsl_submit e-mail/TCP front-end update program which performs RPSL syntax and authentication checking.</para>
 <section>
 <title>Document Conventions</title>
 <para>
@@ -124,7 +155,7 @@ Alternative but required keywords are grouped in {braces} and separated by a ver
 <section>
 <title>Getting Help</title>
 <para>
-Merit hosts a public mailing list for IRRd questions, advice, and feature suggestions at irrd-discuss@merit.edu.  List administravia requests should be directed to irrd-discuss-request@merit.edu.</para>
+The Merit IRRd development team accepts comments, requests, and bug reports at irrd-support@merit.edu.  In addition, there is a public mailing list to share IRRd deployment and usage issues at irrd-discuss@merit.edu.  List administravia requests should be directed to irrd-discuss-request@merit.edu.</para>
 </section>
 <section>
 <title>Credits</title>
@@ -148,12 +179,11 @@ http://www.irrd.net
 <section>
 <title>System Requirements</title>
 <para>
-IRRd will run on most Unix operating systems. But for best performance,
-we recommend IRRd be used on a threads-capable operating systems, such as
-Linux or Solairs.  IRRd maintains in-memory indexes of each database for
+IRRd should run on most Unix operating systems.  Merit currently
+targets Linux, Solaris, and FreeBSD for development and testing of IRRd.
+IRRd maintains in-memory indexes of registry databases for
 improved performance.  Memory usage will depend on the number of objects
-in each local or mirrored database.  The resident set size for the IRRd
-daemon on Merit's whois IRR server currently runs at about 64M.</para>
+in each local or mirrored database.</para>
 <para>
 IRRd is generally I/O bound and does not require significant CPU cycles (with the exception of the period during infrequent database cleans to remove deleted objects).</para>
 <para>
@@ -183,7 +213,6 @@ Change into the irrd directory and run <command>./configure</command>.
 
 Several options can be specified as parameters to the configure command: 
 
-<prompt>% </prompt><userinput>./configure --disable-ipv6</userinput>         Disable IPv6 connection support
 <prompt>% </prompt><userinput>./configure --disable-threads</userinput>    Disable thread support
 <prompt>% </prompt><userinput>./configure --disable-wall</userinput>         Disable -Wall gcc option
 <prompt>% </prompt><userinput>./configure --with-gdbm</userinput>             Support GNU DBM database files
@@ -219,7 +248,7 @@ Before using IRRd, you will need to obtain an initial copy of the IRR databases.
 <para>
 See Appendix A for more information about IRRdCacher.</para>
 <para>
-By default, IRRd expects to find copies of the databases (ans.db, cw.db, radb.db, etc.) in /var/spool/databases. This default IRR directory may be overridden with the -d command line flag, or the irr_directory config file entry.</para>
+By default, IRRd expects to find copies of the databases (cw.db, radb.db, etc.) in /var/spool/databases. This default IRR directory may be overridden with the -d command line flag, or the irr_directory config file entry.</para>
 <para>
 For real-time mirroring, you will need to contact the database administrators to obtain the appropriate IP address and port number used for mirroring service.</para>
 <para>
@@ -246,21 +275,20 @@ If a password is specified in the configuration file, it must be supplied at the
 <cmdsynopsis>
 <command>irrd</command>
 <arg>-a</arg>
-<arg>-d <replaceable>database dir</replaceable></arg>
-<arg>-f <replaceable>conf file</replaceable></arg>
-<arg>-g <replaceable>group name</replaceable></arg>
-<arg>-l <replaceable>user name</replaceable></arg><sbr>
+<arg>-d <replaceable>database_dir</replaceable></arg>
+<arg>-f <replaceable>conf_file</replaceable></arg>
+<arg>-g <replaceable>group_name</replaceable></arg><sbr>
+<arg>-l <replaceable>user_name</replaceable></arg>
 <arg>-n</arg>
 <arg>-s <replaceable>password</replaceable></arg>
 <arg>-u</arg>
 <arg>-v</arg>
-<arg>-w <replaceable>irr port</replaceable></arg>
+<arg>-w <replaceable>irr_port</replaceable></arg>
 <arg>-x</arg>
 </cmdsynopsis>
 </section>
 <section>
 <title>Options</title>
-<para>
 <informaltable frame='none'>
 <tgroup cols='2'>
 <colspec colwidth='1.5in'>
@@ -268,44 +296,43 @@ If a password is specified in the configuration file, it must be supplied at the
 <tbody>
 <row>
 <entry><option>-a</option></entry>
-<entry><synopsis>Enable atomic transactions for database updates</synopsis></entry>
+<entry>Enable atomic transactions for database updates</entry>
 </row>
 <row>
 <entry><option>-d &lt;path></option></entry>
-<entry><synopsis>Set database directory</synopsis></entry>
+<entry>Set database directory</entry>
 </row>
 <row>
 <entry><option>-f &lt;conf file></option></entry>
-<entry><synopsis>Specify the configuration file to use (default: /etc/irrd.conf)</synopsis></entry>
+<entry>Specify the configuration file to use (default: /etc/irrd.conf)</entry>
 </row>
 <row>
 <entry><option>-g &lt;group name></option></entry>
-<entry><synopsis>Drop priveleges to given group name</synopsis></entry>
+<entry>Drop priveleges to given group name</entry>
 </row>
 <row>
 <entry><option>-l &lt;user name></option></entry>
-<entry><synopsis>Drop priveleges to given user name</synopsis></entry>
+<entry>Drop priveleges to given user name</entry>
 </row>
 <row>
 <entry><option>-n</option></entry>
-<entry><synopsis>Do not daemonize</synopsis></entry>
+<entry>Do not daemonize</entry>
 </row>
 <row>
 <entry><option>-s &lt;password></option></entry>
-<entry><synopsis>Set the UII password</synopsis></entry>
+<entry>Set the UII password</entry>
 </row>
 <row>
 <entry><option>-u</option></entry>
-<entry><synopsis>Don't allow privileged commands</synopsis></entry>
+<entry>Don't allow privileged commands</entry>
 </row>
 <row>
 <entry><option>-v</option></entry>
-<entry><synopsis>Verbose logging, debug mode</synopsis></entry>
+<entry>Verbose logging, debug mode</entry>
 </row>
 </tbody>
 </tgroup>
 </informaltable>
-</para>
 </section>
 <section>
 <title>Description</title>
@@ -365,15 +392,11 @@ Below is an example of a user interactive telnet command to the IRRd daemon:</pa
  --------    ---------    ------   ----------   --------
   cw           6722.3      40076      435        0
   radb        10257.5      42913     1083        19889
-  ans         58654.5       9067       24        6498
   ripe         3823.7      16854     1461        1312991
-  canet        1027.3       9073       58        0
 
 cw mirroring whois.radb.net
 radb mirroring whois.radb.net
-ans mirroring whois.radb.net
 ripe mirroring whois.radb.net
-canet mirroring whois.radb.net
 </computeroutput></literallayout>
 </section>
 <section>
@@ -465,17 +488,6 @@ access-list 99 deny all
 <command>!</command> -- comment and separator</para>
 <para>Comments can appear at the beginning of a line, or any other place in the line.  A comment at the beginning of a line is treated as a separator, which ends a command clause followed by its sub-commands.</para>
 <para>
-<command>redirect &lt;directory></command></para>
-<para>
-Allows redirection to files in this directory.  Unrestricted redirection was deemed a security problem.</para>
-<para>For example, in a configuration file:</para>
-<screen>
-redirect /tmp</screen>
-<para>
-At the UII prompt)</para>
-<screen>
-> show database > /tmp/ouput</screen>
-<para>
 <command>irr_directory &lt;path></command></para>
 <para>
 Specify the path for the cache directory and database files.</para>
@@ -489,8 +501,10 @@ Specify the path for the cache directory and database files.</para>
 <command>irr_database &lt;name>  [access &lt;num>]</command>
 <command>irr_database &lt;name>  [write-access &lt;num>]</command>
 <command>irr_database &lt;name>  [mirror-access &lt;num>]</command>
-<command>irr_database &lt;name>  [filter [non-critical|routing-registry-objects|&lt;object name>]
-   | [~(non-critical|routing-registry-objects|&lt;object name>)]</command>
+<command>irr_database &lt;name>  [cryptpw-access &lt;num>]</command>
+<command>irr_database &lt;name>  [filter
+    [non-critical|routing-registry-objects|&lt;object name>]
+  | [~(non-critical|routing-registry-objects|&lt;object name>)]</command>
 <command>irr_database &lt;name>  [export &lt;export interval>]</command>
 </literallayout>
 </para>
@@ -502,7 +516,8 @@ If the authoritative keyword is used, updates will be allowed for this database.
 <para>
 Access restricts read, write and mirror access to IP addresses permitted by access-list &lt;num>.</para>
 <para>
-Write access refines access and limit updates to IP addresses permitted by access-list &lt;num>. By default, write access is restricted to the loopback address of the local machine. Mirror-access refines access and limits database mirroring to IP addresses permitted by access-list &lt;num>.</para>
+Write access refines access and limit updates to IP addresses permitted by access-list &lt;num>.  By default, write access is restricted to the loopback address of the local machine. Mirror-access refines access and limits database mirroring to IP addresses permitted by access-list &lt;num>.
+cryptpw-access limits access to hashed passwords in mntner auth: attributes.  If this access list is set, only allowed hosts will be shown CRYPT-PW hash strings in queries and mirror requests.  Denied hosts will instead see the string "HIDDENCRYPTPW" in place of the actual hash.</para>
 <para>
 Some databases (like RIPE) contain a significant volume of non-routing related information like person objects and role objects. To reduce the size of the database, you can use the filter command to specify the objects you want to include (or not include) in your database.</para>
 <para>
@@ -512,9 +527,10 @@ The export option will atomically copy the database into the ftp_dir directory f
 <para>The interval for obtaining mirror updates.  The default is 10 minutes.</para>
 <para><command>irr_port &lt;port> [access &lt;num>]</command></para>
 <para>The port to listen on for "RAWhoisd" style machine TCP connections.  The optional access num specifies an access list to globally restrict incoming connections.</para>
-<para>
-<command>irr_max_connections &lt;number></command></para>
+<para><command>irr_max_connections &lt;number></command></para>
 <para>Limit the number of simultaneous queries.  The default is 25 connections.</para>
+<para><command>irr_expansion_timeout &lt;number></command></para>
+<para>Limit the amount of time (in seconds) that set expansion queries are allowed to consume.  Expansion queries which exceed this value will be aborted and an error returned.   A value of zero indicates no timeout on expansions.  The default value is zero (no timeouts).</para>
 <para><command>dbclean [interval &lt;number of seconds>]</command></para>
 <para>Sychronize the disk database files with IRRd memory.  During normal operation, IRRd marks updated or deleted objects with a special flag. By default, IRRD rebuilds the database.db (without these deleted objects) once every 24 hours.</para>
 <para>
@@ -565,18 +581,14 @@ irr_directory /var/irr/databases/
 debug server file-name /var/spool/log/irrd.log
 debug submission file-name /var/spool/log/irr-email.log
 !
-! The port of whois and RAToolset connections
+! The port of whois and IRRToolset connections
 irr_port 43
 !
 ! Make sure we don't get overwhelmed
-irr_max_connections 25
+irr_max_connections 64
 !
 irr_mirror_interval 1800
 irr_database radb mirror_host whois.radb.net
-irr_database ripe mirror_host whois.radb.net
-irr_database canet 
-irr_database ans mirror_host whois.radb.net
-irr_database cw
 irr_database localdb authoritative
 irr_database localdb access 1 
 !
@@ -613,36 +625,37 @@ IRRd also supports standard RPSL whois queries.  For example:</para>
 <para>
 The output is an IRR route object:</para>
 <literallayout><computeroutput>
-     descr:         UONet
-                    University of Oregon
-                    Computing Center
-                    Eugene, OR 97403-1212
-                    USA
-     origin:        AS3582
-     mnt-by:        MAINT-AS3582
-     changed:       meyer@ns.uoregon.edu 19960222
-     changed:       auto-dbm@ISI.EDU 19990729
-     source:        RADB
+   route:         128.223.0.0/16
+   descr:         UONet
+                  University of Oregon
+                  Computing Center
+                  Eugene, OR 97403-1212
+                  USA
+   origin:        AS3582
+   mnt-by:        MAINT-AS3582
+   changed:       meyer@ns.uoregon.edu 19960222
+   source:        RADB
 </computeroutput></literallayout>
 </example>
 </chapter>
 <chapter>
 <title>Updating IRRd with irr_rpsl_submit</title>
 <para>
-By default, IRRd receives updates through automated real-time mirroring of other IRR database servers.  If you want to do more than run local server caching, i.e., if you want to run your own component of the IRR, you will need to set up e-mail and TCP submission for IRRd.</para>
+When using IRRd to run an authoritative database registry (as opposed to simply mirroring other registries), it will be necessary to configure the irr_rpsl_submit program to accept e-mail and/or TCP based object submisssions.  This program performs RPSL syntax checking and maintainer authorization verification and acts as a front-end for IRRd.</para>
 <para>
-The irr_rpsl_submit module is configured by command line flag values, by setting configuration commands in the IRRd configuration file, or by a combination of both.  Command line options override options set in the IRRd configuration file.</para>
+The irr_rpsl_submit command is configured by command line flag values, by setting configuration commands in the IRRd configuration file, or by a combination of both.  Command line options override options set in the IRRd configuration file.</para>
 <section>
 <title>irr_rpsl_submit Synopsis</title>
 <cmdsynopsis>
 <command>irr_rpsl_submit</command>
 <arg>-c <replaceable>encrypted system password</replaceable></arg>
-<arg>-D</arg>
-<arg>-E <replaceable>DB admin address</replaceable></arg><sbr>
-<arg>-f <replaceable>IRRd conf file</replaceable></arg>
+<arg>-D</arg><sbr>
+<arg>-E <replaceable>DB admin address</replaceable></arg>
+<arg>-f <replaceable>IRRd conf file</replaceable></arg><sbr>
 <arg>-F <replaceable>response footer string</replaceable></arg>
 <arg>-h <replaceable>irrd host</replaceable></arg><sbr>
 <arg>-l <replaceable>log directory</replaceable></arg>
+<arg>-N</arg><sbr>
 <arg>-p <replaceable>irrd port</replaceable></arg>
 <arg>-r <replaceable>pgp directory</replaceable></arg>
 <arg>-R</arg><sbr>
@@ -661,59 +674,63 @@ The irr_rpsl_submit module is configured by command line flag values, by setting
 <tbody>
 <row>
 <entry><option>-c &lt;password></option></entry>
-<entry><synopsis>Encrypted password that overrides normal authentication checks.  The encrypted password is ciphertext generated using the crypt(3) utility.  We also helpfully provide the crypt_gen.c file in the programs/irr_util directory.</synopsis></entry>
+<entry>Encrypted password that overrides normal authentication checks.  The encrypted password is ciphertext generated using the crypt(3) utility.  We also helpfully provide the crypt_gen.c file in the programs/irr_util directory.</entry>
 </row>
 <row>
 <entry><option>-D</option></entry>
-<entry><synopsis>Read input from STDIN for direct/TCP (non-email) submissions</synopsis></entry>
+<entry>Read input from STDIN for direct/TCP (non-email) submissions</entry>
 </row>
 <row>
 <entry><option>-E &lt;DB email></option></entry>
-<entry><synopsis>Email address for DB admin mail</synopsis></entry>
+<entry>Email address for DB admin mail</entry>
 </row>
 <row>
 <entry><option>-f &lt;config file></option></entry>
-<entry><synopsis>IRRd configuration file location</synopsis></entry>
+<entry>IRRd configuration file location</entry>
 </row>
 <row>
 <entry><option>-F &lt;footer string></option></entry>
-<entry><synopsis>enclosed response footer string to add to messages</synopsis></entry>
+<entry>enclosed response footer string to add to messages</entry>
 </row>
 <row>
 <entry><option>-h &lt;server></option></entry>
-<entry><synopsis>IRRd host/server</synopsis></entry>
+<entry>IRRd host/server</entry>
 </row>
 <row>
 <entry><option>-l &lt;log dir></option></entry>
-<entry><synopsis>Log directory location</synopsis></entry>
+<entry>Log directory location</entry>
+</row>
+<row>
+<entry><option>-N</option></entry>
+<entry>permit inetnum/inet6num/as-block/domain objects</entry>
 </row>
 <row>
 <entry><option>-p &lt;port></option></entry>
-<entry><synopsis>IRRd port number</synopsis></entry>
+<entry>IRRd port number</entry>
 </row>
 <row>
 <entry><option>-r &lt;pgp dir></option></entry>
-<entry><synopsis>PGP ring files location</synopsis></entry>
+<entry>PGP ring files location</entry>
 </row>
 <row>
 <entry><option>-R</option></entry>
-<entry><synopsis>RPS Dist mode</synopsis></entry>
+<entry>RPS Dist mode</entry>
 </row>
 <row>
 <entry><option>-s &lt;db name></option></entry>
-<entry><synopsis>Specify authoritative database source</synopsis></entry>
+<entry>Specify authoritative database source</entry>
 </row>
 <row>
 <entry><option>-v</option></entry>
-<entry><synopsis>Turn on verbose debugging/logging.</synopsis></entry>
+<entry>Turn on verbose debugging/logging</entry>
 </row>
 <row>
 <entry><option>-x</option></entry>
-<entry><synopsis>Suppress notifications.  The database will be updated but notifications will not be sent.</synopsis></entry>
+<entry>Suppress notifications.  The database will be updated but notifications will not be sent</entry>
 </row>
 <row>
 <entry><option>filename</option></entry>
-<entry><synopsis>Input filename</synopsis></entry>
+<entry>Input filename</entry>
 </row>
 </tbody>
 </tgroup>
@@ -738,7 +755,7 @@ For a listing of configuration commands that control the behavior of the IRRd su
 <section>
 <title>Invoking irr_rpsl_submit</title>
 <para>
-Many users will find it convenient to register irr_rpsl_submit in their Unix /etc/aliases file to allow convenient remote mail access.  Note that a link to irr_rpsl_submit in /etc/smrsh will be needed for those systems which employ the Sendmail restricted shell (i.e. RedHat Linux).  Also note that if PGP support is enabled, the irr_rspl_submit process will need to be able to read/write the PGP directory configured by pgp_dir.  This can be achieved by installing the irr_rpsl_submit process as set-uid to a particular ID and permit read/write access to the PGP directory from that ID.  Below is an example /etc/aliases entry for use with sendmail:</para>
+Many users will find it convenient to register irr_rpsl_submit in their Unix /etc/aliases file to allow convenient remote mail access.  Note that a link to irr_rpsl_submit in /etc/smrsh will be needed for those systems which employ the Sendmail restricted shell (i.e. RedHat Linux).  Also note that if PGP support is enabled, the irr_rpsl_submit process will need to be able to read/write the PGP directory configured by pgp_dir.  This can be achieved by installing the irr_rpsl_submit process as set-uid to a particular ID and permit read/write access to the PGP directory from that ID.  Below is an example /etc/aliases entry for use with sendmail:</para>
 <para>
 <command>auto-dbm: "|/usr/local/sbin/irr_rpsl_submit -f /etc/conf/irrd.conf"</command></para>
 <para>
@@ -786,9 +803,10 @@ To allow TCP submissions, add the following to /etc/services:
 </literallayout></blockquote>
 </para></listitem>
 <listitem><para>
-Add the following to your /etc/inetd.conf and restart inetd:
+Add the following to your /etc/inetd.conf (note the following should be on one continuous line) and restart inetd:
 <blockquote><literallayout>
-irr_rpsl_submit stream tcp nowait daemon /usr/local/sbin/irr_rpsl_submit irr_rpsl_submit -D
+irr_rpsl_submit stream tcp nowait daemon
+   /usr/local/sbin/irr_rpsl_submit irr_rpsl_submit -D
 </literallayout></blockquote>
 </para></listitem>
 </orderedlist>
@@ -797,16 +815,16 @@ irr_rpsl_submit stream tcp nowait daemon /usr/local/sbin/irr_rpsl_submit irr_rps
 <chapter>
 <title>Submitting Email Updates</title>
 <para>
-This is a brief explanation of how to send email updates to an IRRd server (via irr_rpsl_submit). It is intended as a sort of 'quick start' document, detailing only the minimum steps necessary to register. It is assumed that you are somewhat familiar with RIPE/RPSL-style routing registries and RPSL routing policy syntax.</para>
+This is a brief explanation of how to send email updates to an IRRd server (via irr_rpsl_submit). It is intended as a sort of 'quick start' document, detailing only the minimum steps necessary to register. It is assumed that you are somewhat familiar with RPSL-style routing registries and RPSL routing policy syntax.</para>
 <section>
 <title>Updates and Changes</title>
 <para>
 This document provides templates for registering three types of objects in the RADB:</para>
 <para><literallayout><computeroutput>
-     Object                             Contents
-  Maintainer object     Individuals who can update your database entries
-  AS object             Administration and routing policy of an AS
-  Route object          A single route to be added to the registry
+    Object                           Contents
+Maintainer object   Specifies authorization for objects
+AS object           Administration and routing policy of an AS
+Route object        A single route to be added to the registry
 </computeroutput></literallayout>
 </para>
 <section>
@@ -963,13 +981,13 @@ source:
 <literallayout><computeroutput>
 route:       35.0.0.0/8
 descr:       Merit Network, Inc.
-descr:       University of Michigan
-descr:       4251 Plymouth Road, Suite C
-descr:       Ann Arbor
-descr:       MI 48105-2785, USA
+             University of Michigan
+             4251 Plymouth Road, Suite C
+             Ann Arbor
+             MI 48105-2785, USA
 origin:      AS237
 mnt-by:      MAINT-AS237
-changed:     radb-admin@merit.edu 981113
+changed:     radb-admin@merit.edu 19981113
 source:      RADB
 </computeroutput></literallayout>
 </example>
@@ -1071,31 +1089,9 @@ override: administrator secretpassword!
 <chapter>
 <title>IRRd FAQ</title>
 <para>
-Q:  Can I use IRRd for both RIPE-181 and RPSL queries at the same time?</para>
-<para>
-A:  No.  IRRd accepts both types of queries, but you can't mix the two databases; i.e., you can't combine different databases with the same daemon.</para>
-<para>
-Q:  Presently under RIPE-181, we send database for objects that are password-protected by making the first line of the message body say'password: &lt;password>' followed by a blank line, followed by the updated objects.  For example, a message might look like:</para>
-<informalexample>
-<literallayout><computeroutput>
-        To: db-update@radb.net
-        Subject: ...
-        From: ops@bbnplanet.com
-
-        password: CENSORED
-
-        &lt;updated records here>
-</computeroutput>
-</literallayout>
-</informalexample>
-<para>
-Does this continue to work now that we've transitioned to RPSL?</para>
-<para>
-A:  Yes.</para>
-<para>
 Q:  The latest version of the RtConfig does not work with IRRD-any suggestions?</para>
 <para>
-A:  The latest version of the RAToolSet tools uses a different default query protocol. You will need to explicitly specify that RtConfig and other RAToolSet programs use the IRRd protocol from  the command line. Invoke RtConfig with the arguments '-p rawhoisd'.  Please check the RtConfig man page distributed with the RAToolSet software for more information on the flags.</para>
+A:  The latest version of the IRRToolSet tools uses a different default query protocol. You will need to explicitly specify that RtConfig and other IRRToolSet programs use the IRRd protocol from  the command line. Invoke RtConfig with the arguments '-p rawhoisd'.  Please check the RtConfig man page distributed with the IRRToolSet software for more information on the flags.</para>
 <para>
 Q:  Why doesn't IRRd accept this policy line?<literallayout>
     irr_database canet authoritative access 10 write-access 10
@@ -1189,7 +1185,7 @@ The syntax for the "override" is historic so I agree the syntax is strange!
 RFC-1786: RIPE-181
 <literallayout>
      RIPE-181 (RIPE-81++) started it all. This document describes
-     the original database formats used by   the RIPE NCC for the
+     the original database formats used by the RIPE NCC for the
      storage of routing policy in its database.
 </literallayout></para>
 <para>
@@ -1223,11 +1219,6 @@ RFC-2769: Routing Policy System Replication
      mechanism of distributing data  from registry to registry.
      Status: IRRd does not yet support this RFC.
 </literallayout></para>
-<para>
-Karrenberg, D., and M. Terpstra.  Authorisation and Notification of Changes in the RIPE Database (RIPE-120) 
-<literallayout>
-     http://www.ripe.net/docs/ripe-120.html 
-</literallayout></para>
 </chapter>
 <appendix>
 <title>IRRdCacher</title>
@@ -1237,7 +1228,9 @@ IRRdCacher can be used to fetch and maintain copies of the IRR databases.  The t
 <section>
 <title>Synopsis</title>
 <synopsis>
-irrdcacher [-h irrd host] [-p irrd port] [-s remote ftp server and path] [-w search path component] [-c irrd cache path] [-S ] [-C ] files ...
+irrdcacher [-h irrd host] [-p irrd port]
+[-s remote ftp server/path] [-w search path component]
+[-c irrd cache path] [-S ] [-C ] files ...
 </synopsis>
 </section>
 <section>
@@ -1250,31 +1243,31 @@ irrdcacher [-h irrd host] [-p irrd port] [-s remote ftp server and path] [-w sea
 <tbody>
 <row>
 <entry><option>-h &lt;host></option></entry>
-<entry><synopsis>Specify IRRd host name (default localhost)</synopsis></entry>
+<entry>Specify IRRd host name (default localhost)</entry>
 </row>
 <row>
 <entry><option>-p &lt;port></option></entry>
-<entry><synopsis>Set IRRd port (default 43)</synopsis></entry>
+<entry>Set IRRd port (default 43)</entry>
 </row>
 <row>
 <entry><option>-s &lt;ftp server></option></entry>
-<entry><synopsis>Set ftp server and remote directory (default ftp://ftp.radb.net/routing.arbiter/radb)</synopsis></entry>
+<entry>Set ftp server and remote directory (default ftp://ftp.radb.net/routing.arbiter/radb)</entry>
 </row>
 <row>
 <entry><option>-w &lt;path></option></entry>
-<entry><synopsis>Set additional search PATH component (user process PATH is the default)</synopsis></entry>
+<entry>Set additional search PATH component (user process PATH is the default)</entry>
 </row>
 <row>
 <entry><option>-c &lt;directory></option></entry>
-<entry><synopsis>Specify cache directory path (default./)</synopsis></entry>
+<entry>Specify cache directory path (default./)</entry>
 </row>
 <row>
 <entry><option>-S</option></entry>
-<entry><synopsis>Supress the cache refresh signal to IRRd</synopsis></entry>
+<entry>Supress the cache refresh signal to IRRd</entry>
 </row>
 <row>
 <entry><option>-C</option></entry>
-<entry><synopsis>Perform RPSL conversion</synopsis></entry>
+<entry>Perform RPSL conversion</entry>
 </row>
 </tbody>
 </tgroup>
@@ -1284,7 +1277,7 @@ irrdcacher [-h irrd host] [-p irrd port] [-s remote ftp server and path] [-w sea
 <section>
 <title>Description</title>
 <para>
-IRRdCacher is an add-on utility that can be used to retrieve IRR databases that do not support mirroring, such as the Cable &amp Wireless (formerly operated by internetMCI) and Bell Canada (formerly CA*net) registries.  IRRdCacher is not needed to obtain copies of the ANS, RIPE, and RADB registries, which support mirroring and are all mirrored in near-real time by Merit's production database server.</para>
+IRRdCacher is an add-on utility that can be used to retrieve IRR databases that do not support mirroring.  IRRdCacher is not needed to obtain copies of registries which support mirroring.</para>
 <para>
 IRRdCacher differs from FTP in that it can: <literallayout>
     Convert RIPE-181 databases to RSPL databases
@@ -1322,8 +1315,8 @@ This example illustrates an IRRdCacher invocation that retrieves the Cable &amp 
 IRRdCacher also retrieves the RADB.CURRENTSERIAL with no special treatment.</para>
 <para>
 The next example shows how to use IRRdCacher without command line parameters by utilizing the defaults:<literallayout>
-    >  irrdcacher radb ripe ans canet cw RADB.CURRENTSERIAL 
-             ANS.CURRENTSERIAL RIPE.CURRENTSERIAL
+    >  irrdcacher radb ripe canet cw RADB.CURRENTSERIAL 
+              RIPE.CURRENTSERIAL
 </literallayout>
 </para>
 <para>
@@ -1349,26 +1342,26 @@ Multiple command mode is initiated with the !! command.  Note that this must be 
 <para><emphasis>For successful queries returning data:</emphasis></para>
 <screen>
           A&lt;data length>\n 
-          &lt;&lt;data length> bytes (including newlines) of data> 
+          &lt;data length> bytes (including newlines) of data
           C&lt;optional messages>\n 
-          The "\n" denotes a newline (ASCII value 10. 
+          The "\n" denotes a newline (decimal value 10). 
 </screen>
 <para>
 For multi-source non-indexed queries, &lt;optional messages> is of the form  &lt;difference count>,&lt;difference sources>, where &lt;difference count> is the number of databases (sources) with values different from that returned and &lt;difference sources> is a list of space separated source names that have  the different values. (The value returned was from the first source with a non-null value.)</para>
 <para><emphasis>For successful queries returning no data:</emphasis></para>
 <screen>
-        C\n 
+  C\n 
 </screen>
 <para><emphasis>For unsuccessful queries:</emphasis></para>
 <screen>
-        D\n 
-           Key not found. 
+  D\n 
+     Key not found. 
 
-        E\n 
-           There are multiple copies of the key in one database. 
+  E\n 
+     There are multiple copies of the key in one database. 
 
-        F&lt;optional message>\n 
-           Some other error, see the &lt;optional message> for details.
+  F&lt;optional message>\n 
+     Some other error, see the &lt;optional message> for details.
 </screen>
 <section>
 <title>Summary of Commands</title>
@@ -1382,61 +1375,35 @@ For multi-source non-indexed queries, &lt;optional messages> is of the form  &lt
 <entry><command>!g</command></entry>
 <entry>
 <synopsis>
-Get routes with specified origin.
-e.g., !gas1234
-</synopsis>
-</entry>
-</row>
-<row>
-<entry><command>!h</command></entry>
-<entry>
-<synopsis>
-Get routes with specified community. (RIPE-181 only).
-e.g., !hCOMM_NSFNET
-</synopsis>
-</entry>
-</row>
-<row>
-<entry><command>!j</command></entry>
-<entry>
-<synopsis>
-performs distributed checks on database synchronization.
-This command makes it possible to view the mirror status
-(oldest journal number, CURRENTSERIAL) for a database.
-If a : is present after the range, the database was last
-exported at that serial number.  For example:
-
-!jRADB,RIPE,&lt;foo&gt;,&lt;bar&gt;
-!j-*                # Show all databases
-Output:
-A&lt;n&gt;
-RADB:Y:1000-2000
-VERIO:Y:3500-4500:4000
-RIPE:N:0-666
-FOO:X:&lt;explanatory text - optional&gt;
-BAR:X:&lt;explanatory text - optional&gt;
-C
-
-Y means that the database is mirrorable.
-N means that the database is not mirrorable, but the
-local IRRd server is reporting the current serial number.
-You can use this option to check for updates.  The first
-number will _always_ be zero.  The second number may be
-zero if the CURRENTSERIAL file doesn't exist.
-X means that the database doesn't exist, or the local
-server is denying information about an existing database
-for administrative reasons.
-Returned databases are canonicalized to upper case.
+Get routes with specified origin. e.g., !gas1234.  This command
+is currently only supported for IPv4 prefixes.  The '-i origin'
+RIPE inverse query may be used to obtain both IPv4 and and IPv6
+prefixes.
 </synopsis>
 </entry>
 </row>
 <row>
 <entry><command>!i</command></entry>
 <entry><synopsis>
-Return all lines of as-set.  Recursive lookup available.
-e.g., !iAS-ESNETEU   # non-recursive, don't expand
-                     # any embedded as-set's
-e.g., !iAS-ESNETEU,1 # expand any embedded as-set's
+Return members of an as-set or route-set.  Optionally,
+recursively expand members of all sets within the
+named set.  Route-set expansions are currently only
+supported for IPv4 prefixes.
+!iAS-ESNETEU     # non-recursive, don't expand embedded set's
+!iAS-ESNETEU,1   # expand any embedded as-set's
+!iRS-FOOBAR,1    # recusive expansion of a route-set
+</synopsis>
+</entry>
+</row>
+<row>
+<entry><command>!j</command></entry>
+<entry><synopsis>
+This command makes it possible to view the serial number range
+for a database.  If a ':' is present after the range, the database
+was last exported at that serial number.  The wildcard query
+"-*" can be used to request all available databases.
+!jRADB,RIPE    # only query for RADB and RIPE databases
+!j-*           # query for all databases
 </synopsis>
 </entry>
 </row>
@@ -1444,10 +1411,27 @@ e.g., !iAS-ESNETEU,1 # expand any embedded as-set's
 <entry><command>!m</command></entry>
 <entry>
 <synopsis>
-Match an object of the specified type with the specified key.  Return
-immediately after first match.
-e.g., !maut-num,as701     #lookup aut-num object with key as701
-e.g., !mmntner,maint-as237   #lookup mntner object with key maint-as237
+Match an object of the specified type with the specified
+key.  Return immediately after first match.
+!maut-num,as701          # lookup aut-num object
+!mmntner,maint-as237     # lookup mntner object
+</synopsis>
+</entry>
+</row>
+<row>
+<entry><command>!n</command></entry>
+<entry>
+<synopsis>
+Identify the tool for statistics/logging purposes.  e.g., !nRoe
+</synopsis>
+</entry>
+</row>
+<row>
+<entry><command>!o</command></entry>
+<entry>
+<synopsis>
+Display all objects maintained by a given mntner name.
+e.g., !oMAINT-AS237
 </synopsis>
 </entry>
 </row>
@@ -1456,25 +1440,6 @@ e.g., !mmntner,maint-as237   #lookup mntner object with key maint-as237
 <entry>
 <synopsis>
 Quit the IRRd session.
-e.g., !q
-</synopsis>
-</entry>
-</row>
-<row>
-<entry><command>!n</command></entry>
-<entry>
-<synopsis>
-Identify the tool for statistics/logging purposes.
-e.g., !nRoe
-</synopsis>
-</entry>
-</row>
-<row>
-<entry><command>!v</command></entry>
-<entry>
-<synopsis>
-Provide the IRRd version number.
-e.g., !v
 </synopsis>
 </entry>
 </row>
@@ -1482,13 +1447,13 @@ e.g., !v
 <entry><command>!r</command></entry>
 <entry>
 <synopsis>
-Perform route searches.
-Default finds exact prefix/len match.
-o - return origin of exact match(es)
-l - one-level less specific
-L - all less specific
-M - all more specific
-e.g., !r141.211.128/24,l
+Perform route searches.  The default finds exact prefix/len match.
+The following options may be appended to the search prefix
+after a ','.  e.g., !r141.211.128/24,l
+ o   - return origin AS of exact match(es)
+ l   - search for one-level less specific prefix
+ L   - search for all less specific prefixes
+ M   - search for all more specific prefixes
 </synopsis>
 </entry>
 </row>
@@ -1496,13 +1461,12 @@ e.g., !r141.211.128/24,l
 <entry><command>!s</command></entry>
 <entry>
 <synopsis>
-Set the sources to the specified list.
-Default is all sources.
-Default search order is the order in which sources are 
-configured in the irrd-conf file.
-e.g., !sradb,ans
-lc - show the currently selected sources
-e.g., !s-lc
+Set the sources to the specified list.  Default is all sources.
+Default search order is the order in which sources are
+configured in the irrd-conf file.  The "-lc" option will
+display the currently selected sources.  For example,
+!sradb,ripe,cw
+!s-lc
 </synopsis>
 </entry>
 </row>
@@ -1510,7 +1474,7 @@ e.g., !s-lc
 <entry><command>!u</command></entry>
 <entry>
 <synopsis>
-Update a database directly.  Note that very little error checking
+Update a database directly.  Note that very little syntax checking
 is performed on objects submitted in this manner.  Normally objects
 are processed by irr_rpsl_submit before being added to a database.
 !us&lt;database>
@@ -1522,12 +1486,20 @@ are processed by irr_rpsl_submit before being added to a database.
 </synopsis>
 </entry>
 </row>
+<row>
+<entry><command>!v</command></entry>
+<entry>
+<synopsis>
+Provide the IRRd version number.
+</synopsis>
+</entry>
+</row>
 </tbody>
 </tgroup>
 </informaltable>
 </para>
 <para>
-IRRd treats each database (i.e., the RADB, Cable &amp Wireless, and RIPE databases) as a separate object.  IRRd will scan each database and return an answer from each in search order.  However, the !m ... commands (i.e., 'match objects commands') and  the !i... command use a slightly different algorithm.</para>
+IRRd treats each database (i.e., the RADB, Cable &amp Wireless, and RIPE databases) as a separate object.  IRRd will scan each database and return an answer from each in search order.  However, the !m ... commands (i.e., 'match objects commands') and the !i... command use a slightly different algorithm.</para>
 <para>
 The !m... commands return immediately after finding an object, even if an identical object exists in another registry.  The !m command is used to find a match for an object and will return at most one object. For example, !maut-num,AS1234, a search for aut-num object AS1234, will return the first object it finds:</para>
 <informalexample>
@@ -1548,7 +1520,7 @@ remarks:       Interhop
                jbb@interhop.net
 mnt-by:        MAINT-AS7456
 changed:       jbb@interhop.net 19970109
-source:        ANS
+source:        CW
 C
 </computeroutput></literallayout>
 </informalexample>
@@ -1569,7 +1541,7 @@ C
 <para>
 The !i command searches the databases in the order specified by the user and returns when it finds an object.  When the ,1 option is specified to indicate embedded set expansion, the command will expand embedded sets using the database where the set was found.  The other database sources, as specified by the user, will only be used when a match is not found in the source in which the set was found.</para>
 <para>
-Therefore in the above sample command !iAS-ICINET,1, assuming the specified search order is RADB, RIPE, Cable &amp Wireless, ANS, CANET (Bell Canada), and the embedded set AS-LTINET is found in the ANS registry, AS-LTINET will be expanded first in the ANS registry, rather than in the RADB.
+Therefore in the above sample command !iAS-ICINET,1, assuming the specified search order is RADB, RIPE, Cable &amp Wireless, and the embedded set AS-LTINET is found in the RIPE registry, AS-LTINET will be expanded first in the RIPE registry, rather than in the RADB.
 </para>
 <para>Below is an example of telneting to the IRRd command port and issuing a command to see all less specific routes:</para>
 <informalexample>

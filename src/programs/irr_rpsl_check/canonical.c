@@ -1,5 +1,5 @@
 /* 
- * $Id: canonical.c,v 1.9 2000/10/04 23:00:31 gerald Exp $
+ * $Id: canonical.c,v 1.10 2002/10/17 20:22:09 ljb Exp $
  */
 
 
@@ -13,14 +13,12 @@
 
 extern short legal_attrs[MAX_OBJS][MAX_ATTRS];
 extern char *attr_name[];
-extern char *attr_sname[];
 extern char string_buf[];
 extern char *strp;
 extern int int_size;
 extern FILE *dfile;
 extern int INFO_HEADERS_FLAG;
 extern char parse_buf[];
-extern int intra_bl;
 
 static void swap (canon_info_t *canon_info, canon_line_t v[], int i, int j);
 static void cqsort (canon_info_t *canon_info, canon_line_t v[], int left, int right);
@@ -51,9 +49,13 @@ void display_canonicalized_object (parse_info_t *obj, canon_info_t *canon_info) 
    * Don't sort if there are errors, else the
    * error line numbers will be incorrect.
    */
+
   if (!obj->errors && obj->type != NO_OBJECT) {
     init_attr_weights (canon_info, obj);
-    cqsort (canon_info, lineptr, 0, obj->num_lines - 1);
+    if (obj->type == O_KC) {  /* check if "key-cert" */
+      /* sort so that machine-generated attributes are not at the end */
+      cqsort (canon_info, lineptr, 0, obj->num_lines - 1);
+    }
     no_errors = 1;
   }
 
@@ -355,122 +357,6 @@ void rpsl_lncont (parse_info_t *obj, canon_info_t *canon_info, int add_line_feed
   return;
 }
 
-/* =====================================================================*/
-
-void finish_lcline (parse_info_t *pi, canon_info_t *ci) {
-  int /* rpsl ? num_spaces,*/ j;
-  char *p, *q;
-  char buf[MAXLINE], lc_tag[128], fname[128];
-  FILE *fd;
-
-  if (verbose)
-    fprintf (dfile, "finish_lcline (): lc_tag (%s) curr_attr (%d)\n", 
-	     pi->lc_tag, pi->curr_attr);
-
-  /* open up a temp file to put our rebuilt line */
-  strcpy (fname, ci->flushfntmpl);
-  mktemp (fname);  
-  if ((fd = fopen (fname, "w+")) == NULL) {
-    fprintf (stderr, "Cannot open disk finish_lcline() temp file (%s).  Abort!\n", fname);
-    exit (0);
-  }
-
-
-  /* rpsl ?
-  num_spaces = ATTR_ID_LENGTH - strlen (attr_sname[pi->curr_attr]) - 1;
-  sprintf (lc_tag, "\n%s:%-*s%s ", attr_sname[pi->curr_attr], num_spaces, "", pi->lc_tag);
-  */
-  sprintf (lc_tag, "\n%-*s%s ", ATTR_ID_LENGTH, "", pi->lc_tag);
-  if (verbose)
-    fprintf (dfile, "finish_lcline (): lc_tag (%s)\n", lc_tag);
-
-  /* Reset the parse buffer pointer to the beginning of 
-   * line to prepare to overwrite the canonicalized line.
-   * We are going to replace the canonicalized line with
-   * one we build here.
-   */
-  dump_current_canon_line (ci);
-
-  /* build the new line and pump it to a temporary file */
-
-  /* canon obj is in memory */
-  if (ci->io == CANON_MEM) {
-    p = q = ci->linep;
-if (verbose) fprintf (dfile, "object is in mem...\n");
-if (verbose) fprintf (dfile, "in line:%s:\n", p);
-    while ((q = strchr (p, LC_CHOOK)) != NULL) {
-      /* pump the part before the hook */
-      *q = '\0';
-      if (*p != '\0')
-	fputs (p, fd);
-      p = ++q;
-
-      /* pump the line continuation tag/begining part 
-      old fputs (lc_tag, fd); */
-      if (*p == ' ') {
-	fputs ("\n   ", fd);
-	q++;
-      }
-      else
-	fputs ("\n+  ", fd);
-    }
-    /* pump any remaining part of the line */
-    if (*p != '\0')
-      fputs (p, fd);
-
-    /* print any blank lines */
-    if (intra_bl) {
-      /* old sprintf (lc_tag, "%-*s%s\n", ATTR_ID_LENGTH, "", pi->lc_tag); */
-      sprintf (lc_tag, "+\n");
-      for (;intra_bl > 0; intra_bl--)
-	fputs (lc_tag, fd);
-    }
-
-  }
-  else { /* canon obj is on disk */
-if (verbose) fprintf (dfile, "object is on disk...\n");
-    while (fgets (buf, MAXLINE, ci->fd) != NULL) {
-if (verbose) fprintf (dfile, "in line:%s:\n", buf);
-      j = strlen (buf) - 1;
-      if (j < 0)
-	break;
-      
-      p = q = buf;
-      while ((q = strchr (p, LC_CHOOK)) != NULL) {
-	/* pump the part before the hook */
-	if (q != buf) {
-	  *q = '\0';
-	  if (verbose) fprintf (dfile, "pump:%s:\n", p);
-	  if (*p != '\0')
-	    fputs (p, fd);
-	}
-	p = ++q;
-
-if (verbose) fprintf (dfile, "tag:%s:\n", lc_tag);	
-	/* pump the line continuation tag/begining part */
-	fputs (lc_tag, fd);
-      }
-      /* pump any remaining part of the line */
-      if (*p != '\0')
-	fputs (p, fd);
-if (verbose && *p != '\0') fprintf (dfile, "last part:%s:\n", p);      
-      if (buf[j] == '\n')
-	break;
-    }
-    fseek (ci->fd, ci->flinep, SEEK_SET);
-  }
-
-  /* now pump the rebuilt line to the parse buffer */
-  fseek (fd, 0, SEEK_SET);
-  while (fgets (buf, MAXLINE, fd) != NULL) {
-if (verbose) fprintf (dfile, "parse buf add:%s:\n", buf);
-    parse_buf_add (ci, "%s", buf);
-  }
-
-  parse_buf_add (ci, "%z");
-  unlink (fname);
-}
-
 /* 
  * Print the attribute identifier at the beginning of the line
  */
@@ -488,7 +374,10 @@ fprintf (stderr,"canonicalize_key_attr: attr=(%s)\n", attr_name[obj->curr_attr])
 
   num_spaces = ATTR_ID_LENGTH - strlen (attr_name[obj->curr_attr]) - 1;
 
-  sprintf(buf, "%%s:%%b%d", num_spaces);    
+  if (num_spaces > 0)
+    sprintf(buf, "%%s:%%b%d", num_spaces);    
+  else
+    sprintf(buf, "%%s:");
   parse_buf_add (canon_info, buf, attr_name[obj->curr_attr]);
 
   /* if we are doing line continuation then exit 
@@ -663,8 +552,6 @@ void canon_put_str (canon_info_t *cn, char *strp, int str_len) {
 void start_new_canonical_line (canon_info_t *ci, parse_info_t *pi) {
   canon_line_t lrec;
 
-  intra_bl = 0;
-
   if (!ci->do_canon)
     return;
 
@@ -834,8 +721,8 @@ fprintf (stderr, "(%d) %s: init wt (%f) count (%d) wt (%f)\n",lineptr[i].attr, a
  */
 FILE *flush_parse_buffer (canon_info_t *cn) {
   char *p;
-  int i;
-  FILE *fd;
+  int i, fd;
+  FILE *fp;
   canon_line_t lrec;
 
   if (cn->fd != NULL) {
@@ -844,8 +731,8 @@ FILE *flush_parse_buffer (canon_info_t *cn) {
   }
   
   strcpy (cn->flushfn, cn->flushfntmpl);
-  mktemp (cn->flushfn);  
-  if ((fd = fopen (cn->flushfn, "w+")) == NULL) {
+  fd = mkstemp (cn->flushfn);  
+  if ((fp = fdopen (fd, "w+")) == NULL) {
     fprintf (stderr, "Cannot open disk parse buffer (%s).  Abort!\n", cn->flushfn);
     exit (0);
   }
@@ -862,7 +749,7 @@ FILE *flush_parse_buffer (canon_info_t *cn) {
     fseek (cn->lfd, 0, SEEK_SET);
   
   for (i = 0, p = cn->buffer; p != NULL && p < cn->bufp; i++) {
-    cn->flinep = ftell (fd);
+    cn->flinep = ftell (fp);
     if (cn->lio == CANON_MEM)
       lineptr[i].fpos = cn->flinep;
     else {
@@ -871,7 +758,7 @@ FILE *flush_parse_buffer (canon_info_t *cn) {
 if (verbose) fprintf (dfile, "flush buf line pos (%ld)\n", lrec.fpos);
       lput (i, &lrec, cn);
     }
-    fputs (p, fd);
+    fputs (p, fp);
     if ((p = strchr (p, '\0')) != NULL)
       p++;
   }
@@ -881,7 +768,7 @@ if (verbose) fprintf (dfile, "flush buf line pos (%ld)\n", lrec.fpos);
   
   /* set the begining of line pointer (ie, cn->flinep) */
   if (cn->linep == cn->bufp) { /* we are at the beginning of a line  */
-    cn->flinep = ftell (fd);
+    cn->flinep = ftell (fp);
     if (verbose) fprintf (dfile, "flush buf: we are at the beginning of a line...\n");
     if (cn->lio == CANON_MEM)
       lineptr[i].fpos = cn->flinep;
@@ -895,22 +782,22 @@ if (verbose) fprintf (dfile, "flush buf line pos (%ld)\n", lrec.fpos);
 
   cn->io = CANON_DISK;
   cn->buf_space_left = 0;
-  return fd;
+  return fp;
 }
 
 void flush_line_info (parse_info_t *obj, canon_info_t *cn) {
   long i;
+  int fd;
 
   strcpy (cn->lflushfn, cn->flushfntmpl);
-  mktemp (cn->lflushfn);  
-  if ((cn->lfd = fopen (cn->lflushfn, "w+")) == NULL) {
+  fd = mkstemp (cn->lflushfn);  
+  if ((cn->lfd = fdopen (fd, "w+")) == NULL) {
     fprintf (stderr, "Cannot open disk line info buffer (%s).  Abort!\n", cn->lflushfn);
     exit (0);
   }
 
   if (verbose)
     fprintf (dfile, "*****flush line buffer to disk****\n:%s:\n", cn->lflushfn);  
-
   fseek (cn->lfd, 0, SEEK_SET);
   for (i = 0; i < obj->num_lines; i++) {
     if (verbose)

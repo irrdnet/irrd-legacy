@@ -4,10 +4,7 @@
 
 #include "mrt.h"
 #include "buffer.h"
-
-#ifndef NT
 #include <sys/utsname.h>
-#endif /* NT */
 
 /* these functions may be called from trace() so that we have to 
    avoid from calling high-level functions that may call trace() */
@@ -240,9 +237,7 @@ buffer_vprintf (buffer_t *buffer, char *fmt, va_list ap)
     gateway_t *gateway;
     buffer_t *temp_buffer = NULL;
     int fieldsize, realsize;
-#ifndef NT
     struct utsname utsname;
-#endif /* NT */
     int sign;
     int leftadjust;
     int alternate;
@@ -446,13 +441,9 @@ buffer_vprintf (buffer_t *buffer, char *fmt, va_list ap)
 	    break;
 
 	case 'H':
-#ifndef NT
      	    if (uname (&utsname) >= 0)
 	        strarg = utsname.nodename;
 	    else
-#else
-				strarg = strdup ("local");
-#endif /* NT */
 		continue;
 	    break;
 

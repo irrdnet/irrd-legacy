@@ -26,9 +26,7 @@
 
 #include <stdio.h>
 #include <ctype.h>
-#ifndef NT
 #include <unistd.h>
-#endif /* NT */
 #include <mrt.h>
 #include "irrd.h"
 #ifdef HAVE_LIBGEN_H

@@ -21,7 +21,7 @@ int main (int argc, char *argv[]) {
   char *file_name = NULL, *config_fname = NULL;
   FILE *fin, *dfile = NULL;
 
-  default_trace = New_Trace ();
+  default_trace = New_Trace2 ("irr_notify");
   sprintf (pid_string, "PID%d", (int) getpid ());
   set_trace (default_trace, TRACE_PREPEND_STRING, pid_string, 0);
 
@@ -116,7 +116,7 @@ int main (int argc, char *argv[]) {
   parse_irrd_conf_file (config_fname, default_trace);
 
   /* When the dust finally settles, fix and uncomment out 
-  notify (dfile, tempfname, fin, stdout, 0, 0, 0, ci.irrd_host, ci.irrd_port, NULL);
+  notify (dfile, tempfname, fin, stdout, 0, 0, NULL, 0, ci.irrd_host, ci.irrd_port, NULL);
   */
   fclose (fin);
 

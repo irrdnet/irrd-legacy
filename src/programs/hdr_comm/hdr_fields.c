@@ -1,5 +1,5 @@
 /*
- * $Id: hdr_fields.c,v 1.6 2001/06/12 18:24:02 ljb Exp $
+ * $Id: hdr_fields.c,v 1.7 2002/10/17 20:12:01 ljb Exp $
  */
 
 #include "hdr_comm.h"
@@ -34,6 +34,7 @@ const char MAINT_NO_EXIST[] = "MAINT-NO-EXIST:";
 const char UPD_TO[]         = "UPD-TO:";
 const char OLD_OBJ_FILE[]   = "OLD-OBJ-FILE:";
 const char NEW_MNT_ERROR[]  = "NEW_MNT_ERROR:";
+const char DEL_MNT_ERROR[]  = "DEL_MNT_ERROR:";
 const char BAD_OVERRIDE[]   = "BAD_OVERRIDE:";
 
 /* irr_check and irr_auth */

@@ -1,6 +1,5 @@
 !
 ! "Quick Start" IRRd configuration file
-! IRRd Version 2.0 Beta (Nov, 10, 1999)
 !
 ! Disable the "User Interactive Port" by
 ! commenting out the uii password.
@@ -12,7 +11,7 @@ uii_port 5673
 ! trace output to logfile.  Trace output defaults
 ! to STDOUT.
 !
-!debug all /var/spool/log/irrd
+!debug all /var/log/irrd
 !
 ! IRRd will cache the databases here.
 irr_directory /var/spool/irr_database
@@ -27,11 +26,13 @@ irr_mirror_interval 1800
 ! Define the databases.  Note: IRRd assumes the actual
 ! database name is <db name>.db.  e.g., radb.db.
 !
+! mirror the RADB db
+!
 irr_database radb mirror whois.radb.net 43
-irr_database ripe mirror whois.radb.net 43
-irr_database ans mirror whois.radb.net 43
-irr_database canet
-irr_database mci
+!
+! This is our local database
+!
+irr_database sampledb authoritative
 !
 ! All comments that follow this line are
 ! provided to illustrate some of the more advanced
@@ -40,7 +41,8 @@ irr_database mci
 !
 ! Define an access list so that only 
 ! 198.108.60.0/24 machines can access IRRd 
-! access-list 10 permit 198.108.60.0 refine
+! access-list 10 permit 198.108.60.0 0.0.0.255
+! access-list 10 deny all
 !
 ! Use the access list 
 ! irr_database radb access 10
@@ -53,7 +55,8 @@ irr_database mci
 ! (note: 'write-access' affects the !us...!ue and !B commands.
 !
 ! syntax for defining access lists:
-! access-list <number> {permit|deny} <prefix> [refine|exact]
+! access-list <number> {permit|deny} <prefix>|all [refine|exact|<mask>]
+! e.g. access-list 1 deny 80.15.0.0 0.0.255.255
 !
 ! syntax for defining databases:
 ! irr_database <name> [mirror <mirror host> <mirror port>] [authoritative]

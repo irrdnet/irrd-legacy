@@ -1,5 +1,5 @@
 /*
- * $Id: irrd.h,v 1.28 2002/02/04 20:53:56 ljb Exp $
+ * $Id: irrd.h,v 1.30 2002/10/17 20:02:30 ljb Exp $
  * originally Id: irrd.h,v 1.94 1998/08/03 17:29:07 gerald Exp 
  */
 
@@ -8,30 +8,23 @@
 
 #include <radix.h>
 #include <dirent.h>
-#ifndef NT
 #include <regex.h>
-#endif /* NT */
 #include "scan.h"
 #include "hash.h"
 #include "timer.h"
 #include "rwlock.h"
 #include <config.h>
-#ifndef NT
 #include <irr_defs.h>
-#endif /* NT */
 
+#define EXPAND_TIMEOUT 45  /* set expansion timeout value - seconds */
 #define MIRROR_TIMEOUT 600 /* 10 minutes */
 #define DEF_FTP_URL "ftp://ftp.radb.net/radb/dbase"
 
 enum SPEC_KEYS { /* these are used for id values in the special hash */
-  AS_MACROX,	/*  hash lookup for as-macro objects (RIPE181 only) */
-  COMM_LISTX,   /*  !h community (route) list lookups (RIPE181 only) */
-  SET_OBJX,	/*  hash lookup for as-set and rs-set objects (RPSL only) */
-  SET_MBRSX,	/*  hash lookup for autnum's/route's which reference 
-		     an as-set/rs-set (RPSL only) */
-  GASX,		/*  hash lookup for !gas queries */
-  ROUTE_BITSTRING,   /* used for storing radix on disk as 11111011 */
-  DATABASE_STATS    /* store useful information like number of objects in spec_dbm */
+  SET_OBJX,	/*  hash lookup for as-set and route-set objects */
+  SET_MBRSX,	/*  hash lookup for autnum's/route's which reference an as-set/route-set */
+  GASX,		/* hash lookup for !gas queries */
+  MNTOBJS	/* hash lookup for maintainer object queries */
 };
 
 /* used by fetch_hash_spec(), tell's what to do with fetched value:
@@ -56,26 +49,17 @@ enum RIPE_FLAGS_T {
   RECURS_OFF  = 02, 	/* no recurse lookup */
   LESS_ONE    = 04,	/* one level less route search */
   LESS_ALL    = 010,	/* all levels less route search */
-  MORE_ONE    = 020,    /* one level more route search */
+  MORE_ONE    = 020,    /* ** TODO ** one level more route search */
   MORE_ALL    = 040,    /* all levels more route search */
-  SOURCES_ALL = 0100,   /* set sources to all */
-  SET_SOURCE  = 0200,   /* set source <DB> */
-  TEMPLATE    = 0400,   /* send object template <type> */
-  OBJ_TYPE    = 01000   /* restrict object search to <type> */
+  EXACT_MATCH = 0100,	/* exact match for route search */
+  SOURCES_ALL = 0200,   /* set sources to all */
+  SET_SOURCE  = 0400,   /* set source <DB> */
+  TEMPLATE    = 01000,   /* send object template <type> */
+  OBJ_TYPE    = 02000,  /* restrict object search to <type> */
+  INVERSE_ATTR   = 04000, /* do an inverse lookup for the given attr name */
+  KEYFIELDS_ONLY = 010000  /* display only key field attributes */
 };
-#define MAX_RIPE_FLAGS 10
-#define IRR_MAX_MCMDS  32
-
-/* RPSL only 
-#define	NO_SYNTAX		-1
-#define RIPE181			0
-#define RPSL			1
-*/
-enum DB_SYNTAX { /* Do not change the order!!!
-		  * RIPE181 must be 0 and RPSL 1
-		  */
-  RIPE181 = 0, RPSL, MIXED , UNRECOGNIZED, EMPTY_DB 
-};
+#define IRR_MAX_MCMDS 30
 
 enum REMOTE_MIRROR_STATUS_T {
   MIRRORSTATUS_UNDETERMINED = 0,  /* Uninitialized */
@@ -86,13 +70,14 @@ enum REMOTE_MIRROR_STATUS_T {
   MIRRORSTATUS_NO                 /* Not mirrorable, but we're going to say something */
 };
 
-typedef struct _irr_route_object_t {
-  struct _irr_attr_t	*next, *prev;	/* linked_list -- multiple routes for prefix */
-  u_short	origin;
+typedef struct _irr_prefix_object_t {
+  struct _irr_attr_t	*next, *prev;	/* linked_list -- multiple prefixes for a node */
+  enum IRR_OBJECTS type;	/* type of object -- route, route6, inet6num */
   u_char	withdrawn;
+  u_short	origin;
   u_long	offset;
   u_long        len;
-} irr_route_object_t;
+} irr_prefix_object_t;
 
 typedef struct _irr_database_t {
   struct _irr_database_t	*next, *prev;	/* for linked_list */
@@ -101,7 +86,6 @@ typedef struct _irr_database_t {
   int			journal_fd;     /* database.JOURNAL file fd */
   int			bytes;		/* bytes read so far */
   u_long		max_journal_bytes;  /* number of bytes in journal log */
-  enum DB_SYNTAX        db_syntax;      /* empty, rpsl or ripe181 */
   u_long                obj_filter;     /* object bit-fields of 1 are filtered out */
 
   /* mirroring stuff */
@@ -122,13 +106,10 @@ typedef struct _irr_database_t {
   char                  *rpsdist_accept_host;/* accept connections for this host */
   char                  *repos_hexid;    /* used by rps-dist to verify floods */
   char                  *pgppass;        /* password used for signing floods */
-  int			mirror_port;
-  char			mirror_error_message[1024];
 
   u_long		remote_oldestjournal; /* What is their !j? */
   u_long		remote_currentserial; /* What is their !j? */
   u_long                remote_lastexport;    /* !j last export */
-  enum REMOTE_MIRROR_STATUS_T  remote_mirrorstatus;
 
   u_long		flags;		/* IRR_READ_ONLY, etc */
 #define IRR_AUTHORITATIVE	1	/* we are the master copy -- this can be updated */
@@ -138,11 +119,16 @@ typedef struct _irr_database_t {
   u_long		access_list;		/* restrict access */
   u_long		write_access_list;	/* restrict writes -- refines access */
   u_long		mirror_access_list;     /* restrict mirror -- refines access */
+  u_long		cryptpw_access_list;	/* restrict access to CRYPTPW's */
+  char			*compress_script;  /* script to compress and hide passwords in exported db's */
 
   pthread_mutex_t	mutex_lock;
   pthread_mutex_t	mutex_clean_lock;	/* a special lock for cleaning */
   /*rwlock_t		rwlock;*/
-  radix_tree_t		*radix;
+  radix_tree_t		*radix_v4;		/* a v4 radix tree */
+  radix_tree_t		*radix_v6;		/* a v6 radix tree */
+#define DEF_HASH_SIZE  1013	/* default hash size */
+#define SMALL_HASH_SIZE  337	/* smaller hash for use with updates */
   HASH_TABLE		*hash;		
   HASH_TABLE		*hash_spec;       /* hash for special queries */
   HASH_TABLE		*hash_spec_tmp;	  /* memory hash */
@@ -154,23 +140,26 @@ typedef struct _irr_database_t {
   char			*export_filename; /* database name if different */
   
   /* statistics */
-  int			num_objects[IRR_MAX_KEYS +2];
+  int			num_objects[IRR_MAX_CLASS_KEYS];
 
   /* mirror status and statistics */
   time_t		time_loaded;		/* when the db was loaded (or reloaded) */
-  time_t		last_mirrored;		/* when we last mirrored successfully! */
   time_t		last_update;		/* last email/TCP update */
+  time_t		last_mirrored;		/* when we last mirrored successfully! */
+  enum REMOTE_MIRROR_STATUS_T  remote_mirrorstatus;
+  int			mirror_port;
+#define MAX_MIRROR_ERROR_LEN 255
+  char			mirror_error_message[MAX_MIRROR_ERROR_LEN + 1];
   time_t		mirror_started;		/* hook for us to timeout on */
   int			num_changes;
-  int			num_objects_deleted[IRR_MAX_KEYS +2];
-  int			num_objects_changed[IRR_MAX_KEYS +2];
-  int			num_objects_notfound[IRR_MAX_KEYS +2];
+  int			num_objects_deleted[IRR_MAX_CLASS_KEYS];
+  int			num_objects_changed[IRR_MAX_CLASS_KEYS];
+  int			num_objects_notfound[IRR_MAX_CLASS_KEYS];
 } irr_database_t;
 
 typedef struct _irr_answer_t {
-  FILE          *fp;
+  irr_database_t  *db;
   enum IRR_OBJECTS type;
-  enum DB_SYNTAX db_syntax;
   u_long        offset;
   u_long        len;
   char 		*blob;
@@ -186,15 +175,13 @@ typedef struct _irr_object_t {
   int		mode;		/* ADD, DELETE, UPDATE */
   u_long	offset;
   u_long	len;
-  LINKED_LIST	*ll_keys;	/* list of secondary keys and types */
   u_int         filter_val;     /* used in filtering out certain object types */
 
   /* convenience stuff */
   int		withdrawn;
   u_short	 origin;	/* use in route object */
   char          *nic_hdl;       /* secondary key */
-  LINKED_LIST	*ll_community;	/* use in route object */
-  LINKED_LIST	*ll_as;		/* for us in asmacro */
+  LINKED_LIST	*ll_mbrs;	/* members list for as-set/route-set */
   LINKED_LIST	*ll_prefix;	/* prefix (as ascii string) for IPv6 site objects */
   LINKED_LIST   *ll_mbr_of;     /* RPSL route and aut-num for set inclusion */
   LINKED_LIST   *ll_mbr_by_ref; /* RPSL route-set and as-set */
@@ -208,8 +195,6 @@ typedef struct _hash_spec_t {
   LINKED_LIST	 *ll_2;
   u_long         len1, len2;    /* keep track of gas char length */
   u_long	 items1, items2;/* number of gas prefixes in answer */
-  char *unpacked_value;         /* used by !gas for fast output, points
-                                   to the hash_item->value item */
   char *gas_answer;             /* just a pointer into unpacked_value */
 } hash_spec_t;
 
@@ -247,10 +232,9 @@ typedef struct _irr_t {
   int			whois_port;	  /* whois UDP queries */
   int			whois_port_access;
   int			mirror_interval;  /* Default seconds between getting mirrors */
+  int			expansion_timeout;  /* the max number of seconds a set expansion is allowed to take */
   int			max_connections;  /* the max num of simultaneous RAWhoisd conn */
   int			connections;	  /* current number of connections */
-  int			use_cache;	  /* cache gas answers */
-  enum DB_SYNTAX	database_syntax;  /* ripe181 or rpsl */
   u_long		export_interval;  /* when should we export database */
   pthread_mutex_t	lock_all_mutex_lock;
   HASH_TABLE		*key_string_hash; /* fast key lookup (*rt, *am, etc) */
@@ -264,6 +248,8 @@ typedef struct _irr_t {
   char			*override_password;
   char			*irr_host;
   LINKED_LIST		*ll_response_footer;
+  LINKED_LIST		*ll_response_notify_header;
+  LINKED_LIST		*ll_response_forward_header;
   /* end stuff just to keep track of pipeline */
 } irr_t;
 
@@ -271,7 +257,6 @@ typedef struct _final_answer_t {
   u_char *ptr;
   u_char *buf;
 } final_answer_t;
-
 
 typedef struct _irr_connection_t {
   struct _irr_connection_t *next, *prev;
@@ -292,14 +277,15 @@ typedef struct _irr_connection_t {
   u_short		begin_line;	/* lines spanning multiple buffers */
   u_short		line_cont;
   u_short		withdrawn;      /* include withdrawn routes? */
-  u_short		short_fields;   /* short fields? (eg, *rt vs route ) */
   u_short		stay_open;	/* default to one-shot, !! to stay open */
   u_short               full_obj;       /* show/display full object? default yes */
   u_int			ripe_flags;     /* list of flags for ripe commands */
   enum IRR_OBJECTS      ripe_type;      /* used for -t and -T ripe flags */
-  char                  ripe_tmp[BUFSIZE];
+  enum IRR_OBJECTS      inverse_type;   /* used -i ripe flag */
+#define RIPE_SOURCES_SZ 128
+  char                  ripe_sources[RIPE_SOURCES_SZ]; /* used for -s flag */
   FILE			*update_fp;
-  char			update_file_name[BUFSIZE];
+  char			update_file_name[256];
   irr_database_t	*database;
   u_long		timeout;	/* seconds before idle connection times out */	
 
@@ -325,11 +311,6 @@ typedef struct _section_hash_t {
   HASH_TABLE *hash_vars;
 } section_hash_t;
 
-typedef struct _gas_hash_item_t {
-  char as[10];
-  LINKED_LIST *ll_prefix;
-} gas_hash_item_t;
-
 typedef struct _key_label {
   char *name;
   int len;
@@ -347,21 +328,22 @@ typedef struct _find_filter_t {
   enum OBJECT_FILTERS filter_f;
 } find_filter_t;
 
-typedef struct _ll_as_sets_t {
-  char *name;
-  LINKED_LIST *ll_aut_nums;
-} ll_as_sets_t;
-
-
 typedef struct _radix_str_t {
   struct _radix_str_t *next, *prev;
   radix_node_t *ptr;
 } radix_str_t;
 
 typedef struct _irr_hash_string_t {
-  struct _irr_hash_string_t *next, *prev; /* linked_list -- multiple routes for prefix */
+  struct _irr_hash_string_t *next, *prev; /* linked_list -- multiple strings */
   char *string;
 } irr_hash_string_t;
+
+typedef struct _objlist_t {
+  struct _objlist_t *next, *prev; /* linked_list -- objects associated with a maintainter */
+  u_long	offset;	/* object offset into database */
+  u_long        len;    /* object length in database */
+  enum IRR_OBJECTS type; /* object type (for filtering) */
+} objlist_t;
 
 extern irr_t IRR;
 extern trace_t *default_trace;
@@ -378,16 +360,12 @@ extern trace_t *default_trace;
 #define IRR_UPDATE		3		/* implicit replace -- need to delete first */
 #define IRR_NOMODE		4               /* serial xtrans with no ADD or DEL header */
 #define IRR_ERRMODE		5		/* illegible serial */
-
 #define IRR_MODE_LOAD_UPDATE    1
 
 /* search types */
 #define SEARCH_ONE_LEVEL	0		/* e.g. !rxx.xx.xx,l */
-#define SEARCH_ALL_LEVELS	1
-
-#define NO_SHOW_ANSWER		0		/* we have this flag cause whois */
-#define SHOW_ANSWER		1
-
+#define SEARCH_ONE_LEVEL_NOT_EXACT 1		/* for RIPE-style -l search */
+#define SEARCH_ALL_LEVELS	2
 
 #define SHOW_FULL_OBJECT	0
 #define SHOW_JUST_ORIGIN	1		/* !r141.211.128/24,o */

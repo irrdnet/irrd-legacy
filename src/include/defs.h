@@ -15,7 +15,12 @@
 
 #define	BUFSIZE 1024 /* a basic buffer size */
 
-#ifndef AF_INET6
+/* check for IPV6 support */
+#ifdef AF_INET6
+#ifdef IN6_IS_ADDR_V4MAPPED
+#define HAVE_IPV6
+#endif
+#else
 #define AF_INET6 24 /* XXX - may conflict with other value */
 #endif
 

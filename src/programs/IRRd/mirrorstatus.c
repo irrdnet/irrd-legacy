@@ -35,10 +35,7 @@ static int mirrorstatus_buildquery (LINKED_LIST *ll_checkdb, char *query, int qu
   /* Iterate through all the databases looking for this prefix and 
      mirror_port and build up the query. */
 
-  assert(query);
-  assert(ll_checkdb);
-
-  sprintf(query, "!j");
+  strcpy(query, "!j");
   space_left = query_len - 3;
   LL_IntrIterate (IRR.ll_database, database) {
     if ((database->mirror_prefix != NULL) &&
@@ -311,11 +308,7 @@ int get_remote_mirrorstatus (prefix_t *mirror_prefix, int mirror_port) {
   irr_database_t *database;
   LINKED_LIST *ll_checkdb;
 
-  assert(mirror_prefix);
-  assert(mirror_port > 0);
-
   ll_checkdb = LL_Create(0);
-  assert(ll_checkdb);
 
   if (!mirrorstatus_buildquery (ll_checkdb, query, BUFSIZE, 
                                 mirror_prefix, mirror_port)) {

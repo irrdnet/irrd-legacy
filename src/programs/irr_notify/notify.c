@@ -1,5 +1,5 @@
 /* 
- * $Id: notify.c,v 1.18 2001/08/28 17:29:19 gerald Exp $
+ * $Id: notify.c,v 1.22 2002/10/17 20:25:56 ljb Exp $
  */
 
 #include <stdio.h>
@@ -38,7 +38,7 @@ int num_forward;
  * there is only one sender, make it
  * like a forward_addr or notify_addr case
  */
-char sender_addrs[256];
+char sender_addrs[MAX_ADDR_SIZE];
 char *snext;
 int sndx[1];
 int num_sender;
@@ -52,8 +52,6 @@ static void perform_transactions (trace_t *, FILE *, ret_info_t *, int,
 				  char *, int, char *);
 /* static void perform_transactions_new (trace_t *, FILE *, ret_info_t *, int, 
 				  char *, int, char *); */
-static int parse_transaction_file (trace_t *, char *, FILE *, ret_info_t *, 
-				   char *, int, int, char *);
 static void remove_tempfiles (trace_t *);
 static FILE *rpsdist_fopen (char *);
 static char *send_rps_dist_trans (trace_t *, FILE *, ret_info_t *, char *, 
@@ -77,11 +75,10 @@ static char *rpsdist_timestamp (char *);
  * an error and/or cannot apply the update the IRRd error message 
  * will be relayed in the notification.
  *
- * 'sender_only' = 1 causes notify () to only send notifications to 
- * the sender.  'null_notification' = 1 causes notify () to skip
+ * 'null_notification' = 1 causes notify () to skip
  * all notifications.  In this case, notify () will send the
  * updates to IRRd but no notifications will be sent. '*tmpfname'
- * is the file template for 'mktemp ()' to use to build
+ * is the file template for 'mkstemp ()' to use to build
  * the notification files.  There will be one notification file
  * per unique notify/updto email address.
  *
@@ -98,11 +95,16 @@ static char *rpsdist_timestamp (char *);
  */
 void notify (trace_t *tr, char *tmpfname, FILE *fin, 
 	     int null_submission, int null_notification, int dump_stdout,
-	     int rps_dist_flag, char *IRRd_HOST, int IRRd_PORT, 
+	     char *web_origin_str, int rps_dist_flag, char *IRRd_HOST, int IRRd_PORT, 
 	     char *db_admin, char *pgpdir, char *dbdir, char *tlogfn,
 	     long tlog_fpos, FILE *ack_fd, char * from_ip) {
 
   ret_info_t rstart;
+  trans_info_t trans_info;
+  char buf[MAXLINE];
+  irrd_result_t *p;
+  long offset = 0;
+  char pbuf[256];
 
   /*fprintf (dfile, "Enter notify()\n");*/
 
@@ -118,6 +120,8 @@ void notify (trace_t *tr, char *tmpfname, FILE *fin,
     perform_transactions_new (tr, fin, &rstart, null_submission, 
 			      IRRd_HOST, IRRd_PORT, pgpdir);
     */
+
+  p = rstart.first;
 
   /* just to be safe rewind */
   if (fseek (fin, 0L, SEEK_SET) != 0) {
@@ -135,26 +139,6 @@ void notify (trace_t *tr, char *tmpfname, FILE *fin,
    */
   num_hdls = 0; 
 
-  parse_transaction_file (tr, tmpfname, fin, &rstart, db_admin, 
-			  null_notification, dump_stdout, from_ip);
-  send_notifies (tr, null_notification, ack_fd, dump_stdout);
-  remove_tempfiles (tr);
-
-  /*fprintf (dfile, "Exit notify ()\n");*/
-}
-
-
-
-int parse_transaction_file (trace_t *tr, char *tmpfname, FILE *fin, 
-			    ret_info_t *start, char *db_admin, 
-			    int null_notification, int dump_stdout, 
-			    char * from_ip) {
-  trans_info_t trans_info;
-  char buf[MAXLINE];
-  irrd_result_t *p = start->first;
-  long offset = 0;
-  char pbuf[100];
-
   while (fgets (buf, MAXLINE - 1, fin) != NULL) {
     if (strncmp (HDR_START, buf, strlen (HDR_START) - 1))
       continue;
@@ -162,7 +146,7 @@ int parse_transaction_file (trace_t *tr, char *tmpfname, FILE *fin,
     /* fprintf (dfile, "found a start header %s strlen-(%d)\n", buf, strlen (buf));*/
     
     if (parse_header (tr, fin, &offset, &trans_info))
-      return 0; /* illegal hdr field found or EOF 
+      break; /* illegal hdr field found or EOF 
 		 * (ie, no object after hdr) 
 		 */
 
@@ -177,7 +161,11 @@ int parse_transaction_file (trace_t *tr, char *tmpfname, FILE *fin,
      sprintf(pbuf,"TCP(%s)", from_ip);
      strcpy (trans_info.sender_addrs, pbuf);
      trans_info.snext += strlen (trans_info.sender_addrs) + 1;
-     from_ip = NULL;
+    }
+    trans_info.web_origin_str = web_origin_str;
+    if (web_origin_str != NULL) {
+      sprintf(pbuf,"%s Route Registry Update", trans_info.source ? trans_info.source : "");
+      trans_info.subject = strdup (pbuf);
     }
     /* JW this is for debug only */
     /* print_hdr_struct (dfile, &trans_info); */
@@ -205,7 +193,9 @@ int parse_transaction_file (trace_t *tr, char *tmpfname, FILE *fin,
     p = p->next;
   }
 
-  return 1;
+  send_notifies (tr, null_notification, ack_fd, dump_stdout);
+  remove_tempfiles (tr);
+  /*fprintf (dfile, "Exit notify ()\n");*/
 }
 
 
@@ -397,7 +387,7 @@ char *send_rps_dist_trans (trace_t *tr, FILE *fin, ret_info_t *start,
   }
 
   /* create the irrd, pgp and journal files */
-  sprintf (template_n, "%s/irr_submit.%d.XXXXXX", dbdir, (int) getpid ());
+  sprintf (template_n, "%s/irr_submit.XXXXXX", dbdir);
   strcpy (irrd_n,    template_n);
   strcpy (pgp_n,     template_n);
   strcpy (journal_n, template_n);
@@ -533,18 +523,19 @@ long get_irrd_cs (trace_t *tr, char *source, char *host, int port) {
  *  NULL if the file could not be opened.
  */
 FILE *rpsdist_fopen (char *fname) {
-  FILE *fd;
+  FILE *fp;
+  int  fd;
  
-  mktemp (fname);
-  if (!strcmp (fname, ""))
+  fd = mkstemp (fname);
+  if (fd == -1)
     return NULL;
 
-  if ((fd = fopen (fname, "w")) == NULL)
+  if ((fp = fdopen (fd, "w")) == NULL) {
+    close(fd);
     return NULL;
+  }
 
-  chmod (fname, 0666);
-
-  return fd;
+  return fp;
 }
 
 /* Generate an RFC 2769 timestamp (pg. 13).  Timestamps are of

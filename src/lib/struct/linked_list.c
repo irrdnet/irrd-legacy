@@ -16,10 +16,6 @@
 /******************* Global Variables **********************/
 static LL_ErrorProc   LL_Handler        = (LL_ErrorProc) LL_DefaultHandler;
 static LL_SortProc    LL_SortFunction   = NULL;
-#ifdef notdef /* masaki says most of the sorting code is bad -ljb */
-static DATA_PTR      *LL_SortArray      = NULL;
-static unsigned       LL_SortArraySize  = 0;
-#endif
 
 const char *LL_errlist[] = {
    "unknown error",
@@ -460,82 +456,6 @@ void LL_SetAttributes(LINKED_LIST *ll, enum LL_ATTR first, ...)
    LL_Verify(ll);
 #endif
 }
-
-
-/*-----------------------------------------------------------
- *  Name: 	LL_GetAttributes()
- *  Created:	Wed Aug 31 03:30:37 1994
- *  Author: 	Jonathan DeKock   <dekock@winter>
- *  DESCR:  	gets 1 or more attributes
- */
-void LL_GetAttributes(LINKED_LIST *ll, enum LL_ATTR first, ...)
-{
-   va_list       ap;
-   enum LL_ATTR  attr;
-   int          *i;
-   DATA_PTR     *ptr;
-
-#ifdef LL_DEBUG
-   if (!ll) {
-      if (LL_Handler) { (LL_Handler)(ll, LL_BadArgument, "LL_GetAttributes()"); }
-      return;
-   }
-#endif
-   
-   va_start(ap, first);
-   for (attr = first; attr; attr = va_arg(ap, enum LL_ATTR)) {
-      ptr = va_arg(ap, DATA_PTR *);
-      i   = (int*) ptr;
-      switch (attr) {
-       case LL_Intrusive:
-	 *i = (ll->attr & LL_Intrusive) ? True : False;
-	 break;
-       case LL_AutoSort:
-	 *i = (ll->attr & LL_AutoSort) ? True : False;
-	 break;
-       case LL_ReportChange:
-	 *i = (ll->attr & LL_ReportChange) ? True : False;
-	 break;
-       case LL_ReportAccess:
-	 *i = (ll->attr & LL_ReportAccess) ? True : False;
-	 break;
-       case LL_NonIntrusive:
-	 *i = (ll->attr & LL_Intrusive) ? False : True;
-	 break;
-       case LL_NextOffset:
-       case LL_PointersOffset:
-	 *i = (int) ll->next_offset;
-	 break;
-       case LL_PrevOffset:
-	 *i = (int) ll->prev_offset;
-	 break;
-       case LL_FindFunction:
-	 *ptr = (DATA_PTR)ll->find_fn;
-       case LL_CompareFunction:
-	 *ptr = (DATA_PTR)ll->comp_fn;
-       case LL_DestroyFunction:
-	 *ptr = (DATA_PTR)ll->destroy_fn;
-	 break;
-       default:
-	 if (LL_Handler) {
-	    (LL_Handler)(ll, LL_BadArgument, "LL_GetAttributes()"); 
-	 }
-	 return;
-	 break;
-      }
-   }
-   va_end(ap);
-#ifdef LL_DEBUG
-   if (ll->attr & LL_ReportAccess) {
-      printf("LINKED LIST: 0x%.8x GetAttributes()\n", ll);
-      LLMacro_PrintAllAttr(ll);
-   }
-#endif
-#ifdef _LL_INTERNAL_DEBUG
-   LL_Verify(ll);
-#endif
-}
-
 
 /*-----------------------------------------------------------
  *  Name: 	LL_Append()
@@ -1174,324 +1094,6 @@ DATA_PTR LList_GetPrev(LINKED_LIST *ll, DATA_PTR data)
 }
    
 
-#ifdef notdef /* LL_Find code is not currently used  -ljb */
-
-/*-----------------------------------------------------------
- *  Name: 	LL_Find()
- *  Created:	Sat Sep  3 00:30:42 1994
- *  Author: 	Jonathan DeKock   <dekock@winter>
- *  DESCR:  	finds an element matching <key> in the list
- */
-DATA_PTR LL_Find(LINKED_LIST *ll, DATA_PTR key, ...)
-{
-   LL_CompareProc compare;
-
-#ifdef LL_DEBUG
-   if (!ll) {
-      if (LL_Handler) { (LL_Handler)(ll, LL_BadArgument, "LL_Find()"); }
-      return(NULL);
-   }
-#endif
-		      
-   compare = ll->find_fn;
-
-   if (!(compare)) {
-      va_list ap;
-      va_start(ap, key);
-      compare = va_arg(ap, LL_FindProc);
-      va_end(ap);
-   }
-
-   return(LL_FindFn(ll, key, compare));
-}
-
-
-/*-----------------------------------------------------------
- *  Name: 	LL_FindFromTail()
- *  Created:	Sat Sep  3 00:35:37 1994
- *  Author: 	Jonathan DeKock   <dekock@winter>
- *  DESCR:  	searches backwards from tail to find elt matching <key>
- */
-DATA_PTR LL_FindFromTail(LINKED_LIST *ll, DATA_PTR key, ...)
-{
-   LL_CompareProc compare;
-
-#ifdef LL_DEBUG
-   if (!ll) {
-      if (LL_Handler) { (LL_Handler)(ll, LL_BadArgument, "LL_FindFromTail()"); }
-      return(NULL);
-   }
-#endif
-		      
-   compare = ll->find_fn;
-
-   if (!(compare)) {
-      va_list ap;
-      va_start(ap, key);
-      compare = va_arg(ap, LL_FindProc);
-      va_end(ap);
-   }
-
-   return(LL_FindFromTailFn(ll, key, compare));
-}
-
-
-/*-----------------------------------------------------------
- *  Name: 	LL_FindNext()
- *  Created:	Sat Sep  3 00:39:02 1994
- *  Author: 	Jonathan DeKock   <dekock@winter>
- *  DESCR:  	finds the next element given data
- */
-DATA_PTR LL_FindNext(LINKED_LIST *ll, DATA_PTR key, DATA_PTR data, ...)
-{
-   LL_CompareProc compare;
-
-#ifdef LL_DEBUG
-   if (!ll) {
-      if (LL_Handler) { (LL_Handler)(ll, LL_BadArgument, "LL_FindNext()"); }
-      return(NULL);
-   }
-#endif
-		      
-   compare = ll->find_fn;
-
-   if (!(compare)) {
-      va_list ap;
-      va_start(ap, data);
-      compare = va_arg(ap, LL_FindProc);
-      va_end(ap);
-   }
-
-   return(LL_FindNextFn(ll, key, data, compare));
-}   
-
-
-/*-----------------------------------------------------------
- *  Name: 	LL_FindPrev()
- *  Created:	Sat Sep  3 00:40:29 1994
- *  Author: 	Jonathan DeKock   <dekock@winter>
- *  DESCR:  	finds the prev elt given data matching <key>
- */
-DATA_PTR LL_FindPrev(LINKED_LIST *ll, DATA_PTR key, DATA_PTR data, ...)
-{
-   LL_CompareProc compare;
-
-#ifdef LL_DEBUG
-   if (!ll) {
-      if (LL_Handler) { (LL_Handler)(ll, LL_BadArgument, "LL_FindPrev()"); }
-      return(NULL);
-   }
-#endif
-		      
-   compare = ll->find_fn;
-
-   if (!(compare)) {
-      va_list ap;
-      va_start(ap, data);
-      compare = va_arg(ap, LL_FindProc);
-      va_end(ap);
-   }
-
-   return(LL_FindPrevFn(ll, key, data, compare));
-}
-
-   
-/*-----------------------------------------------------------
- *  Name: 	LL_FindFn()
- *  Created:	Sat Sep  3 00:42:21 1994
- *  Author: 	Jonathan DeKock   <dekock@winter>
- *  DESCR:  	searches forward from head looking for item that matches <key>
- */
-DATA_PTR LL_FindFn(LINKED_LIST *ll, DATA_PTR key, LL_FindProc compare)
-{
-   DATA_PTR ret;
-#ifdef LL_DEBUG
-   if (!ll || !compare) { /* You may pass in NULL keys */
-      if (LL_Handler) { (LL_Handler)(ll, LL_BadArgument, "LL_Find()"); }
-      return(NULL);
-   }
-#endif
-   if (ll->attr & LL_Intrusive) {
-      for (ret = ll->head.data; ret; ret = NextP(ll, ret)) {
-	 if ((compare)(ret, key)) break;
-      }
-   }
-   else {
-      LL_CONTAINER *cont;
-      for (cont = ll->head.cont; cont; cont = cont->next) {
-	 if ((compare)(cont->data, key)) break;
-      }
-      ll->last = cont;
-      if (cont) ret = cont->data;
-      else      ret = NULL;
-   }
-#ifdef LL_DEBUG
-   if (ll->attr & LL_ReportAccess) {
-      printf("LINKED LIST: 0x%.8x Find(0x%.8x, 0x%.8x) = 0x%.8x\n", ll, key, compare, ret);
-   }
-#endif
-
-#ifdef _LL_INTERNAL_DEBUG
-   LL_Verify(ll);
-#endif
-
-   return(ret);
-}
-
-
-/*-----------------------------------------------------------
- *  Name: 	LL_FindFromTailFn()
- *  Created:	Sat Sep  3 00:53:39 1994
- *  Author: 	Jonathan DeKock   <dekock@winter>
- *  DESCR:  	search backwards from the tail to find item matchin <key>
- */
-DATA_PTR LL_FindFromTailFn(LINKED_LIST *ll, DATA_PTR key, LL_FindProc compare)
-{
-   DATA_PTR ret;
-#ifdef LL_DEBUG
-   if (!ll || !compare) { /* You may pass in NULL keys */
-      if (LL_Handler) { (LL_Handler)(ll, LL_BadArgument, "LL_FindFromTail()"); }
-      return(NULL);
-   }
-#endif
-   if (ll->attr & LL_Intrusive) {
-      for (ret = ll->tail.data; ret; ret = PrevP(ll, ret)) {
-	 if ((compare)(ret, key)) break;
-      }
-   }
-   else {
-      LL_CONTAINER *cont;
-      for (cont = ll->tail.cont; cont; cont = cont->prev) {
-	 if ((compare)(cont->data, key)) break;
-      }
-      ll->last = cont;
-      if (cont) ret = cont->data;
-      else      ret = NULL;
-   }
-   
-#ifdef LL_DEBUG
-   if (ll->attr & LL_ReportAccess) {
-      printf("LINKED LIST: 0x%.8x FindFromTail(0x%.8x, 0x%.8x) = 0x%.8x\n", ll, key, compare, ret);
-   }
-#endif
-   
-#ifdef _LL_INTERNAL_DEBUG
-   LL_Verify(ll);
-#endif
-   
-   return(ret);
-}
-
-
-/*-----------------------------------------------------------
- *  Name: 	LL_FindNextFn()
- *  Created:	Sat Sep  3 01:45:26 1994
- *  Author: 	Jonathan DeKock   <dekock@winter>
- *  DESCR:  	search forward from <data> looking for item matching <key>
- */
-DATA_PTR LL_FindNextFn(LINKED_LIST *ll, DATA_PTR key, DATA_PTR data, LL_FindProc compare)
-{
-   DATA_PTR ret;
-   
-#ifdef LL_DEBUG
-   if (!ll || !compare) { /* You may pass in NULL keys */
-      if (LL_Handler) { (LL_Handler)(ll, LL_BadArgument, "LL_FindNext()"); }
-      return(NULL);
-   }
-#endif
-   
-   if (ll->attr & LL_Intrusive) {
-      for (ret = (data) ? NextP(ll, data) : ll->head.data; ret; ret = NextP(ll, ret)) {
-	 if ((compare)(ret, key)) break;
-      }
-   }
-   else {
-      LL_CONTAINER *cont = NULL;
-      if (data) {
-	 LLMacro_GetContainer(ll, cont, data);
-#ifdef LL_DEBUG
-	 if (!cont) {
-	    if (LL_Handler) { (LL_Handler)(ll, LL_NoMember, "LL_FindNext()"); }
-	    return(NULL);
-	 }
-#endif
-      }
-      for (cont = (data) ? cont->next : ll->head.cont; cont; cont = cont->next) {
-	 if ((compare)(cont->data, key)) break;
-      }
-      ll->last = cont;
-      if (cont) ret = cont->data;
-      else      ret = NULL;
-   }
-   
-#ifdef LL_DEBUG
-   if (ll->attr & LL_ReportAccess) {
-      printf("LINKED LIST: 0x%.8x FindNext(0x%.8x, 0x%.8x, 0x%.8x) = 0x%.8x\n", ll, key, data, compare, ret);
-   }
-#endif
-   
-#ifdef _LL_INTERNAL_DEBUG
-   LL_Verify(ll);
-#endif
-   
-   return(ret);
-}
-
-
-/*-----------------------------------------------------------
- *  Name: 	LL_FindPrevFn()
- *  Created:	Sat Sep  3 01:56:08 1994
- *  Author: 	Jonathan DeKock   <dekock@winter>
- *  DESCR:  	searchs backwards from <data> looking for item matching <key>
- */
-DATA_PTR LL_FindPrevFn(LINKED_LIST *ll, DATA_PTR key, DATA_PTR data, LL_FindProc compare)
-{
-   DATA_PTR ret;
-#ifdef LL_DEBUG
-   if (!ll || !compare) { /* You may pass in NULL keys */
-      if (LL_Handler) { (LL_Handler)(ll, LL_BadArgument, "LL_FindPrev()"); }
-      return(NULL);
-   }
-#endif
-   if (ll->attr & LL_Intrusive) {
-      for (ret = (data) ? PrevP(ll, data) : ll->tail.data; ret; ret = PrevP(ll, ret)) {
-	 if ((compare)(ret, key)) break;
-      }
-   }
-   else {
-      LL_CONTAINER *cont = NULL;
-      if (data) {
-	 LLMacro_GetContainer(ll, cont, data);
-#ifdef LL_DEBUG
-	 if (!cont) {
-	    if (LL_Handler) { (LL_Handler)(ll, LL_NoMember, "LL_FindNext()"); }
-	    return(NULL);
-	 }
-#endif
-      }
-      for (cont = (data) ? cont->next : ll->tail.cont; cont; cont = cont->prev) {
-	 if ((compare)(cont->data, key)) break;
-      }
-      ll->last = cont;
-      if (cont) ret = cont->data;
-      else      ret = NULL;
-   }
-
-#ifdef LL_DEBUG
-   if (ll->attr & LL_ReportAccess) {
-      printf("LINKED LIST: 0x%.8x FindPrev(0x%.8x, 0x%.8x, 0x%.8x) = 0x%.8x\n", ll, key, data, compare, ret);
-   }
-#endif
-
-#ifdef _LL_INTERNAL_DEBUG
-   LL_Verify(ll);
-#endif
-   return(ret);
-}
-
-#endif  /* notdef - unused Find code -ljb */
-
-
 /*-----------------------------------------------------------
  *  Name: 	LL_Sort()
  *  Created:	Sun Sep  4 01:22:27 1994
@@ -1571,7 +1173,6 @@ void LL_SortFn(LINKED_LIST *ll, LL_CompareProc compare)
    /* Perform the actual sort */
    (sort)(ll, compare);
 
-
 #ifdef LL_DEBUG
    if (ll->attr & LL_ReportChange) {
       printf("LINKED LIST: 0x%.8x Sort(0x%.8x) complete\n", ll, compare);
@@ -1582,7 +1183,6 @@ void LL_SortFn(LINKED_LIST *ll, LL_CompareProc compare)
    LL_Verify(ll);
 #endif
 }
-
 
 /*-----------------------------------------------------------
  *  Name: 	LL_BubbleSort()
@@ -1664,7 +1264,7 @@ void LL_BubbleSort(LINKED_LIST *ll, LL_CompareProc compare)
 #endif
 }
 
-#ifdef notdef /* Masaki says this is bad code, ifdef out -ljb */
+#ifdef notdef /* not currently supported */
 /*-----------------------------------------------------------
  *  Name: 	LL_QuickSort()
  *  Created:	Sun Sep  4 02:18:00 1994
@@ -1906,7 +1506,7 @@ DATA_PTR *LL_ToArray(LINKED_LIST *ll, DATA_PTR *array, unsigned *size)
    }
    else {
       LL_CONTAINER *cont;
-      for (i = 0, cont = ll->head.cont; i < ll->count; cont = cont->next) {
+      for (i = 0, cont = ll->head.cont; i < ll->count; cont = cont->next, i++) {
 	 array[i] = cont->data;
       }
    }
@@ -2013,7 +1613,7 @@ LL_ErrorProc LL_SetHandler(LL_ErrorProc fn, char *name)
 }
 
 
-#ifdef notdef /* masaki says only bubblesort works */
+#ifdef notdef /* not currently supported */
 /*-----------------------------------------------------------
  *  Name: 	LL_SetSorter()
  *  Created:	Wed Sep 14 04:24:59 1994

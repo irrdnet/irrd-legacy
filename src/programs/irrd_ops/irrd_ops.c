@@ -611,11 +611,12 @@ FILE *IRRd_fetch_obj (trace_t *tr, char *fname, int *conn_open, int *sockfd,
 		      int max_obj_line_size, char *IRRd_HOST, int IRRd_PORT) {
   char buf[MAXLINE];
   FILE *fobj;
+  int fd;
   
   /* open the output file */
-  my_mktemp (tr, fname);
-  if ((fobj = fopen (fname, "w+")) == NULL) {
-    trace (ERROR, tr, "IRRd_fetch_obj () can't open \"%s\": (%s)\n", 
+  fd = mkstemp (fname);
+  if ((fobj = fdopen (fd, "w+")) == NULL) {
+    trace (ERROR, tr, "IRRd_fetch_obj() can't open \"%s\": (%s)\n", 
 	   fname, strerror (errno));
     return NULL;
   }
@@ -631,26 +632,15 @@ FILE *IRRd_fetch_obj (trace_t *tr, char *fname, int *conn_open, int *sockfd,
 
     /* Send a '!!' */
     if (start_irrd_session (tr, *sockfd) != NULL) {
-      trace (ERROR, tr, "IRRd_fetch_obj () '!!' failed\n");
-      fclose (fobj);
-      remove (fname);
-      close(*sockfd);
-      *sockfd = -1;
-      *conn_open = 0;
-      return NULL;
+      trace (ERROR, tr, "IRRd_fetch_obj() '!!' failed\n");
+      goto fetch_fail;
     }
     
     /* make sure we can get withdrawn routes too */
-    sprintf (buf, "!uwd=1\n");
-    if (send_socket_cmd (tr, *sockfd, buf)   != NULL ||
+    if (send_socket_cmd (tr, *sockfd, "!uwd=1\n") != NULL ||
 	read_socket_cmd (tr, *sockfd, "C\n") != NULL) {
-      trace (ERROR, tr, "IRRd_fetch_obj () '!uwd=1' failed\n");
-      fclose (fobj);
-      remove (fname);
-      close(*sockfd);
-      *sockfd = -1;
-      *conn_open = 0;
-      return NULL;
+      trace (ERROR, tr, "IRRd_fetch_obj() '!uwd=1' failed\n");
+      goto fetch_fail;
     }
   }
   
@@ -658,23 +648,15 @@ FILE *IRRd_fetch_obj (trace_t *tr, char *fname, int *conn_open, int *sockfd,
   sprintf (buf, "!s%s\n", source);
   if (send_socket_cmd (tr, *sockfd, buf)   != NULL ||
       read_socket_cmd (tr, *sockfd, "C\n") != NULL) {
-    fclose (fobj);
-    remove (fname);
-    close(*sockfd);
-    *sockfd = -1;
-    *conn_open = 0;
-    return NULL;
+    trace (ERROR, tr, "IRRd_fetch_obj() '!s' failed\n");
+    goto fetch_fail;
   }
     
   sprintf (buf, "!m%s,%s\n", obj_type, obj_key);
   if (send_socket_cmd (tr, *sockfd, buf)           != NULL ||
       read_socket_line (tr, *sockfd, buf, MAXLINE) < 0) {
-    fclose (fobj);
-    remove (fname);
-    close(*sockfd);
-    *sockfd = -1;
-    *conn_open = 0;
-    return NULL;
+    trace (ERROR, tr, "IRRd_fetch_obj() '!m' failed\n");
+    goto fetch_fail;
   }
   
   /* An 'A' return code means we have the object, otherwise 
@@ -690,6 +672,8 @@ FILE *IRRd_fetch_obj (trace_t *tr, char *fname, int *conn_open, int *sockfd,
   /* put the object into file */
   newline_remove (buf);
   if (read_socket_obj (tr, *sockfd, fobj, obj_size, atoi (&buf[1]), max_obj_line_size) < 0) {
+    trace (ERROR, tr, "IRRd_fetch_obj() read_socket_obj failed\n");
+fetch_fail:
     fclose (fobj);
     remove (fname);
     close(*sockfd);

@@ -52,7 +52,6 @@ find_access_list (int num, int permit, prefix_t *prefix, prefix_t *wildcard,
    return (NULL);
 }
 
-
 int
 add_access_list (int num, int permit, prefix_t *prefix, prefix_t *wildcard, 
 		 int exact, int refine) {
@@ -78,7 +77,6 @@ add_access_list (int num, int permit, prefix_t *prefix, prefix_t *wildcard,
    return (LL_GetCount (access_list[num]));
 }
 
-
 int 
 remove_access_list (int num, int permit, prefix_t *prefix, prefix_t *wildcard,
 		    int exact, int refine) {
@@ -100,7 +98,6 @@ remove_access_list (int num, int permit, prefix_t *prefix, prefix_t *wildcard,
    return (LL_GetCount (access_list[num]));
 }
 
-
 int
 del_access_list (int num) {
 
@@ -113,7 +110,6 @@ del_access_list (int num) {
     access_list[num] = NULL;
     return (1);
 }
-
 
 /*
  * return 1 if permit, 0 if denied, -1 if not matched

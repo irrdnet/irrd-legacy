@@ -10,13 +10,11 @@
 #include <pipeline_defs.h>
 #include <pgp.h>
 
-
 /* JW:!!!!!: these routines are not transaction compliant
    and need to be udpated later.
 
    if there is a crash or something else (see pgp_add) then
    there is no way to back out and restore state.
-
 */
 
 static void add_list_obj   (trace_t *, char_list_t **, char_list_t **, char *);
@@ -24,10 +22,8 @@ static int  pgp_verify     (trace_t *, char *, char *, enum PGP_OP_TYPE,
 			    pgp_data_t *);
 static int  pgp_sign       (trace_t *, char *, char *, char *, enum PGP_OP_TYPE);
 
-
 /* global's for the execlp () call */
 char *p1, *p2, *p3;
-
 
 /* debug only */
 void   display_pgp_data    (pgp_data_t *);
@@ -85,7 +81,7 @@ void run_cmd (trace_t *tr, char *env, FILE **in, FILE **out,
       break;
     case PGP_ADD:
       execlp (GPG, GPG, "--homedir", env, "--batch", "--yes", 
-	      "-v", "--import", p1, NULL); 
+	      "-vv", "--import", p1, NULL); 
       break;
     case PGP_FINGERPR:
       execlp (GPG, GPG, "--homedir", env, "--batch", "--yes", 
@@ -147,7 +143,6 @@ int pgp_del (trace_t *tr, char *PGPPATH, char *hex_id) {
   char buf[MAXLINE], good_hexid[16];
   int status;
 
-fprintf (stderr, "enter pgp_del (%s)\n", hex_id);
   /* check for a valid hex ID */
   if (!pgp_hexid_check (hex_id, good_hexid)) {
     trace (ERROR, tr, "pgp_del () malformed hex_id (%s)\n", 
@@ -164,7 +159,6 @@ fprintf (stderr, "enter pgp_del (%s)\n", hex_id);
 
   /* check to see if the command was executed without error */
   wait (&status);
-fprintf (stderr, "exit pgp_del (%d)\n", !status);
 
   return !status;
 }
@@ -197,15 +191,15 @@ int pgp_add (trace_t *tr, char *PGPPATH, char *key_file, pgp_data_t *pdat) {
   regex_t re, pubkey_re, owner_re;
   regmatch_t rm[2];
   char *add_ok = "^gpg:[ \t]+imported: 1";
-  char *pubkey = "^gpg: key ([[:xdigit:]]{8}): public key imported.*";
-  char *owner  = "^gpg: pub  [[:graph:]]+ [[:graph:]]+[ \t]+([[:graph:]].*)$";
+  char *pubkey = "^gpg: key ([[:xdigit:]]{8}): public key";
+  char *owner  = "^:user ID packet:[ \t]+\"(.+)\"\n$";
 
-fprintf (stderr, "JW: enter pgp_add () ...\n");
   /* sanity check */
   if (key_file == NULL) {
     trace (ERROR, tr, "pgp_add () NULL key file name\n");
     return 0;
   }
+  trace (ERROR, tr, "pgp_add () Entering pgp_add\n");
 
   /* init the return hex_id and owner data stucture to all zero's */
   if (pdat != NULL)
@@ -233,7 +227,6 @@ fprintf (stderr, "JW: enter pgp_add () ...\n");
   /* now parse the output: look for a successful operation from PGP
    * and collect the hex id(s) and owner(s) */
   while (fgets (curline, MAXLINE, pgpout) != NULL) {
-fprintf (stderr, "pgp_add:%s", curline);
     /* grab the hex ID */
     if (pdat != NULL &&
 	0 == regexec (&pubkey_re, curline, 2, rm, 0)) {
@@ -244,16 +237,9 @@ fprintf (stderr, "pgp_add:%s", curline);
 		    (char *) (curline + rm[1].rm_so));
     }       
     /* grab the owner/uid lines */
-    else if (pdat != NULL &&
-	     0 == regexec (&owner_re, curline, 2, rm, 0)) {
-      /* JW:!!!!!: need to dissallow this case:
-
-uid  *** This key is unnamed ***
-
-I generated this by hacking a valid key in vi. ie, this should
-not occur in a normal key
-      */
-      *(curline + rm[1].rm_eo) = '\0';
+    else if (pdat != NULL && 0 == regexec (&owner_re, curline, 2, rm, 0)) {
+      *(curline + rm[1].rm_eo) = '\n'; /* need to terminate with newline */
+      *(curline + rm[1].rm_eo + 1) = '\0';
       pdat->owner_cnt++;
       add_list_obj (tr, &pdat->owner_first, &pdat->owner_last,
 		    (char *) (curline + rm[1].rm_so));
@@ -270,7 +256,6 @@ not occur in a normal key
   regfree (&pubkey_re);
   regfree (&owner_re);
 
-fprintf (stderr, "exit pgp_add (%d)\n", (pgp_ok && (pdat == NULL || (pdat->hex_cnt && pdat->owner_cnt))));
   return (pgp_ok && (pdat == NULL || (pdat->hex_cnt && pdat->owner_cnt)));
 }
 
@@ -318,7 +303,6 @@ int pgp_fingerpr (trace_t *tr, char *PGPPATH, char *hex_id, pgp_data_t *pdat) {
   /* build the command to get the fingerprint and invoke pgp */
   sprintf (curline, "%s", ((PGPPATH == NULL) ? "" : PGPPATH));
   p1 = good_hexid;
-fprintf (stderr, "curline/GNUPGHOME (%s) hexid (%s)\n", curline, p1);
   run_cmd (tr, curline, NULL, &pgpout, PGP_FINGERPR);
 
   /* sanity check */
@@ -332,7 +316,6 @@ fprintf (stderr, "curline/GNUPGHOME (%s) hexid (%s)\n", curline, p1);
 
   /* parse the gpg output and get the fingerprint */
   while (fgets (curline, MAXLINE, pgpout) != NULL) {
-fprintf (stderr, "fingerpr:%s", curline);
     /* pick off the key fingerprint */
     if (regexec (&re, curline, 2, rm, 0) == 0) {
       *(curline + rm[1].rm_eo) = '\0';
@@ -348,19 +331,16 @@ fprintf (stderr, "fingerpr:%s", curline);
 
   /* set the hex ID if the key was found in our ring */
   if (pdat->fingerpr_cnt > 0) {
-fprintf (stderr, "fingerpr: found fingerpr...\n");
     pdat->hex_cnt++;
     add_list_obj (tr, &pdat->hex_first, &pdat->hex_last, &good_hexid[2]);
     return 1;
   }
   /* make sure we are not returning any info if we didn't get a fingerpr */
   else {
-fprintf (stderr, "fingerpr: couldn't find fingerpr...\n");
     memset (pdat, 0, sizeof (pgp_data_t));
     return 0;
   }
 }
-
 
 /* Verify the file named (*vinfile).  This function assumes the file
  * is not encrypted and was signed with a regular signature (ie, not detached).
@@ -504,7 +484,6 @@ int pgp_verify (trace_t *tr, char *funcname, char *env,
   char *pgpgood = "^gpg: Good signature ";
   char *hexid   = "^gpg: Signature made.*key ID ([[:xdigit:]]{8})\n$";
 
-fprintf (stderr, "JW: enter pgp_verify () env (%s)...\n", env);
   /* init the return hex_id and owner data stucture to all zero's */
   memset (pdat, 0, sizeof (pgp_data_t));
 
@@ -522,19 +501,16 @@ fprintf (stderr, "JW: enter pgp_verify () env (%s)...\n", env);
   /* look for a successful operation from PGP and
    * collect the hex id of the signer */
   while (fgets (curline, MAXLINE, pgpout) != NULL) {
-fprintf (stderr, "pgp_verify:%s", curline);
     /* look for a "Good signature ..." message */
-if (0 == regexec (&pgpgood_re, curline, 0, NULL, 0)) {
-      pgp_ok = 1;
-fprintf (stderr, "setting pgp_ok = 1\n");
-}
+  if (0 == regexec (&pgpgood_re, curline, 0, NULL, 0)) {
+       pgp_ok = 1;
+  }
     /* pick off the hex ID of the signer */
     else if (regexec (&hexid_re, curline, 2, hexid_rm, 0) == 0) {
       pdat->hex_cnt++;
       *(curline + hexid_rm[1].rm_eo) = '\0';
       add_list_obj (tr, &pdat->hex_first, &pdat->hex_last,
 		    (char *) (curline + hexid_rm[1].rm_so));
-fprintf (stderr, "picking off hexid ...\n");
     }
   }
 
@@ -701,7 +677,6 @@ int pgp_sign (trace_t *tr, char *funcname, char *env, char *passwd,
 }
 
 
-
 /* Add (key) to the linked list point to by (start).
  *
  * Input:
@@ -824,9 +799,6 @@ void display_pgp_data (pgp_data_t *pdat) {
 
   printf ("\n----------\n\n");
 }
-
-
-
 
 /* Code junk yard.  Will we need it again someday? */
 

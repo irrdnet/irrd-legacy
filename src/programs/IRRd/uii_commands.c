@@ -46,23 +46,6 @@ void show_database (uii_connection_t *uii) {
 
   uii_add_bulk_output (uii, "Memory-only indexing\r\n");
 
-  if (IRR.database_syntax == RIPE181) {
-    uii_add_bulk_output (uii, "RIPE181 Syntax\r\n\r\n");
-  }
-  else if (IRR.database_syntax == RPSL) {
-    uii_add_bulk_output (uii, "RPSL Syntax\r\n\r\n");
-  }
-  else if (IRR.database_syntax == EMPTY_DB) {
-    uii_add_bulk_output (uii, "Unknown Syntax, all DB's empty\r\n\r\n");
-  }
-  else if (IRR.database_syntax == MIXED) {
-    uii_add_bulk_output (uii, "RIPE181 and RPSL Syntaxes\r\n\r\n");
-  }
-  else {
-    uii_add_bulk_output (uii, "** Unknown Database Syntax\r\n\r\n");
-  }
-
-
   uii_add_bulk_output (uii, "Default Database Query Order: ");
   LL_Iterate (IRR.ll_database, database) {
     uii_add_bulk_output (uii, "%s ", database->name);
@@ -197,7 +180,6 @@ void uii_irr_reload (uii_connection_t *uii, char *name) {
   }
 }
 
-#ifndef NT
 /* Invoke irrdcacher to fetch a DB and call 'irr_reload_database ()'
  * to reload it.
  *
@@ -224,7 +206,7 @@ void uii_irr_reload (uii_connection_t *uii, char *name) {
 int uii_irr_irrdcacher (uii_connection_t *uii, char *name) {
   int ret_code = 0;
   FILE *pipeout;
-  char cmd[BUFSIZE + 1], cs[BUFSIZE + 1], wflag[BUFSIZE + 1], *tmp_dir;
+  char cmd[BUFSIZE], cs[BUFSIZE], wflag[BUFSIZE], *tmp_dir;
   irr_database_t *db;
   regex_t url_re = {0}, good_re = {0}, notfound_re = {0};
   char *ftp_url  = "^ftp://[^ \t/]+/[[:graph:]]+$";
@@ -372,7 +354,6 @@ ABORT_IRRDCACHER:
 
   return ret_code;
 }
-#endif /* NT */
 
 void uii_export_database (uii_connection_t *uii, char *name) {
   irr_database_t *db;
@@ -495,17 +476,19 @@ void uii_show_ip (uii_connection_t *uii, prefix_t *prefix, int num, char *lessmo
     uii_show_ip_less (uii, prefix, 1);
     return;
   }
-  else {
+  else if (!strcmp (lessmore, "more")) {
     uii_show_ip_more (uii, prefix);
     return;
+  } else {
+    uii_add_bulk_output (uii, "Unrecognized option -- use \"less\" or \"more\"\r\n");
+    uii_send_bulk_data (uii);
   }
-  /*NOTREACHED*/
   return;
 }
 
 void uii_fetch_irr_object (uii_connection_t *uii, 
 			   irr_database_t *database, u_long offset) {
-  char buffer[BUFSIZE+1];
+  char buffer[BUFSIZE];
   
   fseek (database->db_fp, offset, SEEK_SET);
     
@@ -519,14 +502,14 @@ void uii_fetch_irr_object (uii_connection_t *uii,
 void uii_show_ip_exact (uii_connection_t *uii, prefix_t *prefix) {
   radix_node_t *node;
   LINKED_LIST *ll_attr;
-  irr_route_object_t *attr;
+  irr_prefix_object_t *attr;
   irr_database_t *database;
   int first = 1;
 
   LL_Iterate (IRR.ll_database, database) {
     irr_lock (database);
 
-    node = radix_search_exact (database->radix, prefix);
+    node = prefix_search_exact (database, prefix);
 
     if (node != NULL) { 
       ll_attr = (LINKED_LIST *) node->data;
@@ -544,7 +527,7 @@ void uii_show_ip_exact (uii_connection_t *uii, prefix_t *prefix) {
 void uii_show_ip_less (uii_connection_t *uii, prefix_t *prefix, int flag) {
   radix_node_t *node;
   LINKED_LIST *ll_attr;
-  irr_route_object_t *attr;
+  irr_prefix_object_t *attr;
   irr_database_t *database;
   prefix_t *tmp_prefix;
   int first = 1;
@@ -555,7 +538,7 @@ void uii_show_ip_less (uii_connection_t *uii, prefix_t *prefix, int flag) {
     tmp_prefix = prefix;
 
     /* first check if this node exists */
-    if ((node = radix_search_exact (database->radix, prefix)) != NULL) {
+    if ((node = prefix_search_exact (database, prefix)) != NULL) {
       ll_attr = (LINKED_LIST *) node->data;
       LL_Iterate (ll_attr, attr) {
 	if (first != 1) uii_add_bulk_output (uii, "\r\n");
@@ -565,7 +548,7 @@ void uii_show_ip_less (uii_connection_t *uii, prefix_t *prefix, int flag) {
     }
     /* now check all less specific */
     while ((flag == 1 || node == NULL) && 
-	   (node = radix_search_best (database->radix, tmp_prefix, 0)) != NULL) {
+	   (node = prefix_search_best (database, tmp_prefix)) != NULL) {
       if (node != NULL) { 
 	tmp_prefix = node->prefix;
 	ll_attr = (LINKED_LIST *) node->data;
@@ -583,15 +566,14 @@ void uii_show_ip_less (uii_connection_t *uii, prefix_t *prefix, int flag) {
   uii_send_bulk_data (uii);
 }
 
-/* Route searches. M - all more specific eg, !r199.208.0.0/16,M */ 
-/* Also does m - one level only more specific */ 
+/* More specific route search */ 
 void uii_show_ip_more (uii_connection_t *uii, prefix_t *prefix) {
   radix_node_t *node, *start_node, *last_node;
   LINKED_LIST *ll_attr;
-  irr_route_object_t *attr;
+  irr_prefix_object_t *attr;
+  radix_tree_t *radix;
   irr_database_t *database;
   int first = 1;
-  int len;
 
   LL_Iterate (IRR.ll_database, database) {
     irr_lock (database);
@@ -600,37 +582,18 @@ void uii_show_ip_more (uii_connection_t *uii, prefix_t *prefix) {
     start_node = NULL;
     node = NULL;    
 
-    /* first, try to find this prefix exactly */
-    start_node = radix_search_exact (database->radix, prefix);
+    if (prefix->family == AF_INET6)
+      radix = database->radix_v6;
+    else
+      radix = database->radix_v4;
 
-    /* fine, try to find something less specific */
-    if (start_node == NULL) {
-      start_node = radix_search_best (database->radix, prefix, 0);
-    }
-
-    /* yuck -- walk up the radix tree until find more specific that
-     * does not match
-     */
-    if (start_node == NULL) {
-      prefix_t *tmp_prefix;
-      len = prefix->bitlen;
-
-      prefix->bitlen = 32;
-      tmp_prefix = prefix;
-      while ((start_node = radix_search_best (database->radix, tmp_prefix, 0)) != NULL) {
-	if (!comp_with_mask ((void *) prefix_tochar (start_node->prefix), 
-			     (void *) prefix_tochar (prefix),  len))
-	  break;
-	tmp_prefix = start_node->prefix;
-	last_node = start_node;
-      }
-      prefix->bitlen = len;
-      if (start_node == NULL) start_node = last_node;
-    }
+    /* find this prefix exactly or the best large node */
+    start_node = radix_search_exact_raw (radix, prefix);
 
     if (start_node != NULL) {
       RADIX_WALK (start_node, node) {
-	if ((node->prefix->bitlen >= prefix->bitlen) &&
+	if ((node->prefix != NULL) &&
+	    (node->prefix->bitlen >= prefix->bitlen) &&
 	    (comp_with_mask ((void *) prefix_tochar (node->prefix), 
 			     (void *) prefix_tochar (prefix),  prefix->bitlen))) {
 	  ll_attr = (LINKED_LIST *) node->data;
@@ -656,6 +619,7 @@ void uii_show_ip_more (uii_connection_t *uii, prefix_t *prefix) {
 int uii_delete_route (uii_connection_t *uii, char *name, prefix_t *prefix, int as) {
   irr_database_t *db;
   irr_object_t *irr_object;
+  int ret;
 
   db = find_database (name);
 
@@ -671,12 +635,16 @@ int uii_delete_route (uii_connection_t *uii, char *name, prefix_t *prefix, int a
   irr_object->name = prefix_toax (prefix);
   irr_object->origin = as;
 
+  irr_update_lock (db);
   if ((irr_object = load_irr_object (db, irr_object)) == NULL) {
+    irr_update_unlock (db);
     uii_send_data (uii, "Could not find find %s...\r\n", prefix_toax (prefix));
     return (-1);
   }
 
-  if (delete_irr_route (db, irr_object->name, irr_object)) 
+  ret = delete_irr_prefix (db, irr_object->name, irr_object);
+  irr_update_unlock (db);
+  if (ret) 
     uii_send_data (uii, "Deleted\r\n");
   else
     uii_send_data (uii, "Deleted failed!\r\n");

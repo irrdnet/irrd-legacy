@@ -3,17 +3,7 @@
  */
 
 #include <mrt.h>
-#ifndef NT
 #include <netdb.h>
-#endif /* NT */
-
-#ifdef NT
-#include <winsock2.h>
-#ifdef HAVE_IPV6
-#include <ws2ip6.h>
-#endif /* HAVE_IPV6 */
-#include <ws2tcpip.h>
-#endif /* NT */
 
 #ifndef __GLIBC__
 #ifdef __osf__
@@ -324,6 +314,7 @@ copy_prefix (prefix_t * prefix)
 
 /* ascii2prefix
  */
+#define MAXPREFIXSTRLEN 47
 prefix_t *
 ascii2prefix (int family, char *string)
 {
@@ -332,9 +323,12 @@ ascii2prefix (int family, char *string)
     struct in_addr sin;
     struct in6_addr sin6;
     int result;
-    char save[BUFSIZE];
+    char save[MAXPREFIXSTRLEN + 1];
 
     if (string == NULL)
+	return (NULL);
+
+    if (strlen(string) >= MAXPREFIXSTRLEN)
 	return (NULL);
 
     /* easy way to handle both families */
@@ -352,9 +346,7 @@ ascii2prefix (int family, char *string)
 
     if ((cp = strchr (string, '/')) != NULL) {
 	bitlen = atol (cp + 1);
-	/* *cp = '\0'; */
 	/* copy the string to save. Avoid destroying the string */
-	assert (cp - string < BUFSIZE);
 	memcpy (save, string, cp - string);
 	save[cp - string] = '\0';
 	string = save;
@@ -737,9 +729,7 @@ my_inet_pton (int af, const char *src, void *dst)
     } else if (af == AF_INET6) {
         return (inet_pton (af, src, dst));
     } else {
-#ifndef NT
 	errno = EAFNOSUPPORT;
-#endif /* NT */
 	return -1;
     }
 }

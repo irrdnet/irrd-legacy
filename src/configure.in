@@ -1,5 +1,5 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_REVISION($Revision: 1.20 $)
+AC_REVISION($Revision: 1.21 $)
 
 AC_INIT(lib/mrt/mrt.c)
 AC_CONFIG_HEADER(include/config.h)
@@ -202,12 +202,12 @@ AC_CHECK_LIB(resolv, inet_ntop, [
 )
 fi
 
-if test -d /usr/local/include; then
-    CPPFLAGS="$CPPFLAGS -I/usr/local/include"
-fi
-if test -d /usr/local/lib; then
-    LDFLAGS="$LDFLAGS -L/usr/local/lib"
-fi
+dnl if test -d /usr/local/include; then
+dnl     CPPFLAGS="$CPPFLAGS -I/usr/local/include"
+dnl fi
+dnl if test -d /usr/local/lib; then
+dnl    LDFLAGS="$LDFLAGS -L/usr/local/lib"
+dnl fi
 
 dnl find flex
 AC_PATH_PROG(FLEX_PATH,flex,no)
@@ -295,28 +295,6 @@ AC_SUBST(PGPV_PATH)
 AC_SUBST(PGPK_PATH)
 AC_SUBST(PGPS_PATH)
 
-dnl Obsolete.  JW 8/28/2001
-dnl AC_PATH_PROG(PGPK_PATH,pgpk,no)
-dnl if test $PGPK_PATH = no; then
-dnl 	PGPK_PATH=""
-dnl fi
-dnl AC_PATH_PROG(PGPS_PATH,pgps,no)
-dnl if test $PGPS_PATH = no; then
-dnl 	PGPS_PATH=""
-dnl fi
-dnl AC_PATH_PROG(PGPV_PATH,pgpv,no)
-dnl if test $PGPV_PATH = no; then
-dnl     AC_PATH_PROG(PGPV_PATH,pgp,no)
-dnl     if test $PGPV_PATH = no; then
-dnl         PGPV_PATH=""
-dnl         AC_DEFINE(PGP,0)
-dnl     else
-dnl         AC_DEFINE(PGP,26)
-dnl     fi
-dnl else
-dnl     AC_DEFINE(PGP, 5)        
-dnl fi
-
 AC_PATH_PROG(GZIP_PATH,gzip,no)
 if test $GZIP_PATH = no; then
     GZIP_PATH=""
@@ -364,32 +342,6 @@ AC_MSG_CHECKING([u_char, u_int, u_short, and u_long])
   u_char c; u_int i; u_short s; u_long l;],
   [AC_DEFINE(HAVE_U_TYPES) AC_MSG_RESULT(yes)], AC_MSG_RESULT(no));
 
-dnl IPV6 support? Assume support is there if IPPROTO_IPV6 exists...
-AC_MSG_CHECKING(for IPv6 kernel support)
-if test "$disable_ipv6" = yes; then
-  AC_MSG_RESULT(disabled)
-else
-  AC_TRY_RUN([ /* AF_INET6 avalable check */
-#include <stdlib.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-main()
-{
- if (socket(AF_INET6, SOCK_STREAM, 0) < 0)
-   exit(1);
- else
-   exit(0);
-}
-    ],ipv6=yes,ipv6=no,ipv6=yes)
-  
-if test "$ipv6" = "yes"; then
-  AC_DEFINE(HAVE_IPV6)
-  AC_MSG_RESULT(yes)
-else
-  AC_MSG_RESULT(no)
-fi
-fi
-
 dnl Check for in6_addr structure definition
 AC_EGREP_HEADER(struct in6_addr, netinet/in.h,
                   AC_DEFINE(HAVE_STRUCT_IN6_ADDR))
@@ -402,6 +354,7 @@ AC_CHECK_FUNCS(memmove)
 AC_CHECK_FUNCS(strerror)
 AC_CHECK_FUNCS(setsid)
 AC_CHECK_FUNCS(mkstemp)
+AC_CHECK_FUNCS(mkdtemp)
 AC_CHECK_FUNCS(snprintf)
 AC_CHECK_FUNCS(dirname basename)
 
@@ -412,6 +365,7 @@ AC_CHECK_DECLS(inet_ntop,,,[#include <netinet/in.h>
 #include <arpa/nameser.h>
 #include <resolv.h>])
 AC_CHECK_DECLS(mkstemp)
+AC_CHECK_DECLS(mkdtemp)
 AC_CHECK_DECLS(getdtablesize)
 
 AC_SUBST(DB_LIB)

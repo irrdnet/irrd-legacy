@@ -1,5 +1,5 @@
 /* 
- * $Id: trace.h,v 1.1.1.1 2000/02/29 22:28:43 labovit Exp $
+ * $Id: trace.h,v 1.2 2002/10/17 19:41:44 ljb Exp $
  */
 
 #ifndef _TRACE_H
@@ -30,9 +30,7 @@
 #define TR_TRACE	0x0010	/* verbose tracing, like keepalives */
 
 #define FATAL		TR_FATAL	/* backward compatibility */
-#ifndef NT
 #define ERROR		TR_ERROR	/* backward compatibility */
-#endif /* NT */
 #define INFO		TR_INFO	/* backward compatibility */
 #define NORM		TR_INFO	/* backward compatibility */
 #define TRACE		TR_TRACE	/* backward compatibility */
@@ -57,8 +55,6 @@
 #define TR_DEFAULT_FLOCK	TRUE
 #define TR_DEFAULT_MAX_FILESIZE	0		/* 100,000 bytes */
 #define TR_DEFAULT_SYSLOG	TR_LOG_FILE	/* Use logfile only */
-#define TR_DEFAULT_SYSLOG_ID	"NetNow Daemon"
-
 
 typedef struct _error_list_t {
     LINKED_LIST *ll_errors;
@@ -67,7 +63,6 @@ typedef struct _error_list_t {
 } error_list_t;
 
 #define DEFAULT_MAX_ERRORS      20
-
 
 /* The main trace structure. A "slave" trace is a copy of the "master"
  * trace. Slaves use the master's output fd, filename and mutex lock.
@@ -114,7 +109,6 @@ typedef struct _trace_t {
     buffer_t *buffer;		/* internal use */
 } trace_t;
 
-
 enum Trace_Attr {
     TRACE_LOGFILE = 1,
     TRACE_FLAGS,
@@ -127,7 +121,6 @@ enum Trace_Attr {
     TRACE_PREPEND_STRING,
     TRACE_MAX_ERRORS
 };
-
 
 /* public functions */
 trace_t *New_Trace (void);

@@ -24,27 +24,14 @@ int nonblock_connect (trace_t *default_trace, prefix_t *prefix, int port, int so
 
   trace (TRACE, default_trace, "NONBLOCK Connect\n");
 
-#ifdef NT
-	optval = 1;
-	if (ioctlsocket (sockfd, FIONBIO, &optval) < 0) {
-		trace (TR_ERROR, MRT->trace, "ioctl FIONBIO failed (%s)\n",
-			strerror (errno));
-		return (-1);
-	}
-#else
   if (fcntl (sockfd, F_SETFL, O_NONBLOCK) == -1) {
     trace (NORM, default_trace, "fnctl failed:  %s\n", strerror (errno)); 
     return -1;
   }
-#endif /* NT */
 
   if ((connect(sockfd, (struct sockaddr *)&serv_addr, 
 	       sizeof(struct sockaddr_in))) != 0) {
-#ifdef NT
-	if ((n = WSAGetLastError()) != WSAEWOULDBLOCK) {
-#else		
     if (errno != EINPROGRESS) {
-#endif /* NT */
       trace (NORM, default_trace, "Nonblocking connect failed to %s (fd=%d):  %s\n",
 	     prefix_toa (prefix), sockfd,
 	     strerror (errno));
@@ -118,11 +105,7 @@ int nonblock_connect (trace_t *default_trace, prefix_t *prefix, int port, int so
         goto done_connect;
 
     /* We have an error. */
-#ifdef NT
-	if ((optval = WSAGetLastError()) != WSAEWOULDBLOCK) {
-#else
     if (optval != EINPROGRESS) {
-#endif /* NT */ 
       trace (NORM, default_trace,
 	     "- Non-blocking connect failed to %s: %s\n",
 	     prefix_toa (prefix), strerror(optval));

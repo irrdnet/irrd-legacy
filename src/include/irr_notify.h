@@ -1,5 +1,5 @@
 /*
- * $Id: irr_notify.h,v 1.7 2001/08/28 21:43:40 ljb Exp $
+ * $Id: irr_notify.h,v 1.8 2002/10/17 19:41:44 ljb Exp $
  */
 
 #ifndef _IRR_NOTIFY_H
@@ -13,10 +13,6 @@
 
 /* RFC 2769 RPS-DIST: offset from UTC, used in creating timestamps */
 #define UTC_OFFSET "+04:00"
-
-#define newline_remove(p) if (*((p) + strlen ((p)) - 1) == '\n') \
-                           *((p) + strlen ((p)) - 1) = '\0'
-
 /* char storage size for notify and forward addr's */
 #define MAX_ADDR_SIZE 5000
 
@@ -32,19 +28,6 @@
 enum NOTIFY_T {
   NOTIFY_RESPONSE, FORWARD_RESPONSE, SENDER_RESPONSE
 };
-
-/* Transaction types */
-#define ADD_OP     "ADD"
-#define DEL_OP     "DEL"
-#define REPLACE_OP "REPLACE"
-#define NOOP_OP    "NOOP"
-#define NOT_SET_OP "NOT_SET"
-
-/* these are the 4 transaction types 
-enum OPS {
-  ADD = 0, DEL, REPLACE, NOOP, NOT_SET
-};
-*/
 
 /* transaction outcome from IRRd */
 #define _SUCCESS   '1'
@@ -98,6 +81,9 @@ extern char tempfname[];
 extern const char SENDER_HEADER[];
 extern const char FORWARD_HEADER[];
 extern const char NOTIFY_HEADER[];
+extern const char DIAG_HEADER[];
+extern const char MAIL_HEADERS[];
+extern const char WEB_UPDATE[];
 extern const char RESPONSE_FOOTER[];
 extern const char SENDER_OP_FAILED[];
 extern const char SENDER_OP_SUCCESS[];
@@ -112,6 +98,8 @@ extern const char MAINT_NO_EXIST_MSG[];
 extern const char AUTHFAIL_MSG[];
 extern const char NEW_MNT_ERROR_MSG[];
 extern const char NEW_MNT_ERROR_MSG_2[];
+extern const char DEL_MNT_ERROR_MSG[];
+extern const char DEL_MNT_ERROR_MSG_2[];
 extern const char BAD_OVERRIDE_MSG[];
 extern const char UNKNOWN_USER_MSG[];
 extern const char PREV_OBJ_MSG[];
@@ -147,7 +135,7 @@ extern int num_hdls;
 
 
 void notify (trace_t *, char *, FILE *, int, 
-	     int, int, int, char *, int, char *, char *, char *, 
+	     int, int, char *, int, char *, int, char *, char *, char *, 
 	     char *, long, FILE *, char *);
 void send_notifies (trace_t *, int, FILE *, int);
 int present_in_list (char *, char *, char *);

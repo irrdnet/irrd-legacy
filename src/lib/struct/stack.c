@@ -21,7 +21,6 @@ const char *STACK_errlist[] = {
 
 static STACK_ErrorProc STACK_Handler = (STACK_ErrorProc) STACK_DefaultHandler;
 
-
 /*-----------------------------------------------------------
  *  Name:       STACK_Create()
  *  Created:	Fri Aug 26 19:02:21 1994
@@ -63,7 +62,6 @@ STACK* STACK_Create(unsigned size)
    return(stack);
 }
 
-
 /*-----------------------------------------------------------
  *  Name: 	STACK_Destroy()
  *  Created:	Fri Aug 26 20:08:53 1994
@@ -85,7 +83,6 @@ void STACK_Destroy(STACK* stack)
    Delete(stack->array);
    Delete(stack);
 }
-
 
 /*-----------------------------------------------------------
  *  Name: 	STACK_Push()
@@ -134,7 +131,6 @@ void STACK_Push(STACK* stack, STACK_TYPE data)
 #endif
 }
 
-
 /*-----------------------------------------------------------
  *  Name: 	STACK_Pop()
  *  Created:	Fri Aug 26 21:18:57 1994
@@ -164,7 +160,6 @@ STACK_TYPE STACK_Pop(STACK* stack)
    return(stack->array[--stack->top]);
 }
 
-
 /*-----------------------------------------------------------
  *  Name: 	STACK_SetHandler()
  *  Created:	Sat Aug 27 21:41:08 1994
@@ -182,7 +177,6 @@ STACK_ErrorProc STACK_SetHandler(STACK_ErrorProc fn, char *name)
 #endif
    return(tmp);
 }
-
 
 /*-----------------------------------------------------------
  *  Name: 	STACK_DefaultHandler()
@@ -203,9 +197,6 @@ void STACK_DefaultHandler(STACK* stack, enum STACK_ERROR num, char *name)
 	   STACK_errlist[num], (stack) ? (u_int)stack->top : 0, (stack) ? (u_int)stack->size : 0);
    fflush(out);
 }
-
-
-
 
 /*-----------------------------------------------------------
  *  Name: 	STACK_Print()
@@ -234,7 +225,6 @@ void STACK_Print(STACK* stack, STACK_PrintProc print)
    fflush(stdout);
 }
 
-
 /*-----------------------------------------------------------
  *  Name: 	STACK_DefaultPrintFn()
  *  Created:	Tue Sep 13 18:56:13 1994
@@ -245,4 +235,3 @@ void STACK_DefaultPrintFn(unsigned num, STACK_TYPE data)
 {
    printf("%3u: %d\n", num, (u_int)data);
 }
-

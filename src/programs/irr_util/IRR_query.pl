@@ -11,10 +11,9 @@
 require "getopts.pl";
 
 # Defaults
-$SERVER = "localhost";
+$SERVER = "whois.radb.net";
 $PORT = 43;
 $ECHO = 0;
-
 
 &Getopts("vs:c:p:");
 if (defined $opt_s) {
@@ -32,7 +31,6 @@ if (defined $opt_p) {
 $command = $ARGV[0];
 $result = &IRR_command($command);
 print "$result\n";
-
 
 sub open_IRR_connection {
     local ($server, $port) = @_;

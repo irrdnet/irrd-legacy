@@ -4,9 +4,7 @@
 #include <config.h>
 #include <mrt.h>
 #include "../programs/IRRd/irrd.h"
-#ifndef NT
 #include <irr_defs.h>
-#endif /* NT */ 
 
 #define BAK_SFX "irrdbak"
 

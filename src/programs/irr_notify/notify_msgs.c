@@ -1,5 +1,5 @@
 /* 
- * $Id: notify_msgs.c,v 1.5 2001/02/01 02:08:37 labovit Exp $
+ * $Id: notify_msgs.c,v 1.6 2002/10/17 20:25:56 ljb Exp $
  */
 
 #include <stdio.h>
@@ -13,7 +13,6 @@
 #include <sys/stat.h>
 #include <irr_notify.h>
 
-
 extern config_info_t ci;
 
 /*
@@ -23,10 +22,10 @@ extern config_info_t ci;
  * for anything.  So we need to move on to the next transaction
  * in the file.
  */
-void read_past_obj (FILE *fd) {
+void read_past_obj (FILE *fp) {
   char buf[10*MAXLINE];
 
-  while (fgets (buf, MAXLINE - 1, fd) != NULL) {
+  while (fgets (buf, MAXLINE - 1, fp) != NULL) {
     if (buf[0] == '\n')
       break;
   }
@@ -39,7 +38,7 @@ void read_past_obj (FILE *fd) {
 /* JW need to put a check for "large objects".  When object exeeds
  * size limit, [snip...] is printed and rest of object is skipped.
  */
-int dump_object_to_file (trace_t *tr, FILE *fd, FILE *fin, long obj_pos,
+int dump_object_to_file (trace_t *tr, FILE *fp, FILE *fin, long obj_pos,
 			 int max_line_size) {
   char buf[10*MAXLINE];
   char *cp;
@@ -59,12 +58,12 @@ int dump_object_to_file (trace_t *tr, FILE *fd, FILE *fin, long obj_pos,
 	  buf[0] == ERROR_TAG[0] ||
 	  buf[0] == WARN_TAG[0])) {
       if (print_snip && max_line_size < 0) {
-	fputs (SNIP_MSG, fd);
+	fputs (SNIP_MSG, fp);
 	print_snip = 0;
       }
       continue;
     } 
-    fputs (buf, fd);
+    fputs (buf, fp);
   }
   
   if (cp == NULL && 
@@ -73,7 +72,7 @@ int dump_object_to_file (trace_t *tr, FILE *fd, FILE *fin, long obj_pos,
 
   /* want to make sure next line written is not concated to this one */
   if (buf[strlen (buf) - 1] != '\n')
-    fprintf (fd, "\n");
+    fprintf (fp, "\n");
 
   return 1;
 }
@@ -88,9 +87,9 @@ int dump_object_to_file (trace_t *tr, FILE *fd, FILE *fin, long obj_pos,
  *   1 if there were no errors
  *  -1 otherwise
  */
-int dump_old_obj (trace_t *tr, FILE *msg_fd, FILE *fin, char *old_fname, 
+int dump_old_obj (trace_t *tr, FILE *msg_fp, FILE *fin, char *old_fname, 
 		  int max_line_size) {
-  FILE *fd_old;
+  FILE *fp_old;
   long fpos;
   int ret_code;
   
@@ -99,57 +98,64 @@ int dump_old_obj (trace_t *tr, FILE *msg_fd, FILE *fin, char *old_fname,
   /* file pointer is an offset in the input file */
   if (*old_fname >= '0' && *old_fname <= '9') {
     fpos = ftell (fin);
-    ret_code = dump_object_to_file (tr, msg_fd, fin, strtol (old_fname, NULL, 10),
+    ret_code = dump_object_to_file (tr, msg_fp, fin, strtol (old_fname, NULL, 10),
 				    max_line_size);
     fseek (fin, fpos, SEEK_SET);
   }
-  else if ((fd_old = fopen (old_fname, "r")) == NULL) {
+  else if ((fp_old = fopen (old_fname, "r")) == NULL) {
     trace (NORM, tr, "ERROR: dump_old_obj () could not open file \"%s\"\n", 
 	   old_fname);
     ret_code = -1;
   }
   else {
-    ret_code = dump_object_to_file (tr, msg_fd, fd_old, 0L, max_line_size);
-    fclose (fd_old);
+    ret_code = dump_object_to_file (tr, msg_fp, fp_old, 0L, max_line_size);
+    fclose (fp_old);
   }
 
   /* fprintf (dfile, "dump_old_obj() file name-(%s) ret_code-(%d)\n---\n\n", old_fname, ret_code);*/
   return ret_code;
 }
 
-
-
-
-void new_maint_request (trace_t *tr, FILE *fin, long obj_pos, trans_info_t *ti,
+void maint_request (trace_t *tr, FILE *fin, long obj_pos, trans_info_t *ti,
                         char *to_addr, char *tmpfname, int max_line_size ) {
   long fpos;
   FILE *fp;
-  char buf[10*MAXLINE], email[256];
-  int status, pid, w, no_mail = 0;
+  char buf[MAXLINE], email[256], *from_addr;
+  int fd, status, pid, w, no_mail = 0;
 
-  trace (TR_TRACE, tr, "Enter new_maint_request ()...\n");
   fpos = ftell (fin);
 
   /* create the file name */
   strcpy(buf, tmpfname);
-  my_mktemp (tr, buf);
+  fd = mkstemp(buf);
 
-  if ((fp = fopen (buf, "w")) == NULL) {
-    trace (NORM, tr, "new_maint_request () could not open file \"%s\"\n", buf);
+  if ((fp = fdopen (fd, "w")) == NULL) {
+    trace (NORM, tr, "maint_request () could not open file \"%s\"\n", buf);
     return;
   }
 
 #ifdef HAVE_SENDMAIL
-  fprintf (fp, "From: %s\nReply-To: %s\n", to_addr, to_addr);
+  if (ti->sender_addrs != NULL)
+    from_addr = ti->sender_addrs;
+  else
+    from_addr = "nobody@localhost"; 
+  fprintf (fp, "From: %s\nReply-To: %s\n", from_addr, from_addr);
   fprintf (fp, "To: %s\nSubject: %s\n", to_addr, ti->subject);
 #endif
 
-  fputs ("\nNew maintainer request:\n\n", fp);
-  fprintf (fp, "-FROM: %s\n", ti->sender_addrs);
-  fprintf (fp, "-DATE: %s\n\n\n", ti->date);
+  if (ti->new_mnt_error)
+    fputs ("\n-- New maintainer request --\n\n", fp);
+  else
+    fputs ("\n-- Maintainer deletion request (passed auth check) --\n\n", fp);
+  if (ti->sender_addrs != NULL)
+    fprintf (fp, "-FROM: %s\n", ti->sender_addrs);
+  if (ti->date != NULL)
+    fprintf (fp, "-DATE: %s\n", ti->date);
+  if (ti->web_origin_str != NULL)
+    fprintf (fp, WEB_UPDATE, ti->web_origin_str);
 
   if (dump_object_to_file (tr, fp, fin, obj_pos, max_line_size) > 0) {
-    trace (TR_TRACE, tr, "new_maint_request () sending mail to (%s)...\n", email
+    trace (TR_TRACE, tr, "maint_request () sending mail to (%s)...\n", email
 );
     fclose (fp);
 
@@ -180,8 +186,6 @@ void new_maint_request (trace_t *tr, FILE *fin, long obj_pos, trans_info_t *ti,
   unlink (buf);
 }
 
-
-
 /* 
  * Create a notification/forward file.  Save the file pointer
  * in a global array of file pointers (ie, msg_hdl[]).  num_hdls
@@ -189,24 +193,24 @@ void new_maint_request (trace_t *tr, FILE *fin, long obj_pos, trans_info_t *ti,
  * points to the next available index.
  */
 int create_notify_file (trace_t *tr, char *p, char *tmpfname) {
-  char buf[10*MAXLINE];
+  char buf[MAXLINE];
+  int fd;
 
   /* create the file name */
   strcpy(buf, tmpfname);
-  my_mktemp (tr, buf);
-  /*
-  sprintf (buf, "%s.%ld", p, pid);
-  */
-  /*fprintf (dfile, "create_notify_file (\"%s\")\n", buf);*/
+  fd = mkstemp (buf);
 
-  if (num_hdls >= MAX_HDLS) {
-    trace (NORM, tr, "ERROR: create_notify_file () file hdl overflow (%d)\n", 
+  if (num_hdls >= MAX_HDLS || fd == -1) {
+    trace (NORM, tr, "ERROR: create_notify_file () file hdl overflow (%d) or tempfile error\n", 
 	   num_hdls);
+    close(fd);
     return -1;
   }
-  else if ((msg_hdl[num_hdls].fp = fopen (buf, "w+")) == NULL) {
+  else if ((msg_hdl[num_hdls].fp = fdopen (fd, "w+")) == NULL) {
     trace (NORM, tr, 
 	   "ERROR: create_notify_file() could not open file \"%s\"\n", buf);
+    close(fd);
+    unlink(buf);
     return -1;
   }
   
@@ -243,35 +247,32 @@ int add_list_member (trace_t *tr, char *p, char *buf, char **next) {
 
 }
 
-void init_response_header (trace_t *tr, FILE *fd, char *from, char *to, enum NOTIFY_T response_type,
+void init_response_header (trace_t *tr, FILE *fp, char *from, char *to, enum NOTIFY_T response_type,
 			   trans_info_t *ti, char *db_admin) {
-  char buf[10*MAXLINE];
 
 #ifdef HAVE_SENDMAIL
-  if (db_admin != NULL)
-    fprintf (fd, "From: %s\nReply-To: %s\n", db_admin, db_admin);
-  fprintf (fd, "To: %s\nSubject: %s\n", to, ti->subject);
+  if (ti->web_origin_str == NULL || response_type != SENDER_RESPONSE) {
+    if (db_admin != NULL)
+      fprintf (fp, "From: %s\nReply-To: %s\n", db_admin, db_admin);
+    fprintf (fp, "To: %s\nSubject: %s\n", to, ti->subject);
+  }
 #endif
 
   switch (response_type) {
   case SENDER_RESPONSE:
-    sprintf (buf, SENDER_HEADER, from, ti->subject, ti->date, ti->msg_id);
-    trace (NORM, tr, "\n\n > From: %s\n > Subject: %s\n > Date: %s\n > Msg-Id: %s\n\n",
-	   from, ti->subject, ti->date, ti->msg_id);
+    fprintf (fp, SENDER_HEADER);
     break;
   case FORWARD_RESPONSE:
-    if (ci.header_forward_msg != NULL)
-      sprintf (buf, ci.header_notify_msg, from, ti->subject, ti->date, ti->msg_id);
-    else {
-      sprintf (buf, FORWARD_HEADER, from, ti->subject, ti->date, ti->msg_id);
-    }
+    if (ci.forward_header_msg != NULL)
+      fprintf (fp, ci.forward_header_msg);
+    else
+      fprintf (fp, FORWARD_HEADER);
     break; 
   case NOTIFY_RESPONSE:
-    if (ci.header_notify_msg != NULL)
-      sprintf (buf, ci.header_notify_msg, ti->subject, ti->date, ti->msg_id);
-    else {
-      sprintf (buf, NOTIFY_HEADER, from, ti->subject, ti->date, ti->msg_id);
-    }
+    if (ci.notify_header_msg != NULL)
+      fprintf(fp, ci.notify_header_msg);
+    else
+      fprintf (fp, NOTIFY_HEADER, ti->source);
     break;
   default:
     trace (NORM, tr, 
@@ -280,24 +281,21 @@ void init_response_header (trace_t *tr, FILE *fd, char *from, char *to, enum NOT
     break;
   }
 
-  fprintf (fd, "%s", buf);
+  fprintf (fp, DIAG_HEADER);
+
+  if (ti->web_origin_str == NULL)
+    fprintf (fp, MAIL_HEADERS, from, ti->subject, ti->date, ti->msg_id);
+  else if ( response_type != SENDER_RESPONSE )
+    fprintf (fp, WEB_UPDATE, ti->web_origin_str);
+
 }
 
-void init_response_footer (FILE *fd) {
+void init_response_footer (FILE *fp) {
 
-  /* JW take out
-  if (ci.ll_response_footer) {
-    LL_Iterate (ci.ll_response_footer, st) {
-      fprintf (fd, st);
-      if (*(st + strlen (st) - 1) != '\n')
-	fprintf (fd, "\n");
-    }
-  }
-  */
   if (ci.footer_msg != NULL)
-    fprintf (fd, ci.footer_msg);
+    fprintf (fp, ci.footer_msg);
   else {
-    fprintf (fd, RESPONSE_FOOTER);
+    fprintf (fp, RESPONSE_FOOTER);
   }
 }
 
@@ -336,78 +334,77 @@ void init_response (trace_t *tr, char *tmpfname, char *from, char *addrs_buf,
  * JW later must look at length of maint list and break up
  * onto additional lines if necessary.
  */
-void dump_maint_list (FILE *fd, char *maint_list) {
-  fprintf (fd, "%s%s", ERROR_TAG, maint_list);
+void dump_maint_list (FILE *fp, char *maint_list) {
+  fprintf (fp, "%s%s", ERROR_TAG, maint_list);
 }
 
 void forwarder_response (trace_t *tr, FILE *fin, long obj_pos, trans_info_t *ti, 
-			 FILE *msg_fd) {
+			 FILE *msg_fp) {
 
-  fprintf (msg_fd, "%s", MSG_SEPERATOR);
+  fprintf (msg_fp, "%s", MSG_SEPERATOR);
 
   if (!strcmp (ti->op, REPLACE_OP))
-    fprintf (msg_fd, "%s", FORWARD_REPL_MSG);
+    fprintf (msg_fp, "%s", FORWARD_REPL_MSG);
   else if (!strcmp (ti->op, DEL_OP))
-    fprintf (msg_fd, "%s", FORWARD_DEL_MSG);
+    fprintf (msg_fp, "%s", FORWARD_DEL_MSG);
   else
-    fprintf (msg_fd, "%s", FORWARD_ADD_MSG);
+    fprintf (msg_fp, "%s", FORWARD_ADD_MSG);
 
-  dump_object_to_file (tr, msg_fd, fin, obj_pos, 10000);  
+  dump_object_to_file (tr, msg_fp, fin, obj_pos, 10000);  
 }
 
 void notifier_response (trace_t *tr, FILE *fin, long obj_pos, trans_info_t *ti, 
-			FILE *msg_fd, int max_obj_line_size) {
+			FILE *msg_fp, int max_obj_line_size) {
 
   /*fprintf (dfile, "notifier_response(op-(%s))\n", ti->op);*/
-  fprintf (msg_fd, "%s", MSG_SEPERATOR);
+  fprintf (msg_fp, "%s", MSG_SEPERATOR);
 
   if (!strcmp (ti->op, REPLACE_OP)) {
-    fprintf (msg_fd, "%s", PREV_OBJ_MSG);
-    dump_old_obj (tr, msg_fd, fin, ti->old_obj_fname, max_obj_line_size);
-    fprintf (msg_fd, "%s", NOTIFY_REPL_MSG);
+    fprintf (msg_fp, "%s", PREV_OBJ_MSG);
+    dump_old_obj (tr, msg_fp, fin, ti->old_obj_fname, max_obj_line_size);
+    fprintf (msg_fp, "%s", NOTIFY_REPL_MSG);
   }
   else if (!strcmp (ti->op, DEL_OP)) {
-    fprintf (msg_fd, "%s", NOTIFY_DEL_MSG);
-    dump_old_obj (tr, msg_fd, fin, ti->old_obj_fname, max_obj_line_size);
+    fprintf (msg_fp, "%s", NOTIFY_DEL_MSG);
+    dump_old_obj (tr, msg_fp, fin, ti->old_obj_fname, max_obj_line_size);
   }
   else
-    fprintf (msg_fd, "%s", NOTIFY_ADD_MSG);
+    fprintf (msg_fp, "%s", NOTIFY_ADD_MSG);
 
   if (strcmp (ti->op, DEL_OP))
-   dump_object_to_file (tr, msg_fd, fin, obj_pos, max_obj_line_size); 
+   dump_object_to_file (tr, msg_fp, fin, obj_pos, max_obj_line_size); 
 }
 
 
 void sender_response (trace_t *tr, FILE *fin, long obj_pos, trans_info_t *ti, 
-		      FILE *msg_fd, irrd_result_t *irrd_res, 
+		      FILE *msg_fp, irrd_result_t *irrd_res, 
 		      char *db_admin, char *tmpfname, int max_obj_line_size) {
-  char buf[10*MAXLINE];
+  char buf[MAXLINE];
 
   /* print the transaction outcome */
   if (irrd_res->svr_res & SUCCESS_RESULT) {
-    fprintf (msg_fd, SENDER_OP_SUCCESS, ti->op, ti->obj_type, ti->obj_key);
+    fprintf (msg_fp, SENDER_OP_SUCCESS, ti->op, ti->obj_type, ti->obj_key);
     trace (NORM, tr, SENDER_OP_SUCCESS, ti->op, ti->obj_type, ti->obj_key);
     if (ti->syntax_warns)
-      dump_object_to_file (tr, msg_fd, fin, obj_pos, max_obj_line_size);
+      dump_object_to_file (tr, msg_fp, fin, obj_pos, max_obj_line_size);
 
     return;
   }
 
   if (irrd_res->svr_res & NOOP_RESULT) {
-    fprintf (msg_fd, SENDER_OP_NOOP, ti->op, ti->obj_type, ti->obj_key);
-    trace (NORM, tr, SENDER_OP_NOOP, ti->op, ti->obj_type, ti->obj_key);
+    fprintf (msg_fp, SENDER_OP_NOOP, ti->obj_type, ti->obj_key);
+    trace (NORM, tr, SENDER_OP_NOOP, ti->obj_type, ti->obj_key);
     return;
   }
 
   if (irrd_res->svr_res & NULL_SUBMISSION) {
-    fprintf (msg_fd, NULL_SUBMISSION_MSG);
+    fprintf (msg_fp, NULL_SUBMISSION_MSG);
     trace (NORM, tr, NULL_SUBMISSION_MSG, ti->op, ti->obj_type, ti->obj_key);
     return;
   }
 
-
   if (irrd_res->svr_res & IRRD_ERROR_RESULT) {
-    fprintf (msg_fd, SENDER_NET_ERROR, ti->op, ti->obj_type, ti->obj_key, 
+    fprintf (msg_fp, SENDER_NET_ERROR, ti->op, ti->obj_type, ti->obj_key, 
 	     irrd_res->err_msg);
     trace (NORM, tr, SENDER_NET_ERROR, ti->op, ti->obj_type, ti->obj_key, 
 	   irrd_res->err_msg);
@@ -415,7 +412,7 @@ void sender_response (trace_t *tr, FILE *fin, long obj_pos, trans_info_t *ti,
   }
    
   if (irrd_res->svr_res & INTERNAL_ERROR_RESULT) {
-    fprintf (msg_fd, INTERNAL_ERROR, ti->op, ti->obj_type, ti->obj_key, 
+    fprintf (msg_fp, INTERNAL_ERROR, ti->op, ti->obj_type, ti->obj_key, 
 	     irrd_res->err_msg);
     trace (NORM, tr, INTERNAL_ERROR, ti->op, ti->obj_type, ti->obj_key, 
 	     irrd_res->err_msg);
@@ -423,34 +420,34 @@ void sender_response (trace_t *tr, FILE *fin, long obj_pos, trans_info_t *ti,
   }    
 
   if (irrd_res->svr_res & SKIP_RESULT) {
-    fprintf (msg_fd, SENDER_SKIP_RESULT, ti->op, ti->obj_type, ti->obj_key);
+    fprintf (msg_fp, SENDER_SKIP_RESULT, ti->op, ti->obj_type, ti->obj_key);
     trace (NORM, tr, SENDER_SKIP_RESULT, ti->op, ti->obj_type, ti->obj_key);
     return;
   }    
 
-  fprintf (msg_fd, "\n");
-  fprintf (msg_fd, SENDER_OP_FAILED, ti->op, ti->obj_type, ti->obj_key);
-  dump_object_to_file (tr, msg_fd, fin, obj_pos, max_obj_line_size);
+  fprintf (msg_fp, "\n");
+  fprintf (msg_fp, SENDER_OP_FAILED, ti->op, ti->obj_type, ti->obj_key);
+  dump_object_to_file (tr, msg_fp, fin, obj_pos, max_obj_line_size);
   trace (NORM, tr, SENDER_OP_FAILED, ti->op, ti->obj_type, ti->obj_key);
 
   if (ti->syntax_errors) {
-    fprintf (msg_fd, "\n");
+    fprintf (msg_fp, "\n");
     trace (NORM, tr, "%s%s\n", ERROR_TAG, "Syntax errors");
     return;
   }
 
   if (ti->del_no_exist) {
     sprintf (buf, "%s%s", ERROR_TAG, DEL_NO_EXIST_MSG);
-    fprintf (msg_fd, buf, ti->source);
-    fprintf (msg_fd, "\n");
+    fprintf (msg_fp, buf, ti->source);
+    fprintf (msg_fp, "\n");
     trace (NORM, tr, buf, ti->source);
     return;
   }
 
   if (ti->maint_no_exist != NULL) {
-    fprintf (msg_fd, "%s%s", ERROR_TAG, MAINT_NO_EXIST_MSG);
-    dump_maint_list (msg_fd, ti->maint_no_exist);
-    fprintf (msg_fd, "\n");
+    fprintf (msg_fp, "%s%s", ERROR_TAG, MAINT_NO_EXIST_MSG);
+    dump_maint_list (msg_fp, ti->maint_no_exist);
+    fprintf (msg_fp, "\n");
     trace (NORM, tr, "%s%s", ERROR_TAG, MAINT_NO_EXIST_MSG);
     return;
   }
@@ -458,43 +455,57 @@ void sender_response (trace_t *tr, FILE *fin, long obj_pos, trans_info_t *ti,
   if (ti->bad_override) {
     sprintf (buf, "%s%s", ERROR_TAG, BAD_OVERRIDE_MSG);
     if (ti->override != NULL)
-      fprintf (msg_fd, buf, ti->override);
+      fprintf (msg_fp, buf, ti->override);
     else
-      fprintf (msg_fd, buf, "?");
+      fprintf (msg_fp, buf, "?");
     trace (NORM, tr,  BAD_OVERRIDE_MSG);
-    fprintf (msg_fd, "\n");
+    fprintf (msg_fp, "\n");
     return;
   }
 
   if (ti->unknown_user) {
-    fprintf (msg_fd, "%s%s", ERROR_TAG, UNKNOWN_USER_MSG);
+    fprintf (msg_fp, "%s%s", ERROR_TAG, UNKNOWN_USER_MSG);
     return;
   }
 
   if (ti->new_mnt_error) {
     if (db_admin != NULL) {
-      fprintf (msg_fd, "%s%s %s", ERROR_TAG, NEW_MNT_ERROR_MSG_2, db_admin);
-      new_maint_request (tr, fin, obj_pos, ti, db_admin, tmpfname, 
-			 max_obj_line_size);
+      fprintf (msg_fp, "%s%s %s", ERROR_TAG, NEW_MNT_ERROR_MSG_2, db_admin);
+      maint_request (tr, fin, obj_pos, ti, db_admin, tmpfname,
+			max_obj_line_size);
     }
     else
-      fprintf (msg_fd, "%s%s", ERROR_TAG, NEW_MNT_ERROR_MSG);
+      fprintf (msg_fp, "%s%s", ERROR_TAG, NEW_MNT_ERROR_MSG);
 
-    fprintf (msg_fd, "\n");
+    fprintf (msg_fp, "\n");
     trace (NORM, tr, "%s%s", ERROR_TAG, NEW_MNT_ERROR_MSG);
     return;
   }
 
+  if (ti->del_mnt_error) {
+    if (db_admin != NULL) {
+      fprintf (msg_fp, "%s%s %s", ERROR_TAG, DEL_MNT_ERROR_MSG_2, db_admin);
+      maint_request (tr, fin, obj_pos, ti, db_admin, tmpfname, 
+			 max_obj_line_size);
+    }
+    else
+      fprintf (msg_fp, "%s%s", ERROR_TAG, DEL_MNT_ERROR_MSG);
+
+    fprintf (msg_fp, "\n");
+    trace (NORM, tr, "%s%s", ERROR_TAG, DEL_MNT_ERROR_MSG);
+    return;
+  }
+
   if (ti->authfail) {
-    fprintf (msg_fd, "%s%s", ERROR_TAG, AUTHFAIL_MSG);
-    fprintf (msg_fd, "\n");
+    fprintf (msg_fp, "%s%s", ERROR_TAG, AUTHFAIL_MSG);
+    fprintf (msg_fp, "\n");
     trace (NORM, tr, "%s%s", ERROR_TAG, AUTHFAIL_MSG);
     return;
   }
 
   if  (ti->otherfail) {
-    fprintf (msg_fd, "%s%s\n", ERROR_TAG, ti->otherfail);
-    fprintf (msg_fd, "\n");
+    fprintf (msg_fp, "%s%s\n", ERROR_TAG, ti->otherfail);
+    fprintf (msg_fp, "\n");
     trace (NORM, tr, "%s%s\n", ERROR_TAG, ti->otherfail);
     return;
   }
@@ -566,7 +577,7 @@ void build_notify_responses (trace_t *tr, char *tmpfname, FILE *fin,
 }
 
 void send_email (trace_t *tr,  char *addrs, char *last, int ndx[], 
-		 FILE *log_fd, int null_notification, int dump_stdout) {
+		 FILE *log_fp, int null_notification, int dump_stdout) {
 
   char buf[10*MAXLINE], *p;
   int i = 0;
@@ -574,23 +585,23 @@ void send_email (trace_t *tr,  char *addrs, char *last, int ndx[],
   for (p = addrs; p < last; p += strlen (p) + 1, i++) {
     init_response_footer (msg_hdl[ndx[i]].fp);
     
-    if (log_fd != NULL || dump_stdout) {
+    if (log_fp != NULL || dump_stdout) {
 
-      if (!dump_stdout && log_fd != NULL)
-	fprintf (log_fd, "\nMail to: \"%s\"\n", p);
-      else if (dump_stdout && log_fd != NULL)
-	fputs ("\nTCP reponse: \n", log_fd);
+      if (!dump_stdout && log_fp != NULL)
+	fprintf (log_fp, "\nMail to: \"%s\"\n", p);
+      else if (dump_stdout && log_fp != NULL)
+	fputs ("\nTCP reponse: \n", log_fp);
     
       if (fseek (msg_hdl[ndx[i]].fp, 0L, SEEK_SET) == EOF) {
-	fputs ("ERROR: send_notifies() rewind seek error, skipping...\n", log_fd);
+	fputs ("ERROR: send_notifies() rewind seek error, skipping...\n", log_fp);
 	trace (ERROR, tr, "send_notifies() feek error! (%s)\n", strerror(errno));
 	continue;
       }
       
       /* write the sender response to the ack log */
       while (fgets (buf, MAXLINE - 1, msg_hdl[ndx[i]].fp) != NULL) {
-	if (log_fd != NULL)
-	  fputs (buf, log_fd);
+	if (log_fp != NULL)
+	  fputs (buf, log_fp);
 
 	if (dump_stdout) /* dump response to STDOUT */
 	  printf ("%s", buf);
@@ -624,11 +635,11 @@ void send_email (trace_t *tr,  char *addrs, char *last, int ndx[],
 /*
  * Send the notifications to the notifiee's.
  */
-void send_notifies (trace_t *tr, int null_notification, FILE *ack_fd, int dump_stdout) {
+void send_notifies (trace_t *tr, int null_notification, FILE *ack_fp, int dump_stdout) {
   /*fprintf (dfile, "enter send_notifies ()...\n");*/
 
 #if (defined(HAVE_SENDMAIL) || defined(HAVE_MAIL))
-  send_email (tr, sender_addrs, snext, sndx, ack_fd, null_notification, dump_stdout);
+  send_email (tr, sender_addrs, snext, sndx, ack_fp, null_notification, dump_stdout);
 
   if (null_notification)
     return;

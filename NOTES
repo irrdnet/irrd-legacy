@@ -1,3 +1,125 @@
+ Sep 06, 2005      IRRd 2.2.8   Release notes 
+
+    Fix bug when displaying bad DB names used with !j command.
+
+ May 20, 2005      IRRd 2.2.7   Release notes 
+
+    Fixed file descriptor leak when journal file is corrupted.
+
+ Apr 06, 2005      IRRd 2.2.6   Release notes 
+
+    Fixed UII "show ip" command so that it does not crash IRRd.  Also
+fixed incorrect output when more specific option is used with this command.
+
+ Mar 22, 2005      IRRd 2.2.5   Release notes 
+
+    Allow more specific expansions for /8's or longer (instead of /16).
+Add ROUTE6 type to RReg filter.  Fix for rpsl.fl to work with newer
+versions of flex.
+
+ Jan 28, 2005      IRRd 2.2.4   Release notes 
+
+     Increase maximum line length for attributes to 2048 bytes.
+
+ Dec 16, 2004	   IRRd 2.2.3	Release notes
+
+     Call setsockopt to clear IPV6_V6ONLY flag (if defined) so
+that sockets will accept both IPV4 and IPV6 connections.  Primarily
+affects the BSD's as they do not accept IPV4 mapped connections on
+an IPV6 socket by default.
+
+ Nov 22, 2004	   IRRd 2.2.2	Release notes
+
+     Fixed a bug in handling of irr_expansion_timeout so that a value
+of zero is correctly treated as no timeout.  Use a merge-sort on
+expansion output for much greater efficiency (note this largely obviates the
+need for irr_expansion_timeout, but we leave it in just in case.)
+
+ Nov 18, 2004	   IRRd 2.2.1	Release notes
+
+     Allow PeerAS in asno RP-attribute.  add irr_expansion_timeout to allow
+interruption of long set expansions.  add support for RIPE -x flag and
+fix -l flag output.  other RIPE related compatibility fixes to allow
+IRRToolSet to use -protocol ripe with IRRd.
+
+ Oct 16, 2004      IRRd 2.2.0   Release notes
+
+     Intitial 2.2 release.   First formal release to support RPSLng
+ and IPv6.  Enjoy.
+
+ Jul 15, 2004 
+		   IRRd 2.2b34  Release notes
+
+    irr_database_clean() could corrupt a db file if an object is
+ followed with a "#"-prefixed comment line.  It is unclear from RFC2622
+ whether or not a line beginning with a "#" comment character is legal.
+ We now allow such lines rather than removing them.
+
+ Jul 14, 2004 
+		   IRRd 2.2b33  Release notes
+
+    Cleaned up some logging output to be more consistent (don't prefix
+ log strings with "IRR" as they are automatically prefixed with "IRRD").
+ Fix irrd_log_report.pl script to handle new log output and IPv6.
+
+ Jun 06, 2004 
+		   IRRd 2.2b32  Release notes
+
+    Send new maintainers request with a From: address of the
+ sender rather than the db-admin (fixed to improve spam filters).
+
+ May 12, 2004
+		   IRRd 2.2b31  Release notes
+
+    Bring into compliance with latest rpslng draft (draft -05).
+  Fix bug with !g expansions when route6 objects are present
+  with the given origin AS.
+
+ April 22, 2004
+
+		   IRRd 2.2b30  Release notes
+
+    Fixed unitialized buffer bug.
+
+ December 16, 2003
+
+                   IRRd 2.2b28  Release notes
+
+
+    This beta 2.2 release incorporates support for RPSLng.  Other
+  features include support for CRYPT-PW hiding and a flag for
+  irr_rpsl_submit to allow inetnum/inet6num/as-block/domain
+  objects.  Full indexing for inetnum (Radix) and as-block (hash)
+  objects is not yet complete.  The Changelog has not been
+  updated yet.
+
+
+ October 17, 2002
+		   IRRd 2.1.5  Release notes
+
+    Support has been added for performing inverse searches on the
+  mnt-by: attribute in objects.  This is accomplished with the '!o'
+  command or '-i mnt-by' query flag.
+    route-set expansion with '!i' command now correctly handles aut-num
+  and as-set's within a route-set.  Expansion of route-set's with
+  multiple level's of range expressions now works correctly.
+    Fixed handling of 'debug submission' command in config file which
+  caused irr_rpsl_submit to segfault.
+    Fixed support for response_notify_header and response_forward_header
+  in config file (used by irr_rpsl_submit).
+    Create a new CURRENTSERIAL file for a registry db if one does not
+  already exist and prevent corruption of IRRD_STATUS file.
+    Improved performance when making mass bulk updates and when performing
+  set expansions.
+    Update serial number when mirroring a remote registry db even
+  when object class is unrecognized (to address syncronization issues
+  with db's which use non-RPSL standard object classes).
+    Several potential buffer overflows addressed that affected
+  irr_rpsl_submit.
+    Replace use of mktemp with mkstemp in a number of modules to
+  address gcc's complaints about mktemp being unsafe.
+    Documentation updates to User Manual.
+
  Feb  4, 2002
 		   IRRd 2.1.4  Release notes
 

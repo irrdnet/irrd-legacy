@@ -8,19 +8,21 @@
 #include <regex.h>
 
 #include <irr_rpsl_check.h>
+#include <irr_defs.h>
 
 /* predefined type check routines */
 
-static int    boolean_check      (parse_info_t *, char *, predef_t *, int, char *);
-static int    free_text_check    (parse_info_t *, char *, predef_t *, int, char *);
-static int    email_check        (parse_info_t *, char *, predef_t *, int, char *);
-static int    asnum_check        (parse_info_t *, char *, predef_t *, int, char *);
-static int    enum_check         (parse_info_t *, char *, predef_t *, int, char *);
-static int    int_check          (parse_info_t *, char *, predef_t *, int, char *);
-static int    int_check_2        (parse_info_t *, char *, predef_t *, int, char *);
-static int    ipv4_check         (parse_info_t *, char *, predef_t *, int, char *);
+static int  boolean_check   (parse_info_t *, char *, predef_t *, int, char *);
+static int  free_text_check (parse_info_t *, char *, predef_t *, int, char *);
+static int  email_check     (parse_info_t *, char *, predef_t *, int, char *);
+static int  asnum_check     (parse_info_t *, char *, predef_t *, int, char *);
+static int  enum_check      (parse_info_t *, char *, predef_t *, int, char *);
+static int  int_check       (parse_info_t *, char *, predef_t *, int, char *);
+static int  int_check_2     (parse_info_t *, char *, predef_t *, int, char *);
+static int  ipv4_check      (parse_info_t *, char *, predef_t *, int, char *);
+static int  ipv6_check      (parse_info_t *, char *, predef_t *, int, char *);
 
-static int    typedef_handler    (parse_info_t *, char *, type_t *, int, 
+static int  typedef_handler    (parse_info_t *, char *, type_t *, int, 
 				  enum ARG_CONTEXT, char **);
 static int    union_handler      (parse_info_t *, char *, type_t *, int, 
 				  enum ARG_CONTEXT, char **) ;
@@ -44,7 +46,7 @@ int as_set_name_check (parse_info_t *pi, char *rp_name, predef_t *p,
 		       int show_emsg, char *parm) {
   /* parm is string to be checked */
   char * t = parm;
-  char ebuf[1024];
+  char ebuf[2048];
 
   fprintf(dfile, "as_set_name_check() arg=(%s)\n", parm);
 
@@ -53,14 +55,14 @@ int as_set_name_check (parse_info_t *pi, char *rp_name, predef_t *p,
       return(rpsl_word_check(pi, rp_name, p, show_emsg, (t+3)));
     else{
       if(show_emsg){
-        sprintf(ebuf, "Invalid as-set name: %s", parm);
+        snprintf(ebuf, 2048, "Invalid as-set name: %s", parm);
         error_msg_queue (pi, ebuf, ERROR_MSG); 
       }
       return 1;
     }
   }
   if(show_emsg){
-    sprintf(ebuf, "Invalid as-set name: %s", parm);
+    snprintf(ebuf, 2048, "Invalid as-set name: %s", parm);
     error_msg_queue (pi, ebuf, ERROR_MSG); 
   }
   return 1;
@@ -71,7 +73,7 @@ int route_set_name_check (parse_info_t *pi, char *rp_name, predef_t *p,
 			  int show_emsg, char *parm) {
   /* parm is string to be checked */
   char * t = parm;
-  char ebuf[1024];
+  char ebuf[2048];
   
   fprintf(dfile, "route_set_name_check() arg=(%s)\n", parm);
 
@@ -80,14 +82,14 @@ int route_set_name_check (parse_info_t *pi, char *rp_name, predef_t *p,
       return(rpsl_word_check(pi, rp_name, p, show_emsg, (t+3)));
     else{
       if(show_emsg){
-        sprintf(ebuf, "Invalid route-set name: %s", parm);
+        snprintf(ebuf, 2048, "Invalid route-set name: %s", parm);
         error_msg_queue (pi, ebuf, ERROR_MSG); 
       }
       return 1;
     }
   }
   if(show_emsg){
-    sprintf(ebuf, "Invalid route-set name: %s", parm);
+    snprintf(ebuf, 2048, "Invalid route-set name: %s", parm);
     error_msg_queue (pi, ebuf, ERROR_MSG); 
   }
   return 1;
@@ -96,7 +98,7 @@ int route_set_name_check (parse_info_t *pi, char *rp_name, predef_t *p,
 
 int real_check (parse_info_t *pi, char *rp_name, predef_t *p, int show_emsg, 
 		char *parm) {
-  char ebuf[1024];
+  char ebuf[2048];
   double dval;
 
   fprintf(dfile, "real_check () arg=(%s) lower=(%f) upper=(%f)\n",
@@ -104,7 +106,7 @@ int real_check (parse_info_t *pi, char *rp_name, predef_t *p, int show_emsg,
 
   if (regexec(&re[RE_REAL], parm, (size_t) 0, NULL, 0)) {
     if (show_emsg) {
-      sprintf (ebuf, "Non-numeric argument value found for RP attribute \"%s\"", 
+      snprintf (ebuf, 2048, "Non-numeric argument value found for RP attribute \"%s\"", 
 	       rp_name);
       error_msg_queue (pi, ebuf, ERROR_MSG);
     }
@@ -118,7 +120,7 @@ int real_check (parse_info_t *pi, char *rp_name, predef_t *p, int show_emsg,
   dval = atof (parm);
   if (dval < p->u.d.lower) {
     if (show_emsg) {
-      sprintf (ebuf, 
+      snprintf (ebuf,  2048,
                "Real value (%f) is less than lower bound (%f) for RP attribute "
 	       "\"%s\"", 
                dval, p->u.d.lower, rp_name);
@@ -129,7 +131,7 @@ int real_check (parse_info_t *pi, char *rp_name, predef_t *p, int show_emsg,
   
   if (dval > p->u.d.upper)  {
     if (show_emsg) {
-      sprintf (ebuf, 
+      snprintf (ebuf, 2048,
                "Real value (%f) exceeds upper bound (%f) for RP attribute \"%s\"", 
                dval, p->u.d.upper, rp_name);
       error_msg_queue (pi, ebuf, ERROR_MSG);
@@ -143,13 +145,13 @@ int real_check (parse_info_t *pi, char *rp_name, predef_t *p, int show_emsg,
 int rpsl_word_check (parse_info_t *pi, char *rp_name, predef_t *p, int show_emsg, 
 		     char *parm) {
   char * t = parm;
-  char ebuf[1024];
+  char ebuf[2048];
 
  fprintf(dfile, "rpsl_word_check() arg=(%s)\n", parm);
 
   if( !isalpha(*t) ){  /* check first letter */
     if(show_emsg){
-      sprintf(ebuf, "Invalid rpsl_word: %s must start with a letter", parm);
+      snprintf(ebuf, 2048, "Invalid rpsl_word: %s must start with a letter", parm);
       error_msg_queue (pi, ebuf, ERROR_MSG); 
     }
     return 1;
@@ -157,7 +159,7 @@ int rpsl_word_check (parse_info_t *pi, char *rp_name, predef_t *p, int show_emsg
 
   if ( !isalpha(  *(t+strlen(t)-1) ) &&  !isdigit( *(t+strlen(t)-1) ) ){/* check last letter, maybe save us */
     if(show_emsg){
-      sprintf(ebuf, "Invalid rpsl_word: %s must end in a letter or digit", parm);
+      snprintf(ebuf, 2048, "Invalid rpsl_word: %s must end in a letter or digit", parm);
       error_msg_queue (pi, ebuf, ERROR_MSG); 
     }
     return 1;                                                              /* from going through whole string */
@@ -179,11 +181,11 @@ int rpsl_word_check (parse_info_t *pi, char *rp_name, predef_t *p, int show_emsg
 int email_check (parse_info_t *pi, char *rp_name, predef_t *p, 
 		 int show_emsg, char *email_addr) {
   char *q;
-  char ebuf[1024];
+  char ebuf[2048];
 
   if ((q = strchr (email_addr, '@')) == NULL) {
     if (show_emsg) {
-      sprintf (ebuf, "Missing '@' in email address for attribute \"%s\"", rp_name);
+      snprintf (ebuf, 2048, "Missing '@' in email address for attribute \"%s\"", rp_name);
       error_msg_queue (pi, ebuf, ERROR_MSG);
     }
     return 1;
@@ -191,7 +193,7 @@ int email_check (parse_info_t *pi, char *rp_name, predef_t *p,
 
   if (strchr (q + 1, '@') != NULL) {
     if (show_emsg) {
-      sprintf (ebuf, 
+      snprintf (ebuf, 2048,
 	       "Multiple '@'s found in email address for attribute \"%s\"", rp_name);
       error_msg_queue (pi, ebuf, ERROR_MSG);
     }
@@ -202,7 +204,7 @@ int email_check (parse_info_t *pi, char *rp_name, predef_t *p,
       (regexec (&re[RE_EMAIL1], email_addr, (size_t) 0, NULL, 0) &&
        regexec (&re[RE_EMAIL2], email_addr, (size_t) 0, NULL, 0))) {
     if (show_emsg) {
-      sprintf (ebuf, "Malformed RFC822 email address for attribute \"%s\"", rp_name);
+      snprintf (ebuf, 2048, "Malformed RFC822 email address for attribute \"%s\"", rp_name);
       error_msg_queue (pi, ebuf, ERROR_MSG);
     }
     return 1;
@@ -214,7 +216,7 @@ int email_check (parse_info_t *pi, char *rp_name, predef_t *p,
 /* boolean means either true or false */
 int boolean_check (parse_info_t *pi, char *rp_name, predef_t *p, 
 		   int show_emsg, char *parm) {
-  char ebuf[1024];
+  char ebuf[2048];
   
   fprintf(dfile, "boolean_check() arg=(%s)\n", parm);
   
@@ -223,7 +225,7 @@ int boolean_check (parse_info_t *pi, char *rp_name, predef_t *p,
     return 0;
   else {
     if (show_emsg) {
-      sprintf(ebuf, 
+      snprintf(ebuf, 2048,
 	      "Invalid boolean value %s found in attribute \"%s\"", parm, rp_name);
       error_msg_queue (pi, ebuf, ERROR_MSG);
      }
@@ -234,7 +236,7 @@ int boolean_check (parse_info_t *pi, char *rp_name, predef_t *p,
 /* check to make sure of ASCII characters */
 int free_text_check (parse_info_t *pi, char *rp_name, predef_t *p, 
 		     int show_emsg, char *parm) {
-  char ebuf[1024];
+  char ebuf[2048];
   int bad_arg;
 
   fprintf(dfile, "free_text_check() arg=(%s)\n", parm);
@@ -244,18 +246,16 @@ int free_text_check (parse_info_t *pi, char *rp_name, predef_t *p,
   bad_arg = (*parm != '\0');
 
   if (bad_arg && show_emsg) {
-    sprintf(ebuf, "Non-ASCII character found in attribute \"%s\"", rp_name);
+    snprintf(ebuf, 2048, "Non-ASCII character found in attribute \"%s\"", rp_name);
     error_msg_queue (pi, ebuf, ERROR_MSG);
   }
   
   return bad_arg;
 }
 
-
 int empty_string (char *s) {
   
   for (; *s && !isgraph (*s); s++);
-
   return (*s == '\0');
 }
 
@@ -266,14 +266,14 @@ int empty_string (char *s) {
  */
 int arg_type_check (parse_info_t *pi, char *rp_name, type_t *t, int show_emsg, 
 		    enum ARG_CONTEXT context, char **arg) {
-  char ebuf[1024];
+  char ebuf[2048];
   
   /* check for non-list input to list arg and vice-versa */
   if (t->list) {
     /*
     if (**arg != '{') {
       if (show_emsg) {
-	sprintf (ebuf, "RP attribute \"%s\" list attribute expected", rp_name);
+	snprintf (ebuf, 2048, "RP attribute \"%s\" list attribute expected", rp_name);
 	error_msg_queue (pi, ebuf, ERROR_MSG);
       }
       return 0;
@@ -283,57 +283,12 @@ int arg_type_check (parse_info_t *pi, char *rp_name, type_t *t, int show_emsg,
   }
   else if (**arg == '{' && context == NON_LIST_TYPE) {
     if (show_emsg) {
-      sprintf (ebuf, "RP attribute \"%s\" non-list argument expected", rp_name);
+      snprintf (ebuf, 2048, "RP attribute \"%s\" non-list argument expected", rp_name);
       error_msg_queue (pi, ebuf, ERROR_MSG);
     }
     return 0;
   }
-  
   return 1;
-}
-
-/*
- *
- * Return
- *
- *   1 if the arg is type list and the actual
- *     arg does not exceed the minimum threshold, 't->min_elem'
- *     for the minimum number of elements.
- *
- *   0 otherwise
- *
-int empty_list (parse_info_t *pi, type_t *t, char *rp_name, char **arg) {
-  char ebuf[1024];
-
-  JW* if **arg is list type, check to see if an empty list is ok *JW
-  if (empty_string (*arg) && t->list) {
-    if (t->max_elem > 0 && t->min_elem > 0) {
-      sprintf (ebuf, "RP attribute \"%s\" must have at least %ld arguments", 
-	       rp_name, t->min_elem);
-      error_msg_queue (pi, ebuf, ERROR_MSG);
-      return 1;
-    }
-  }
-
-  return 0;
-}
-*/
-
-char *my_strdup_orig (int add_braces, char *s) {
-  char buf[2048];
-  
-  buf[0] = '\0';
-  if (add_braces)
-    strcat (buf, "{");
-  
-  if (s != NULL)
-    strcat (buf, s);
-  
-  if (add_braces)
-    strcat (buf, "}");
-  
-fprintf (dfile, "my_strdup () returns (%s)\n", buf);
-  return strdup (buf);
 }
 
 /* Dup string (s).
@@ -461,7 +416,6 @@ type_t *create_predef (enum PREDEF_TYPE ptype, int use_bounds, irange_t *i,
   return obj;
 }
 
-
 type_t *create_type (parse_info_t *pi, enum RPSL_DATA_TYPE type, ...) {
   va_list ap;
   irange_t i;
@@ -546,8 +500,6 @@ type_t *create_type (parse_info_t *pi, enum RPSL_DATA_TYPE type, ...) {
 
   return t;
 }
-
-
 
 param_t *create_parm (type_t *t) {
   param_t *obj;
@@ -708,20 +660,16 @@ proto_t *create_proto_attr (char *name, method_t *m) {
 
   obj = (proto_t *) malloc (sizeof (proto_t));
   memset ((proto_t *) obj, 0, sizeof (proto_t));
-
   obj->name  = strdup (name);
   obj->first = m;
-    
   return (obj);
 }
-
 
 proto_t *find_protocol (proto_t_ll *start, char *proto) {
   proto_t *p;
 
   if (proto == NULL)
     return NULL;
-
   for (p = start->first; p != NULL; p = p->next)
     if (!strcasecmp (proto, p->name))
       break;
@@ -740,6 +688,41 @@ void add_new_proto (proto_t_ll *start, proto_t *obj) {
   start->last = obj;
 }
 
+afi_t *create_afi_attr (char *name) {
+  afi_t *obj;
+
+  obj = (afi_t *) malloc (sizeof (afi_t));
+  memset ((afi_t *) obj, 0, sizeof (afi_t));
+  obj->name  = strdup (name);
+  return (obj);
+}
+
+afi_t *find_afi (afi_t_ll *start, char *afi) {
+  afi_t *p;
+
+  if (afi == NULL)
+    return NULL;
+  for (p = start->first; p != NULL; p = p->next) {
+    if (!strcasecmp (afi, p->name)) 
+      break;
+  }
+
+  if (p == NULL)
+      fprintf (dfile, "Unable to find afi: %s\n", afi);
+
+  return p;
+}
+
+void add_new_afi (afi_t_ll *start, afi_t *obj) {
+
+  obj->next = NULL;
+  if (start->first == NULL)
+    start->first = obj;
+  else
+    start->last->next = obj;
+
+  start->last = obj;
+}
 
 void add_type_to_list (type_t_ll *start, type_t *obj) {
 
@@ -864,6 +847,16 @@ void print_proto_list (proto_t_ll *start) {
   fprintf (dfile, "-------------------\n\n");
 }
 
+void print_afi_list (afi_t_ll *start) {
+  afi_t *p;
+
+  fprintf (dfile, "\n-------------------\n");
+  for (p = start->first; p != NULL; p = p->next) {
+    fprintf (dfile, "afi name=(%s)\n", p->name);
+  }
+  fprintf (dfile, "-------------------\n\n");
+}
+
 void print_typedef_list (type_t_ll *ll) {
   type_t *t;
   param_t p;
@@ -955,11 +948,16 @@ char *find_arg (char **s, int list) {
 
 /* processing modules */
 
-
 int ipv4_check (parse_info_t *pi, char *rp_name, predef_t *p, 
 		int show_emsg, char *parm) {
 
   return !_is_ipv4_prefix (pi, parm, 1);
+}
+
+int ipv6_check (parse_info_t *pi, char *rp_name, predef_t *p, 
+		int show_emsg, char *parm) {
+
+  return !_is_ipv6_prefix (pi, parm, 1);
 }
 
 int int_check (parse_info_t *pi, char *rp_name, predef_t *p, 
@@ -983,7 +981,7 @@ int int_check (parse_info_t *pi, char *rp_name, predef_t *p,
 
 int int_check_2 (parse_info_t *pi, char *rp_name, predef_t *p, 
 		 int show_emsg, char *parm) {
-  char ebuf[1024];
+  char ebuf[2048];
   char *q;
   long ival;
 
@@ -993,7 +991,7 @@ int int_check_2 (parse_info_t *pi, char *rp_name, predef_t *p,
 
   if (*q != '\0') {
     if (show_emsg) {
-      sprintf (ebuf, "Non-numeric argument value found for RP attribute \"%s\"", 
+      snprintf (ebuf, 2048, "Non-numeric argument value found for RP attribute \"%s\"", 
 	       rp_name);
       error_msg_queue (pi, ebuf, ERROR_MSG);
     }
@@ -1006,7 +1004,7 @@ int int_check_2 (parse_info_t *pi, char *rp_name, predef_t *p,
   ival = atol (parm);
   if (ival < p->u.i.lower) {
     if (show_emsg) {
-      sprintf (ebuf, 
+      snprintf (ebuf, 2048,
 	       "Integer value (%ld) is less than lower bound (%ld) for RP "
 	       "attribute \"%s\"", 
 	       ival, p->u.i.lower, rp_name);
@@ -1017,7 +1015,7 @@ int int_check_2 (parse_info_t *pi, char *rp_name, predef_t *p,
 
   if (ival > p->u.i.upper)  {
     if (show_emsg) {
-      sprintf (ebuf, 
+      snprintf (ebuf,  2048,
 	       "Integer value (%ld) exceeds upper bound (%ld) for RP attribute "
 	       "\"%s\"", 
 	       ival, p->u.i.upper, rp_name);
@@ -1050,12 +1048,16 @@ char *append_enum (char *curr_list, char *new_elem) {
 int asnum_check (parse_info_t *pi, char *rp_name, predef_t *p, 
 		 int show_emsg, char *parm) {
   int bad_arg;
-  char ebuf[1024];
+  char ebuf[2048];
 
-  bad_arg = regexec(&re[RE_ASNUM], parm, (size_t) 0, NULL, 0);
+  /* allow the use of the term "PeerAS" instead of an AS number */
+  if (!strcasecmp("peeras", parm))
+     bad_arg = 0;
+  else
+     bad_arg = regexec(&re[RE_ASNUM], parm, (size_t) 0, NULL, 0);
 
   if (bad_arg && show_emsg) {
-    sprintf (ebuf, "Malformed AS number (%s) for attribute \"%s\"", parm, rp_name);
+    snprintf (ebuf, 2048, "Incorrect value (%s) for RP attribute \"%s\", permitted values include either an AS number or PeerAS", parm, rp_name);
     error_msg_queue (pi, ebuf, ERROR_MSG);
   }
 
@@ -1077,7 +1079,7 @@ int asnum_check (parse_info_t *pi, char *rp_name, predef_t *p,
 int enum_check (parse_info_t *pi, char *rp_name, predef_t *p, int show_emsg, 
 		char *parm) {
   int bad_arg = 1;
-  char ebuf[1024];
+  char ebuf[2048];
   char *q, *r, *s;
 
   q = r = s = strdup (p->enum_string);
@@ -1092,7 +1094,7 @@ int enum_check (parse_info_t *pi, char *rp_name, predef_t *p, int show_emsg,
   }
 
   if (bad_arg && show_emsg) {
-    sprintf (ebuf, "Invalid enumeration value (%s) for RP attribute \"%s\"", 
+    snprintf (ebuf, 2048, "Invalid enumeration value (%s) for RP attribute \"%s\"", 
 	     parm, rp_name);
     error_msg_queue (pi, ebuf, ERROR_MSG);
   }
@@ -1101,11 +1103,10 @@ int enum_check (parse_info_t *pi, char *rp_name, predef_t *p, int show_emsg,
   return bad_arg;
 }
 
-
 int predef_handler (parse_info_t *pi, char *rp_name, type_t *t, 
 		    int show_emsg, enum ARG_CONTEXT context, char **arg) {
   int bad_arg = 0, i;
-  char ebuf[1024];
+  char ebuf[2048];
   int (*arg_handler)(parse_info_t *, char *, predef_t *, int, char *);
   char *p, *s;
 
@@ -1127,6 +1128,8 @@ int predef_handler (parse_info_t *pi, char *rp_name, type_t *t,
     arg_handler = &enum_check;
   else if (t->u.p.ptype == IPV4_ADDRESS)
     arg_handler = &ipv4_check;
+  else if (t->u.p.ptype == IPV6_ADDRESS)
+    arg_handler = &ipv6_check;
   else if (t->u.p.ptype == AS_NUMBER)
     arg_handler = &asnum_check;
   else if (t->u.p.ptype == BOOLEAN)
@@ -1147,7 +1150,7 @@ int predef_handler (parse_info_t *pi, char *rp_name, type_t *t,
     if (!(bad_arg = (t->list && t->max_elem > 0 && ++i >= t->max_elem)))
       bad_arg = (*arg_handler) (pi, rp_name, &(t->u.p), show_emsg, p);
     else if (show_emsg) {
-      sprintf (ebuf, "RP attr (%s) number of args (%d) exceeds maximum "
+      snprintf (ebuf, 2048, "RP attr (%s) number of args (%d) exceeds maximum "
 	       "threshold (%ld)", rp_name, i, t->max_elem);
       error_msg_queue (pi, ebuf, ERROR_MSG);
     }
@@ -1162,7 +1165,7 @@ int predef_handler (parse_info_t *pi, char *rp_name, type_t *t,
   if (!bad_arg                                                    && 
       (bad_arg = (t->list && t->max_elem > 0 && t->min_elem > i)) &&
       show_emsg) {
-    sprintf (ebuf, "RP attr (%s) actual arguments (%d) is less than minimum "
+    snprintf (ebuf, 2048, "RP attr (%s) actual arguments (%d) is less than minimum "
 	     "arguments threshold (%ld)", rp_name, i, t->min_elem);
     error_msg_queue (pi, ebuf, ERROR_MSG);
   }
@@ -1183,7 +1186,7 @@ int union_handler (parse_info_t *pi, char *rp_name, type_t *t,
 		   int show_emsg, enum ARG_CONTEXT context, char **arg) {
   int i, too_many_args = 0;
   int bad_arg;
-  char ebuf[1024];
+  char ebuf[2048];
   int (*arg_handler)(parse_info_t *, char *, type_t *, int, enum ARG_CONTEXT, 
 		     char **);
   char *p, *s = NULL;
@@ -1227,7 +1230,7 @@ int union_handler (parse_info_t *pi, char *rp_name, type_t *t,
       else {
 	too_many_args = 1;
 	if (show_emsg) {
-	  sprintf (ebuf, "RP attr (%s) number of args (%d) exceeds maximum "
+	  snprintf (ebuf, 2048, "RP attr (%s) number of args (%d) exceeds maximum "
 		   "threshold (%ld)", rp_name, i, t->max_elem);
 	  error_msg_queue (pi, ebuf, ERROR_MSG);
 	}
@@ -1237,7 +1240,7 @@ int union_handler (parse_info_t *pi, char *rp_name, type_t *t,
     
     if (bad_arg && !too_many_args && show_emsg) {
 
-      sprintf (ebuf, "RP attr (%s) invalid data type \"%s\"", rp_name, p);
+      snprintf (ebuf, 2048, "RP attr (%s) invalid data type \"%s\"", rp_name, p);
       error_msg_queue (pi, ebuf, ERROR_MSG);
       break;
     }
@@ -1250,7 +1253,7 @@ int union_handler (parse_info_t *pi, char *rp_name, type_t *t,
   if (!bad_arg                                                    && 
       (bad_arg = (t->list && t->max_elem > 0 && t->min_elem > i)) &&
       show_emsg) {
-    sprintf (ebuf, "RP attr (%s) actual arguments (%d) is less than minimum "
+    snprintf (ebuf, 2048, "RP attr (%s) actual arguments (%d) is less than minimum "
 	     "arguments threshold (%ld)", rp_name, i, t->min_elem);
     error_msg_queue (pi, ebuf, ERROR_MSG);
   }
@@ -1271,7 +1274,7 @@ int typedef_handler (parse_info_t *pi, char *rp_name, type_t *t,
 		     int show_emsg, enum ARG_CONTEXT context, char **arg) {
   char *p, *s;
   int bad_arg = 0, i = 0;
-  char ebuf[1024];
+  char ebuf[2048];
   int (*arg_handler)(parse_info_t *, char *, type_t *, int, enum ARG_CONTEXT, 
 		     char **);
   
@@ -1305,7 +1308,7 @@ int typedef_handler (parse_info_t *pi, char *rp_name, type_t *t,
       if (!(bad_arg = (t->max_elem > 0 && i >= t->max_elem)))
 	bad_arg = (*arg_handler) (pi, rp_name, t->u.t.t, show_emsg, context, &p);
       else if (show_emsg) {
-	sprintf (ebuf, "RP attr (%s) number of args (%d) exceeds maximum "
+	snprintf (ebuf, 2048, "RP attr (%s) number of args (%d) exceeds maximum "
 		 "threshold (%ld)", rp_name, i, t->max_elem);
 	error_msg_queue (pi, ebuf, ERROR_MSG);
       }
@@ -1318,7 +1321,7 @@ int typedef_handler (parse_info_t *pi, char *rp_name, type_t *t,
   if (!bad_arg                                                    && 
       (bad_arg = (t->list && t->max_elem > 0 && t->min_elem > i)) &&
       show_emsg) {
-    sprintf (ebuf, "RP attr (%s) actual arguments (%d) is less than minimum "
+    snprintf (ebuf, 2048, "RP attr (%s) actual arguments (%d) is less than minimum "
 	     "arguments threshold (%ld)", rp_name, i, t->min_elem);
     error_msg_queue (pi, ebuf, ERROR_MSG);
   }
@@ -1335,15 +1338,13 @@ int typedef_handler (parse_info_t *pi, char *rp_name, type_t *t,
   return bad_arg;
 }
 
-
-
 int valid_args (parse_info_t *pi, method_t *m, int add_braces, 
 		char *rp_attr, int show_emsg, char **args) {
   char *s;
   int bad_arg;
   param_t  *parm;
   method_t *meth;
-  char ebuf[1024];
+  char ebuf[2048];
 
   /* dup input string to support object canonicalization */
   s = my_strdup (add_braces, *args);
@@ -1353,7 +1354,7 @@ int valid_args (parse_info_t *pi, method_t *m, int add_braces,
       bad_arg = valid_args (pi, meth, 0, rp_attr, 0, &s);
 
     if (bad_arg) {
-      sprintf (ebuf, "\"%s\" method \"%s\" argument does not match any of the "
+      snprintf (ebuf, 2048,  "\"%s\" method \"%s\" argument does not match any of the "
 	       "specified types", rp_attr, m->name);
       error_msg_queue (pi, ebuf, ERROR_MSG);      
     }
@@ -1361,7 +1362,7 @@ int valid_args (parse_info_t *pi, method_t *m, int add_braces,
   else {
     if (m->context == LIST_TYPE && *s != '{') {
       if (show_emsg) {
-	sprintf (ebuf, "RP attribute \"%s\" list attribute expected", rp_attr);
+	snprintf (ebuf, 2048, "RP attribute \"%s\" list attribute expected", rp_attr);
 	error_msg_queue (pi, ebuf, ERROR_MSG);
       }
       return 0;
@@ -1391,7 +1392,7 @@ int valid_args (parse_info_t *pi, method_t *m, int add_braces,
       if (parm != NULL && parm->next != NULL) {
 	bad_arg = 1;
 	if (show_emsg) {
-	  sprintf (ebuf, "RP-attribute \"%s\", not enough arguments for method "
+	  snprintf (ebuf, 2048, "RP-attribute \"%s\", not enough arguments for method "
 		   "\"%s\"", 
 		   rp_attr, m->name);
 	  error_msg_queue (pi, ebuf, ERROR_MSG);
@@ -1400,7 +1401,7 @@ int valid_args (parse_info_t *pi, method_t *m, int add_braces,
       else if (!empty_string (s)) {
 	bad_arg = 1;
 	if (show_emsg) {
-	  sprintf (ebuf, "RP-attribute \"%s\", too many arguments for method "
+	  snprintf (ebuf, 2048, "RP-attribute \"%s\", too many arguments for method "
 		   "\"%s\"", 
 		   rp_attr, m->name);
 	  error_msg_queue (pi, ebuf, ERROR_MSG);

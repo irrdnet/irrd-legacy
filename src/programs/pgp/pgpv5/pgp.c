@@ -262,7 +262,7 @@ int pgp_add (trace_t *tr, char *PGPPATH, char *key_file, pgp_data_t *pdat) {
 
   /* now parse the output: look for a successful operation from PGP
    * and collect the hex id(s) and owner(s) */
-  while (fgets (curline, MAXLINE, pgpout) != NULL) {
+  while (fgets (curline, MAXLINE - 1, pgpout) != NULL) {
     /* grab the hex ID */
     if (pdat != NULL &&
 	0 == regexec (&pubkey_re, curline, 3, rm, 0)) {
@@ -370,7 +370,7 @@ int pgp_fingerpr (trace_t *tr, char *PGPPATH, char *hex_id, pgp_data_t *pdat) {
   memset (pdat, 0, sizeof (pgp_data_t));
 
   /* parse the pgpk output and get the fingerprint */
-  while (fgets (curline, MAXLINE, pgpout) != NULL) {
+  while (fgets (curline, MAXLINE - 1, pgpout) != NULL) {
     /* ignore rest of output */
     if (seen_sub)
       continue;
@@ -612,7 +612,7 @@ int pgp_verify (trace_t *tr, char *funcname, char *env,
   
   /* look for a successful operation from PGP and
    * collect the hex id of the signer */
-  while (fgets (curline, MAXLINE, pgpout) != NULL) {
+  while (fgets (curline, MAXLINE - 1, pgpout) != NULL) {
     /* look for a "Good signature ..." message */
     if (0 == regexec (&pgpgood_re, curline, 0, NULL, 0))
       pgp_ok = 1;

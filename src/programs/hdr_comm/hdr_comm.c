@@ -7,8 +7,9 @@
 
 #include "hdr_comm.h"
 
+extern trace_t *default_trace;
+
 int verbose;
-int mktemp_count = 0;
 
 /* local yokel's */
 
@@ -18,14 +19,10 @@ static u_int is_list_field (trace_t *tr, char *line, trans_info_t *ti);
 static u_int int_type_field (char *line, trans_info_t *ti);
 static u_int list_members_field (trace_t *tr, char *line, trans_info_t *ti);
 static int get_list_members (trace_t *tr, char *p, char *addr_buf, char **next);
-static char *find_a_token (char *q);
 static int present_in_list (char *list, char *last, char *target_str);
 static int is_valid_op (char *);
-static char *my_concat (char *, char *);
-static char *free_mem (char *);
-static int find_token (char **x, char **y);
-static char *myconcat (char *x, char *y);
 static u_int is_new_list_field (trace_t *tr, char *line, trans_info_t *ti);
+static char *astrconcat (char *x, char *y, int add_space);
 
 /* Action is to initialize the trans_info struct
  * with the header information located at the begining
@@ -84,11 +81,9 @@ int parse_header (trace_t *tr, FILE *fin, long *offset, trans_info_t *ti) {
  * Dup the token pointed to by *p
  */
 char *dup_single_token (char *p) {
-  char *q;
+  char *q = p;
 
-  if ((q = find_a_token (p)) == NULL)
-    return NULL;
-
+  for (;*q == ' ' || *q == '\t'; q++);
   newline_remove (q);
 
   if (*q == '\0')
@@ -183,7 +178,8 @@ u_int is_from_field (char *line, trans_info_t *ti) {
   char *p;
 
   if (!strncmp (FROM, line, strlen (FROM))) {
-    p = find_a_token (line + strlen (FROM));
+    p = line + strlen(FROM);
+    for (;*p == ' ' || *p == '\t'; p++);
     newline_remove (p);      
     if (*p != '\0')
       strcpy (ti->sender_addrs, p);
@@ -241,10 +237,8 @@ u_int is_list_field (trace_t *tr, char *line, trans_info_t *ti) {
     }
     
     while (p != NULL) {
-      if (*p != '\n') {
-	ti->maint_no_exist = my_concat (ti->maint_no_exist, " ");
-	ti->maint_no_exist = my_concat (ti->maint_no_exist, p);
-      }
+      if (*p != '\n')
+	ti->maint_no_exist = myconcat (ti->maint_no_exist, p);
       p = strtok (NULL, " ");
     }
     
@@ -266,11 +260,6 @@ u_int is_list_field (trace_t *tr, char *line, trans_info_t *ti) {
       p = strtok (NULL, " ");
     }
     
-    /* get rid of \n if there is one 
-    p = ti->mnt_by + strlen (ti->mnt_by) - 1;
-    if (*p == '\n')
-      *p = '\0';
-      */
     newline_remove(ti->mnt_by);
     if (ti->mnt_by[0] != '\0')
       return MNT_BY_F;	
@@ -295,6 +284,9 @@ u_int int_type_field (char *line, trans_info_t *ti) {
   
   if (!memcmp (NEW_MNT_ERROR, line, strlen (NEW_MNT_ERROR)))
     return ((u_int)(ti->new_mnt_error = NEW_MNT_ERROR_F));
+
+  if (!memcmp (DEL_MNT_ERROR, line, strlen (DEL_MNT_ERROR)))
+    return ((u_int)(ti->del_mnt_error = DEL_MNT_ERROR_F));
 
   if (!memcmp (BAD_OVERRIDE, line, strlen (BAD_OVERRIDE)))
     return ((u_int)(ti->bad_override = BAD_OVERRIDE_F));
@@ -363,20 +355,6 @@ int get_list_members (trace_t *tr, char *p, char *addr_buf, char **next) {
   }
 
   return 1;
-}
-
-/* 
- * Return a pointer to the first non-space character.
- * Else return NULL.
- */
-char *find_a_token (char *q) {
-  
-  for (;*q != '\0' && (*q == ' ' || *q == '\t'); q++);
-
-  if (*q == '\0')
-    return NULL;
-
-  return q;
 }
 
 void free_ti_mem (trans_info_t *ti) {
@@ -494,6 +472,9 @@ void print_hdr_struct (FILE *fout, trans_info_t *ti) {
   if (ti->new_mnt_error)
     fprintf (fout, "%s\n", NEW_MNT_ERROR);
 
+  if (ti->del_mnt_error)
+    fprintf (fout, "%s\n", DEL_MNT_ERROR);
+
   if (ti->bad_override)
     fprintf (fout, "%s\n", BAD_OVERRIDE);
 
@@ -538,33 +519,6 @@ int is_valid_op (char *op) {
   return 1;
 }
 
-/*
- * This routine concat's x and y.  It assumes that the
- * caller is placing the result in x, so the routine
- * free's x if it points to something.
- * So the calling convention should be like this:
- * x = my_concat (x, y);
- *   x and/or y may be NULL and routine will work.
- */
-char *my_concat (char *x, char *y) {
-  char buf[MAXLINE];
-
-  if (x == NULL)
-    buf[0] = '\0';
-  else {
-    strcpy (buf, x);
-    free_mem (x);
-  }
-
-  if (y != NULL)
-    strcat (buf, y);
-
-  if (buf[0] == '\0')
-    return NULL;
-  else
-    return strdup (buf);
-}
-
 char *free_mem (char *p) {
 
   if (p != NULL)
@@ -585,7 +539,6 @@ int update_has_errors (trans_info_t *ti) {
 
   return (ti->hdr_fields & ERROR_FLDS);
 }
-
 
 /* This routine finds a token in the string.  *x will
  * point to the first character in the string and *y will
@@ -615,7 +568,7 @@ int find_token (char **x, char **y) {
   *x = *y;
   /* fprintf (stderr, "p-(%c)\n",**x); */
   /* find the start of a token, ie, first printable character */
-  while (**x != '\0' && (**x == ' ' || **x == '\t' || **x == '\n')) (*x)++;
+  while (**x == ' ' || **x == '\t' || **x == '\n') (*x)++;
 
   if (**x == '\0' || **x == '#')
     return -1;
@@ -624,34 +577,47 @@ int find_token (char **x, char **y) {
   *y = *x + 1;
   while (**y != '\0' && (isgraph ((int) **y) && **y != '#')) (*y)++;
 
-  /* fprintf (stderr, "JW: find_token () returns 1..\n"); */
   return 1;  
 }
 
-/* This routine concat's x and y, putting a space
+/* This routine concat's x and y, optionally  putting a space
  * beteen x and y.  It assumes that the
  * caller is placing the result in x, so the routine
  * free's x if it points to something.
  * 
  * The calling convention should be like this:
- * x = myconcat (x, y);
+ * x = astrconcat (x, y, add_space);
  *   x and/or y may be NULL and routine will work.
+ *   if add_space is 1, a space is added in between strings
  */
-char *myconcat (char *x, char *y) {
+char *astrconcat (char *x, char *y, int add_space) {
   char buf[MAXLINE];
+  int lenx = 0, total_len;
 
   if (x == NULL)
     buf[0] = '\0';
   else {
+    lenx = strlen(x);
+    if (lenx >= MAXLINE) {
+        trace(ERROR, default_trace, "myconcat: Length exceeds buffer size - %d\n", MAXLINE);
+        return NULL;
+    }
     strcpy (buf, x);
     free_mem (x);
   }
 
   if (y != NULL) {
-    if (buf[0] != '\0')
-      strcat (buf, " ");
-
-    strcat (buf, y);
+    total_len = lenx + strlen(y);
+    if (add_space)
+       total_len++;
+    if (total_len >= MAXLINE) {
+        trace(ERROR, default_trace, "myconcat: Length exceeds buffer size - %d\n", MAXLINE);
+        return NULL;
+    }
+    if (add_space && buf[0] != '\0') {
+      buf[lenx++] = ' ';
+    }
+    strcpy (buf + lenx, y);
   }
 
   if (buf[0] == '\0')
@@ -660,24 +626,14 @@ char *myconcat (char *x, char *y) {
     return strdup (buf);
 }
 
-/* Make a temp file name.  There can only be 26 mktemp files
- * per thread.  If mktemp () fails, try it with another name.
- * If mktemp () fails a second then about execution.
- *
- * Return:
- *   void
- */
-void my_mktemp (trace_t *tr, char *fname) {
+/* concat strings, sticking a space in between */
+char *myconcat (char *x, char *y) {
 
-  mktemp (fname);
-  if (!strcmp (fname, "")) {
-     sprintf (fname, "%s%d.XXXXXX", "/var/tmp/irr.", mktemp_count++);
-     trace (NORM, tr, "mktemp failure (count %d), changing to (%s)\n", mktemp_count, fname);
-      /*  mktemp (fname); not secure - chl */
-      mktemp (fname); /* not secure 	*/
-     if (!strcmp (fname, "")) {
-       trace (NORM, tr, "mktemp failure a second time, abort!\n");
-       exit (0);
-     }
-  }
+  return astrconcat(x, y, 1);
 }
+
+/* same as above, buy don't stick a space between strings */
+char *myconcat_nospace (char *x, char *y) {
+
+  return astrconcat(x, y, 0);
+};

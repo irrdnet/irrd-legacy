@@ -51,7 +51,7 @@ while (<IN>) {
 	    $tokens .= "T_${upper}_KEY";
 	}
 	elsif ($n % 7 == 6) {
-	    $tokens .= ", T_${upper}_KEY\n"; 
+	    $tokens .= ", T_${upper}_KEY,\n"; 
 	}
 	else {
 	    $tokens .= ", T_${upper}_KEY"; 
@@ -136,13 +136,13 @@ while (<IN>) {
 	
     }
 
-    if (/^COUNTRY\s+(..)\s+(..)/) { 
+
+    if (/^COUNTRY\s+(..)/) { 
 	$countries++;
 	push (@country, $1);
     }
     
 }
-
 
 print OUT "/********************** irr_attrs.c **********************/\n";
 
@@ -318,30 +318,28 @@ else {
 print OUT "$longs";
 
 
-print OUT "\n/*-------short attributes char array------*/\n";
-$count = 0;
-$shorts = "char *attr_sname[MAX_ATTRS] = {\n";
-foreach $field (@attrs) {
-    $count++;
-    if ($count % 10 == 1) {
-	$shorts .= "    \"*$field\"";
-    }
-    elsif ($count % 10 == 0) {
-	$shorts .= ", \"*$field\",\n";
-    }
-    else {
-	$shorts .= ", \"*$field\"";
-    }
-}
-if ($count % 10 == 0) {
-    $shorts .= "};\n";
-}
-else {
-    $shorts .= "\n};\n";
-}
-print OUT "$shorts";
-
-
+#print OUT "\n/*-------short attributes char array------*/\n";
+#$count = 0;
+#$shorts = "char *attr_sname[MAX_ATTRS] = {\n";
+#foreach $field (@attrs) {
+#    $count++;
+#    if ($count % 10 == 1) {
+#	$shorts .= "    \"*$field\"";
+#    }
+#    elsif ($count % 10 == 0) {
+#	$shorts .= ", \"*$field\",\n";
+#    }
+#    else {
+#	$shorts .= ", \"*$field\"";
+#    }
+#}
+#if ($count % 10 == 0) {
+#    $shorts .= "};\n";
+#}
+#else {
+#    $shorts .= "\n};\n";
+#}
+#print OUT "$shorts";
 
 print OUT "\n/*-------object types char array------*/\n";
 $count = 0;
@@ -367,8 +365,6 @@ else {
 }
 print OUT "$longs";
 
-
-
 print OUT "\n/* -------Countries char array------ */\n";
 $count = 0;
 $origin = "#define MAX_COUNTRIES $countries\n";
@@ -392,8 +388,6 @@ else {
     $origin .= "\n};\n";
 }
 print OUT "$origin";
-
-
 
 print OUT "\n\n\n/********************** rpsl.y **************************/\n";
 print OUT "\n/*--------Bison tokens--------*/\n";

@@ -3,13 +3,11 @@
  */
 
 #include <sys/types.h>
-#ifndef NT
 #include <string.h>
 #include <sys/errno.h>
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/stat.h>
-#endif /* NT */
 #include "mrt.h"
 
 #ifndef HAVE_MEMMOVE

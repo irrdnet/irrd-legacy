@@ -1,5 +1,5 @@
 /* 
- * $Id: main.c,v 1.5 2001/06/09 21:41:40 gerald Exp $
+ * $Id: main.c,v 1.6 2002/10/17 20:22:09 ljb Exp $
  * originally Id: main.c,v 1.6 1998/07/28 23:04:38 gerald Exp 
  */
 
@@ -41,7 +41,7 @@ int main (int argc, char *argv[]) {
   yydebug = 0; 
   errors = 0;
 
-  default_trace = New_Trace ();
+  default_trace = New_Trace2 ("irr_rpsl_check");
   sprintf (pid_string, "PID%d", (int) getpid ());
   set_trace (default_trace, TRACE_PREPEND_STRING, pid_string, 0);
   
@@ -63,9 +63,9 @@ int main (int argc, char *argv[]) {
       break;
     case 'o':
       if (!strcasecmp (optarg, "stderr"))
-	dfile = stderr;
+	ofile = stderr;
       else if (!strcasecmp (optarg, "stdout"))
-	dfile = stdout;
+	ofile = stdout;
       else if (*optarg == '-') {
 	fprintf (stderr, "\"%s\" does not look like a valid debug output file!\n", optarg);
 	errors++;
@@ -164,7 +164,7 @@ int main (int argc, char *argv[]) {
   
   if (errors) {
     fprintf (stderr, usage, name);
-    printf ("\nirr_checker compiled on %s\n",__DATE__);
+    printf ("\nirr_rpsl_check compiled on %s\n",__DATE__);
     exit (1);
   }
   

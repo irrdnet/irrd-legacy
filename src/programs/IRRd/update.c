@@ -1,5 +1,5 @@
 /*
- * $Id: update.c,v 1.4 2002/02/04 20:53:57 ljb Exp $
+ * $Id: update.c,v 1.6 2002/10/17 20:02:32 ljb Exp $
  * originally Id: update.c,v 1.46 1998/07/29 21:15:18 gerald Exp 
  */
 
@@ -17,62 +17,27 @@
 extern trace_t *default_trace;
 
 static int build_secondary_keys (irr_database_t *db, irr_object_t *object);
+#ifdef notdef
+static int ilogb(unsigned int n);
+static int imaxblock(unsigned int ibase, int tbit);
+static int inetnum2prefixes(irr_object_t *object);
+#endif
 
 void mark_deleted_irr_object (irr_database_t *database, u_long offset) {
   char *xx = "*xx";
 
   if (fseek (database->db_fp, offset, SEEK_SET) < 0) {
-    perror ("seek error");
-    trace (NORM, default_trace, "** Error ** fseek failed in mark_deleted");
+    trace (ERROR, default_trace, "fseek failed in mark_deleted (%s)", strerror(errno));
+    return;
   }
   if (fwrite (xx, 1, 3, database->db_fp) == 0) 
-    perror ("frwite failed");
+    trace (ERROR, default_trace, "fwrite failed in mark_deleted (%s)", strerror(errno));
 
   fflush (database->db_fp);
 }
 
-
-/* make the hash entries for the !gas command */
-void add_gas_answer (irr_database_t *db, irr_object_t *object, 
-                     enum SPEC_KEYS id) {
-
-  char str_origin[BUFSIZE], gas_key[BUFSIZE];
-
-  if (object->withdrawn && object->mode != IRR_DELETE)
-    return;
-
-  sprintf (str_origin, "%d", object->origin);
-  make_gas_key (gas_key, str_origin);
-
-  if (object->mode == IRR_DELETE)
-    memory_hash_spec_remove (db, gas_key, id, object->name);
-  else
-    memory_hash_spec_store (db, gas_key, id, NULL, NULL, object->name);
-}
-
-/* make the hash entries for the !h community (route) list command */
-void add_comm_list_answer (irr_database_t *db, char *prefix, 
-                           LINKED_LIST *ll_comm, int withdrawn,
-			   int mode, enum SPEC_KEYS id) {
-  char *community, comm_key[BUFSIZE];
-
-  if (ll_comm == NULL ||
-      (withdrawn && mode != IRR_DELETE))
-    return;
-
-  LL_ContIterate (ll_comm, community) {
-    make_comm_key (comm_key, community);
-    if (mode == IRR_DELETE)
-      memory_hash_spec_remove (db, comm_key, id, prefix);
-    else
-      memory_hash_spec_store (db, comm_key, id, NULL, NULL, prefix);
-  }
-
-}
-
-void add_spec_keys (irr_database_t *db, char *key, irr_object_t *object,
-		    enum SPEC_KEYS id) {
-  char *maint, *as_set, new_key[BUFSIZE];
+void add_spec_keys (irr_database_t *db, irr_object_t *object) {
+  char *maint, *set_name, new_key[BUFSIZE];
 
   if (object->ll_mbr_of == NULL)
     return;
@@ -81,24 +46,24 @@ void add_spec_keys (irr_database_t *db, char *key, irr_object_t *object,
 
   if (object->ll_mnt_by != NULL) {
     LL_ContIterate (object->ll_mnt_by, maint) {
-      LL_ContIterate (object->ll_mbr_of, as_set) {
-        make_spec_key (new_key, maint, as_set);
+      LL_ContIterate (object->ll_mbr_of, set_name) {
+        make_spec_key (new_key, maint, set_name);
         if (object->mode == IRR_DELETE)
-          memory_hash_spec_remove (db, new_key, id, key);
+          memory_hash_spec_remove (db, new_key, SET_MBRSX, object);
         else
-          memory_hash_spec_store (db, new_key, id, NULL, NULL, key);
+          memory_hash_spec_store (db, new_key, SET_MBRSX, object);
       }
     }
   }
 
   /* add this key for fast ANY lookups */
 
-  LL_ContIterate (object->ll_mbr_of, as_set) {
-    make_spec_key (new_key, NULL, as_set);
+  LL_ContIterate (object->ll_mbr_of, set_name) {
+    make_spec_key (new_key, NULL, set_name);
     if (object->mode == IRR_DELETE)
-      memory_hash_spec_remove (db, new_key, id, key);
+      memory_hash_spec_remove (db, new_key, SET_MBRSX, object);
     else
-      memory_hash_spec_store (db, new_key, id, NULL, NULL, key);
+      memory_hash_spec_store (db, new_key, SET_MBRSX, object);
   }
 }
 
@@ -111,10 +76,9 @@ irr_object_t *load_irr_object (irr_database_t *database, irr_object_t *irr_objec
   int ret;
   u_long offset, len;
 
-  /* route objects are special because we need both the key AND the autnum */
-  if (irr_object->type == ROUTE) 
-    ret = seek_route_object (database, irr_object->name, irr_object->origin,
-                             &offset, &len, 1);
+  /* route, route6, and inet6num objects are in the radix tree */
+  if (irr_object->type == ROUTE || irr_object->type == ROUTE6 || irr_object->type == INET6NUM) 
+    ret = seek_prefix_object (database, irr_object->type, irr_object->name, irr_object->origin, &offset, &len, 1);
   else /* fill in object->offset and object->len */
     ret = find_object_offset_len (database, irr_object->name, 
                                   irr_object->type, &offset, &len);
@@ -123,11 +87,12 @@ irr_object_t *load_irr_object (irr_database_t *database, irr_object_t *irr_objec
   if (ret < 1)
     return (NULL);
 
-  /* JW: I'm wondering about locking?  Should we lock? */
-  if (fseek(database->db_fp, offset, SEEK_SET) < 0)
-    trace (NORM, default_trace, "** Error ** fseek failed in load_irr_obj");
-  old_irr_object = (irr_object_t *) scan_irr_file_main (database->db_fp, database, 
-							0, SCAN_OBJECT);
+  if (fseek(database->db_fp, offset, SEEK_SET) < 0) {
+    trace (ERROR, default_trace, "fseek failed in load_irr_obj (%s)", strerror(errno));
+    return (NULL);
+  }
+
+  old_irr_object = (irr_object_t *) scan_irr_file_main (database->db_fp, database, 0, SCAN_OBJECT);
   if (old_irr_object)
     old_irr_object->offset = offset;
 
@@ -136,63 +101,77 @@ irr_object_t *load_irr_object (irr_database_t *database, irr_object_t *irr_objec
 
 /* irr_special_indexing_store
  * store "special" keys, or keys that we cannot just dump into the
- * the generic hash table. These include route objects (which need specia
- * radix magic) and AD macros (which need??)
+ * the generic hash table. These include route and inetnum objects (which
+ * need special radix magic).
  *
  * return 1 is we still need to store this object in the hash
  */
 int irr_special_indexing_store (irr_database_t *database, 
                                 irr_object_t *irr_object) {
-  char *key, spec_key[BUFSIZE];
+  char *key, key_buf[BUFSIZE], str_origin[16];
   int store_hash = 1;
+
+  /* first add/delete object from hash associated with maintainers */
+  if (irr_object->ll_mnt_by != NULL) {
+    LL_ContIterate (irr_object->ll_mnt_by, key) {
+      make_mntobj_key (key_buf, key);
+      if (irr_object->mode == IRR_DELETE)
+        memory_hash_spec_remove (database, key_buf, MNTOBJS, irr_object);
+      else
+        memory_hash_spec_store (database, key_buf, MNTOBJS, irr_object);
+    }
+  }
 
   switch (irr_object->type) {
   case ROUTE:
-    add_gas_answer (database, irr_object, GASX);
-    add_comm_list_answer (database, irr_object->name, 
-                          irr_object->ll_community, irr_object->withdrawn,
-			  irr_object->mode, COMM_LISTX);
-    add_spec_keys (database, irr_object->name, irr_object, SET_MBRSX);
-    if (irr_object->mode == IRR_DELETE)
-      delete_irr_route (database, irr_object->name, irr_object);
-    else
-      add_irr_route (database, irr_object->name, irr_object);
-    store_hash = 0;
-    break;
-  case AUT_NUM:
-    add_spec_keys (database, irr_object->name, irr_object, SET_MBRSX);
-    break;
-  case IPV6_SITE:
-    LL_Iterate (irr_object->ll_prefix, key) {
-      if (irr_object->mode == IRR_DELETE)
-        delete_irr_route (database, key, irr_object);
-     else
-       add_irr_route (database, key, irr_object); 
+  case ROUTE6:
+    add_spec_keys (database, irr_object);
+    sprintf (str_origin, "%d", irr_object->origin);
+    make_gas_key (key_buf, str_origin);
+    if (irr_object->mode == IRR_DELETE) {
+      memory_hash_spec_remove (database, key_buf, GASX, irr_object);
+      delete_irr_prefix (database, irr_object->name, irr_object);
+    } else {
+      if (!irr_object->withdrawn)
+         memory_hash_spec_store (database, key_buf, GASX, irr_object);
+      add_irr_prefix (database, irr_object->name, irr_object);
     }
     store_hash = 0;
     break;
-  case AS_MACRO: /* RIPE181 only */
-    make_setobj_key (spec_key, irr_object->name);
-    if (irr_object->mode == IRR_DELETE)
-      memory_hash_spec_remove (database, spec_key, AS_MACROX, NULL);
-    else
-      memory_hash_spec_store (database, spec_key, AS_MACROX, 
-                              irr_object->ll_as, NULL, NULL);
+  case AUT_NUM:
+    add_spec_keys (database, irr_object);
     break;
-  case AS_SET: case RS_SET: /* RPSL only */
-    make_setobj_key (spec_key, irr_object->name);
+  case INET6NUM:
     if (irr_object->mode == IRR_DELETE)
-      memory_hash_spec_remove (database, spec_key, SET_OBJX, NULL);
+      delete_irr_prefix (database, irr_object->name, irr_object);
     else
-      memory_hash_spec_store (database, spec_key, SET_OBJX, 
-                              irr_object->ll_as, irr_object->ll_mbr_by_ref, 
-                              NULL);
+      add_irr_prefix (database, irr_object->name, irr_object); 
+    store_hash = 0;
+    break;
+/* Not ready yet
+  case INETNUM:
+    irr_object->ll_prefix = inetnum2prefixes(irr_object);  */
+    /* fall-thru */
+  case IPV6_SITE:
+    if (irr_object->ll_prefix) {
+      LL_Iterate (irr_object->ll_prefix, key) {
+        if (irr_object->mode == IRR_DELETE)
+	  delete_irr_prefix (database, key, irr_object);
+        else
+	  add_irr_prefix (database, key, irr_object); 
+      }
+    }
+    break;
+  case AS_SET: case ROUTE_SET:
+    make_setobj_key (key_buf, irr_object->name);
+    if (irr_object->mode == IRR_DELETE)
+      memory_hash_spec_remove (database, key_buf, SET_OBJX, NULL);
+    else
+      memory_hash_spec_store (database, key_buf, SET_OBJX, irr_object);
     break;
   default:
-    store_hash = 1;
     break;
   }
-
   return (store_hash);
 }
 
@@ -205,6 +184,56 @@ void back_out_secondaries (irr_database_t *db, irr_object_t *object, char *buf) 
 			 object->offset, object->len);
   }
 }
+
+/* integer binary log routine */
+#ifdef notdef
+int ilogb (unsigned int n) {
+    int i = -1;
+
+    while (n != 0) {
+        ++ i;
+        n >>= 1;
+    }
+    return i;
+}
+
+int imaxblock (unsigned int ibase, int tbit) {
+  unsigned long int im = 0xfffffffe;
+
+  while (tbit > 0) {
+     if ( (ibase & im) != ibase)
+         break;
+     tbit--;
+     im <<= 1;
+  }
+  return tbit;
+}
+
+int inetnum2prefixes(irr_object_t *object) {
+  char *inetstart = NULL, *inetend = NULL;
+  unsigned long int start, end, temp;
+  unsigned long int maxsize, maxdiff;
+  struct in_addr address;
+
+  start = ntohl(inet_addr(inetstart));
+  end = ntohl(inet_addr(inetend));
+
+  if (start > end) {
+     temp = end;
+     end = start;
+     start = temp;
+  }
+  while (end >= start) {
+    maxsize = imaxblock(start, 32);
+    maxdiff = 32 - ilogb(end - start + 1);
+    if (maxsize < maxdiff)
+      maxsize = maxdiff;
+    address.s_addr = htonl(start);
+    printf ("prefix = %s/%u\n", inet_ntoa(address), maxsize);
+    start += 1<<(32-maxsize);
+  }
+}
+#endif
 
 /* JW It looks like the irr_database_store () routine allows 
  * duplicate PRIMARY keys.  Need to fix so it returns 
@@ -327,7 +356,7 @@ int add_irr_object (irr_database_t *database, irr_object_t *irr_object) {
       trace (NORM, default_trace, "Object %s added\n", irr_object->name);
     else
       trace (ERROR, default_trace, 
-	     "ERROR: Disk or indexing error: key (%s)\n", irr_object->name);
+	     "Disk or indexing error: key (%s)\n", irr_object->name);
   }
 
   /* statistics */

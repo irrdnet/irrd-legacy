@@ -1,5 +1,5 @@
 /*
- * $Id: database.c,v 1.15 2002/02/04 20:53:55 ljb Exp $
+ * $Id: database.c,v 1.17 2002/10/17 20:02:29 ljb Exp $
  * originally Id: database.c,v 1.48 1998/07/30 20:48:29 labovit Exp 
  */
 
@@ -10,9 +10,7 @@
 #include <time.h>
 #include <signal.h>
 #include <sys/types.h>
-#ifndef NT
 #include <dirent.h>
-#endif /* NT */
 #include "config_file.h"
 #include <fcntl.h>
 #include "irrd.h"
@@ -21,7 +19,6 @@
 
 extern trace_t *default_trace;
 
-#ifndef NT
 /* !B/reload support functions */
 static int reopen_DB        (irr_database_t *, char *);
 static int reopen_JOURNAL   (irr_database_t *, char *);
@@ -30,7 +27,6 @@ static int replace_cache_db (irr_database_t *, uii_connection_t *, char *);
 /* bootstrap load support functions */
 static int ftp_db_fetch     (irr_database_t *);
 static int fetch_remote_db  (irr_database_t *, char *);
-#endif /* NT */
 
 void munge_buffer (char *buffer, irr_database_t *irr_database);
 int irr_check_serial_vs_journal (irr_database_t *database);
@@ -49,11 +45,11 @@ void database_clear (irr_database_t *db) {
   trace (NORM, default_trace, "Clearing out database %s\n", db->name);
 
   db->bytes = 0;
-
   for (i=0; i< IRR_MAX_KEYS; i++) 
     db->num_objects[i] = 0;
   
-  radix_flush (db->radix);
+  radix_flush (db->radix_v4);
+  radix_flush (db->radix_v6);
 
   if (db->hash)
     HASH_Clear (db->hash);
@@ -61,11 +57,11 @@ void database_clear (irr_database_t *db) {
   if (db->hash_spec)
     HASH_Clear (db->hash_spec);
 
-  db->radix = New_Radix (128);
+  db->radix_v4 = New_Radix (32);
+  db->radix_v6 = New_Radix (128);
   fclose (db->db_fp);
 
   db->db_fp = NULL;
-  db->db_syntax = EMPTY_DB;
 }
 
 
@@ -187,7 +183,6 @@ void append_blank_line (FILE *fp) {
   }
 }
 
-
 /* Load and build the DB indexes and serial numbers on bootstrap.
  *
  * Function will attempt to remote ftp missing non-authoritative DB's if the
@@ -223,13 +218,11 @@ int irr_load_data (int db_fetch_flag, int verbose) {
     if (scan_irr_file (db, NULL, 0, NULL) != NULL) {
       i = empty_dbs++;	
 	
-#ifndef NT
 	/* did the user override our missing DB remote fetch behavior? 
 	 * if not then see if we can retrieve the DB from an ftp site */
 	if (db_fetch_flag &&
 	    !(db->flags & IRR_AUTHORITATIVE))
 	  empty_dbs -= ftp_db_fetch (db);
-#endif /* NT */
 
 	/* DB is empty and we could not remote fetch */
 	if (empty_dbs > i) {
@@ -316,16 +309,19 @@ int irr_database_clean (irr_database_t *database) {
         }
       }
 
+#ifdef NOTDEF
+      /* this code has problems and can cause db corruption - disable for now */
       /* filter out comments if not at beginning of the database */
       /* should we really do this? */
       if ( (*buffer == '#') && (line > 42) ) {
         skip = 1;
         blank_line = 1; /* need to set in case object follows */
       }
+#endif
     }
     long_line = (buffer[i-1] != '\n');
 
-    if ((skip != 1)  && (blank_line < 2))
+    if ((skip != 1) && (blank_line < 2))
       fwrite (buffer, 1, i, clean_fp);
     else {
       clean_flag = 1;	/* mark that database has been modified */
@@ -347,15 +343,16 @@ int irr_database_clean (irr_database_t *database) {
   cleaned_db = new_database(newdb);
   cleaned_db->db_fp = clean_fp;
   cleaned_db->journal_fd = database->journal_fd;
-  cleaned_db->db_syntax = database->db_syntax;
   cleaned_db->obj_filter = database->obj_filter;
 
   scan_irr_file (cleaned_db, NULL, 0, NULL);
 
   irr_lock(database);
 
-  radix_flush(database->radix);
-  database->radix = cleaned_db->radix;
+  radix_flush(database->radix_v4);
+  radix_flush(database->radix_v6);
+  database->radix_v4 = cleaned_db->radix_v4;
+  database->radix_v6 = cleaned_db->radix_v6;
   if (database->hash)
     HASH_Destroy(database->hash);
   database->hash = cleaned_db->hash;
@@ -392,7 +389,6 @@ int irr_database_clean (irr_database_t *database) {
   trace (NORM, default_trace, "Finished clean of %s\n", database->name);
 
   return (1);
-
 }
 
 void irr_export_timer (mtimer_t *timer, irr_database_t *db) {
@@ -403,83 +399,11 @@ void irr_clean_timer (mtimer_t *timer, irr_database_t *db) {
   irr_database_clean (db);
 }
 
-/* Given a DB as input determine it's syntax.
- * This function is designed to support reload's,
- * mirror's and !us...!ue updates.  It does not
- * syntax check the file but finds the first
- * attribute of the first object and determines
- * syntax.
- *
- * Return: (the DB syntax type)
- *   RPSL
- *   RIPE181
- *   EMPTY_DB
- *   UNRECOGNIZED
- */
-enum DB_SYNTAX get_database_syntax (FILE *fp) {
-  char buffer[BUFSIZE], *cp;
-  long fpos;
-  u_long offset = 0, position = 0;
-  enum STATES state = BLANK_LINE, save_state;
-  int db_syntax = EMPTY_DB;
-
-  fpos = ftell (fp); /* save the current file pos */
-
-  /* rewind */
-  if (fseek (fp, 0L, SEEK_SET) < 0) 
-    trace (NORM, default_trace, "** ERROR ** fseek failed in get_database_syntax");
-
-  while (state != DB_EOF) {
-    if ((cp = fgets (buffer, sizeof (buffer) - 1, fp)) != NULL) {
-      position = offset;
-      offset += strlen (buffer);
-    }
-
-    state = get_state (buffer, cp, state, &save_state);
-    /* dump comment lines and lines that exceed the buffer size */
-    if (state == OVRFLW     || 
-	state == OVRFLW_END ||
-	state == COMMENT    ||
-	state == BLANK_LINE)
-      continue;
-    
-    if (state == START_F) {
-      if (buffer[0] == '%'            ||
-	  !strncmp (buffer, "ADD", 3) ||
-	  !strncmp (buffer, "DEL", 3))
-	continue;
-
-      /* we have a ripe181 DB or a deleted
-       * ripe181 or rpsl object
-       */
-      if (buffer[0] == '*') {
-	if (strlen (buffer) > 3) {
-	  if (buffer[3] == ':')
-	    db_syntax = RIPE181;
-	  else
-	    db_syntax = RPSL;
-	}
-	else
-	  db_syntax = UNRECOGNIZED;
-      }
-      else
-	db_syntax = RPSL; /* later check for all legal rpsl fields */
-      
-      break;
-    }
-  }
-
-  /* restore file pos before exit */
-  if (fseek (fp, fpos, SEEK_SET) < 0) 
-    trace (NORM, default_trace, "** ERROR ** fseek failed in get_database_syntax");
-
-  return (db_syntax);
-}
-
 int irr_database_export (irr_database_t *database) {
-  char file1[BUFSIZE], file2[BUFSIZE];
-  char new[BUFSIZE], command[BUFSIZE];
+  char dbfile[BUFSIZE], tmp_export[BUFSIZE], tmp_export_gz[BUFSIZE];
+  char export_name[BUFSIZE], command[BUFSIZE];
   u_long serial;
+  int result;
 
   if (IRR.ftp_dir == NULL) {
     trace (TR_ERROR, default_trace, "Aborting export -- ftp directory not configured!\n");
@@ -488,65 +412,57 @@ int irr_database_export (irr_database_t *database) {
 
   /* new database maybe? */
   if (database->db_fp == NULL) {
-    trace (NORM, default_trace, "Export aborted -- NULL file pointer for %s\n", 
-	   database->name);
+    trace (TR_ERROR, default_trace, "Export aborted -- NULL file pointer for %s\n", database->name);
     return (-1);
   }
 
-  sprintf (file1, "%s/%s.db", IRR.database_dir, database->name);
+  sprintf (dbfile, "%s/%s.db", IRR.database_dir, database->name);
 
   if (IRR.tmp_dir != NULL) 
-    sprintf (file2, "%s/.%s.db.export", IRR.tmp_dir, database->name);
+    sprintf (tmp_export, "%s/.%s.db.export", IRR.tmp_dir, database->name);
   else
-    sprintf (file2, "%s/.%s.db.export", IRR.ftp_dir, database->name);
+    sprintf (tmp_export, "%s/.%s.db.export", IRR.ftp_dir, database->name);
 
   /* copy to export area (or maybe tmp directory) _atomically_ */
   irr_clean_lock (database); /* clean lock still allows reads of database */
-  serial = database->serial_number;
-  if (irr_copy_file (file1, file2, 1) != 1) {
+  serial = database->serial_number; /* save the current serial number */
+  if (irr_copy_file (dbfile, tmp_export, 1) != 1) {
     irr_clean_unlock (database);
     trace (TR_ERROR, default_trace, "Export failed! Aborting.\n");
     return (-1);
   }
   irr_clean_unlock (database);
-  /* -- done with atomic copy */
 
-  /* TODO - gzipping is optional - this shouldn't be fatal .
-     Additionally, the flags may be different and should come from configure. */
-  /* compress -- we should really find the path in configure.in */
-  sprintf (command, "%s -n -q -f %s", GZIP_CMD, file2); 
-  trace (NORM, default_trace, "Running gzip -n -q -f %s\n", file2);
-  if (system (command) < 0) {
-    trace (NORM, default_trace, "Error occured during gzip!\n");
-    return (-1);
-  }
-
-  /* if necessary, copy from the tmp directory */
-  if (IRR.tmp_dir != NULL) {
-    sprintf (file1, "%s/.%s.db.export.gz", IRR.tmp_dir, database->name);
-    sprintf (file2, "%s/.%s.db.export.gz", IRR.ftp_dir, database->name);
-    if (irr_copy_file (file1, file2, 0) != 1) {
-      trace (TR_ERROR, default_trace, "Export failed! Aborting.\n");
-      return (-1); 
-    }
-  }
-  
-  /* move .<database>.db.export.gz to <database>.db.gz */
-  sprintf (file2, "%s/.%s.db.export.gz", IRR.ftp_dir, database->name);
-  if (database->export_filename != NULL) 
-    sprintf (new, "%s/%s.db.gz", IRR.ftp_dir, database->export_filename);
+  /* Check if we have configured a script to do the compression, i.e.,
+    in order to hide the CRYPT-PW passwords before compressing.
+    If nothing configured, fall back to using gzip  */
+  sprintf (tmp_export_gz, "%s/.%s.db.export.gz", IRR.ftp_dir, database->name);
+  if (database->compress_script != NULL)
+    sprintf (command, "%s %s > %s", database->compress_script, tmp_export, tmp_export_gz); 
   else
-    sprintf (new, "%s/%s.db.gz", IRR.ftp_dir, database->name);
-  trace (NORM, default_trace, "Atomic move %s -> %s\n", 
-	 file2, new);
-  if (rename (file2, new) < 0) {
-    trace (TR_ERROR, default_trace, "Could not rename file to %s:%s\n", 
-	   new, strerror (errno));
+    sprintf (command, "%s -q -c %s > %s", GZIP_CMD, tmp_export, tmp_export_gz); 
+  trace (NORM, default_trace, "Running %s\n", command);
+  result = system(command);
+  remove(tmp_export);	/* clean-up after ourselves */
+  if (result < 0) {
+    remove(tmp_export_gz);
+    trace (NORM, default_trace, "Error occured during compression!\n");
     return (-1);
   }
 
-  write_irr_serial_export (serial, database);  
-  
+  /* move .<database>.db.export.gz to <database>.db.gz */
+  if (database->export_filename != NULL) 
+    sprintf (export_name, "%s/%s.db.gz", IRR.ftp_dir, database->export_filename);
+  else
+    sprintf (export_name, "%s/%s.db.gz", IRR.ftp_dir, database->name);
+  trace (NORM, default_trace, "move %s -> %s\n", tmp_export_gz, export_name);
+  if (rename (tmp_export_gz, export_name) < 0) {
+    trace (TR_ERROR, default_trace, "Could not rename file to %s:%s\n", 
+	   export_name, strerror (errno));
+    return (-1);
+  }
+
+  write_irr_serial_export (serial, database);  /* update serial number in FTP directory */
   trace (NORM, default_trace, "Database %s copied to export directory\n",
 	 database->name);
 
@@ -690,7 +606,6 @@ int replace_cache_db (irr_database_t *db, uii_connection_t *uii, char *tmp_dir) 
   sprintf (fname, "%s.db", db->name);
   afinfo.tmp_dir = tmp_dir;
   
-#ifndef NT
   /* atomically move the DB from the (tmp_dir) to the cache area */
   if (!atomic_move (IRR.database_dir, fname, uii, &afinfo)) {
     /* the atomic move failed, reopen the DB to restore */
@@ -720,7 +635,6 @@ int replace_cache_db (irr_database_t *db, uii_connection_t *uii, char *tmp_dir) 
       return 0;
     }
   }
-#endif /* NT */
   
   /* JOURNAL file processing.  the old JOURNAL files need to be
    * removed since we are importing a new DB */
@@ -737,7 +651,6 @@ int replace_cache_db (irr_database_t *db, uii_connection_t *uii, char *tmp_dir) 
   /* atomically remove the old JOURNAL files */
   sprintf (fname, "%s.%s", db->name, SJOURNAL_NEW);
   sprintf (uc,    "%s.%s", db->name, SJOURNAL_OLD);
-#ifndef NT
   if (!atomic_del (IRR.database_dir, fname, uii, &afinfo) ||
       !atomic_del (IRR.database_dir, uc,    uii, &afinfo)) {
     if ((db_open && !reopen_DB      (db, IRR.database_dir)) ||
@@ -751,12 +664,10 @@ int replace_cache_db (irr_database_t *db, uii_connection_t *uii, char *tmp_dir) 
 
   /* clean up the *.bak files */
   atomic_cleanup (&afinfo);
-#endif /* NT */
 
   return 1;
 }
 
-#ifndef NT
 /* Control process of fetching (db->name) from a remote ftp site.
  *
  * If (ftp_url) is non-null then it will be used instead of 
@@ -843,5 +754,3 @@ int ftp_db_fetch (irr_database_t *db) {
 
   return db_fetched;
 }
-
-#endif /* NT */

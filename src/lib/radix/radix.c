@@ -7,7 +7,6 @@
 #include <radix.h>
 
 /* #define RADIX_DEBUG 1 */
-
 static int num_active_radix = 0;
 
 /* these routines support continuous mask only */
@@ -24,7 +23,6 @@ New_Radix (int maxbits)
     num_active_radix++;
     return (radix);
 }
-
 
 /*
  * if func is supplied, it will be called as func(node->data)
@@ -76,7 +74,6 @@ Destroy_Radix (radix_tree_t *radix, void_fn_t func)
     num_active_radix--;
 }
 
-
 /*
  * if func is supplied, it will be called as func(node->prefix, node->data)
  */
@@ -91,7 +88,6 @@ radix_process (radix_tree_t *radix, void_fn_t func)
 	func (node->prefix, node->data);
     } RADIX_WALK_END;
 }
-
 
 radix_node_t *
 radix_search_exact (radix_tree_t *radix, prefix_t *prefix)
@@ -161,7 +157,6 @@ radix_search_exact (radix_tree_t *radix, prefix_t *prefix)
     }
     return (NULL);
 }
-
 
 radix_node_t *
 radix_search_best (radix_tree_t *radix, prefix_t *prefix, int inclusive)
@@ -468,7 +463,6 @@ radix_lookup (radix_tree_t *radix, prefix_t *prefix)
     return (new_node);
 }
 
-
 void
 radix_remove (radix_tree_t *radix, radix_node_t *node)
 {
@@ -583,8 +577,6 @@ radix_remove (radix_tree_t *radix, radix_node_t *node)
     Delete (node);
     node = NULL;
 }
-
-
 
 /* return the radix node, or the next node -- even if a prefix is not there 
  * This fixes the !r207.202.0.0/16,M Abha discovered

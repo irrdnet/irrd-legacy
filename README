@@ -1,4 +1,4 @@
-$Id: README,v 1.2 2001/09/18 17:25:48 ljb Exp $
+$Id: README,v 1.4 2002/10/22 15:57:59 ljb Exp $
 
 This is the source distribution of the Internet 
 Routing Registry Daemon (IRRd).
@@ -9,7 +9,16 @@ Source code and documentation for IRRd is available online at:
 Also, a user guide is included as part of the distribution as
 irrd-user.pdf.
 
-Send email to irrd-support@irrd.net for assistence/bug/comments.
+To build and install the distribution, execute the following commands:
+
+cd src
+./configure
+make
+make install
+
+Binaries are installed in /usr/local/sbin by default.
+
+Send email to irrd-support@irrd.net for assistance/bug/comments.
 
 A mailing list, irrd-discuss@irrd.net is also available for 
 IRRd users to share advice and experiences with the daemon.

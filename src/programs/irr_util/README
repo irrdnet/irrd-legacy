@@ -2,11 +2,13 @@ $Id: README,v 1.2 2000/08/03 17:11:20 gerald Exp $
 
 Utility programs
 
-attr_tokens.pl uses ripedb.config as input to create data structures
-for the parse.  See attr_tokens.pl for details.
+attr_tokens.pl uses rpsl.config as input to create data structures
+for the parse.  It creates the tokens.rpsl file as output.
 
-create_templates.pl uses templates.config to create the object templates
-used to satisfy the '-t' IRRd command.  See create_templates.pl for more
+create_templates.pl uses rpsl.config to create the object templates
+used to satisfy the '-t' IRRd command.  It reads from stdin and
+write to stdout.  You should feed it rpsl.config and write the
+outout to templates.rpsl.  See create_templates.pl for more
 details.
 
 crypt_gen.c is a C-program which generates encrypted keys. 

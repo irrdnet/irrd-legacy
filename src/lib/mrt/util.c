@@ -61,32 +61,6 @@ char *rinet_ntoa (char *buf, int n, prefix_t *prefix)
    return (buf);
 }
 
-/*-----------------------------------------------------------
- *  Name: 	my_strftime
- *  Created:	Mon Dec 19 14:15:42 1994
- *  Author: 	Craig Labovitz   <labovit@snoopy.merit.net>
- *  DESCR:  	Given a time long and format, return string. 
- *		If time <=0, use current time of day
- */
-
-char *my_strftime(long in_time, char *fmt)
-{
-   char *tmp = NewArray (char, BUFSIZE);
-   long t;
-   struct tm *tm;
-
-   if (in_time <= 0)
-      t = time (NULL);
-   else
-      t = in_time;
-
-   tm = localtime(&t);
-
-   strftime (tmp, BUFSIZE, fmt, tm);
-   return (tmp);
-}
-
-
 /*
  * returns pointer to a token
  * line, a pointer of pointer to the string will be updated to the next position

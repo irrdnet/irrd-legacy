@@ -16,20 +16,14 @@ enum ATTR_ID {
   AUTH_ATTR    = 040
 };
 
-#define is_upd_to(p) (!strncmp (p, "*dt:", 4) || !strncmp (p, "upd-to:", 7))
-#define is_mnt_nfy(p) (!strncmp (p, "*mn:", 4) || !strncmp (p, "mnt-nfy:", 8))
-#define is_mnt_by(p) (!strncmp (p, "*mb:", 4) || !strncmp (p, "mnt-by:", 7))
-#define is_notify(p) (!strncmp (p, "*ny:", 4) || !strncmp (p, "notify:", 7))
-#define is_mntner(p) (!strncmp (p, "*mt:", 4) || !strncmp (p, "mntner:", 7))
-#define is_auth(p) (!strncmp (p, "*at:", 4) || !strncmp (p, "auth:", 5))
-#define is_changed(p) (!strncmp (p, "*ch:", 4) || !strncmp (p, "changed:", 8))
-#define is_source(p) (!strncmp (p, "*so:", 4) || !strncmp (p, "source:", 7))
-
-/* Transaction types */
-#define ADD_OP     "ADD"
-#define DEL_OP     "DEL"
-#define REPLACE_OP "REPLACE"
-#define NOOP_OP    "NOOP"
+#define is_upd_to(p) (!strncasecmp (p, "upd-to:", 7))
+#define is_mnt_nfy(p) (!strncasecmp (p, "mnt-nfy:", 8))
+#define is_mnt_by(p) (!strncasecmp (p, "mnt-by:", 7))
+#define is_notify(p) (!strncasecmp (p, "notify:", 7))
+#define is_mntner(p) (!strncasecmp (p, "mntner:", 7))
+#define is_auth(p) (!strncasecmp (p, "auth:", 5))
+#define is_changed(p) (!strncasecmp (p, "changed:", 8))
+#define is_source(p) (!strncasecmp (p, "source:", 7))
 
 /* Used by read_socket_obj (), SHORT_OBJECT
  * will get auth, upd-to, mnt-nfy, and notify
@@ -38,8 +32,9 @@ enum ATTR_ID {
 #define FULL_OBJECT  0
 #define SHORT_OBJECT 1
 
-#define newline_remove(p) if (*((p) + strlen ((p)) - 1) == '\n') \
-                           *((p) + strlen ((p)) - 1) = '\0'
+#define newline_remove(p)  { char *_z = (p) + strlen((p)) - 1; \
+	if (*_z == '\n') \
+	   *_z = '\0';}
 
 #define SNIP_MSG "[snip... Object abbreviated for readability]\n"
 
