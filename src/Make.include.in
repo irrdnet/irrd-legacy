@@ -1,0 +1,53 @@
+#
+# $Id: Make.include.in,v 1.5 2001/08/28 17:29:12 gerald Exp $
+#
+
+.c.o:
+#	@echo "Compiling:       $*.c"
+	$(CC) $(CFLAGS) $(CPPFLAGS)  -c $<
+	@if [ "$(ARCHIVE)" ]; then \
+		$(AR) $(ARFLAGS) $(ARCHIVE) $@; \
+		$(RANLIB) $(ARCHIVE); fi
+
+@SET_MAKE@
+HOST_OS =	@HOST_OS@
+
+EXTRA_LIBS=	@EXTRA_LIBS@
+THREADLIBS=	@THREADLIBS@
+DB_LIB=		@DB_LIB@
+
+IRRD_OPS_LIBS=  @IRRD_OPS_LIBS@
+CRYPT_LIB=      @CRYPT_LIB@
+FLEX_PATH=      @FLEX_PATH@
+YACC=		@YACC@
+
+CC= 		@CC@
+CFLAGS= 	@CFLAGS@ @DEFS@ @MODULES@
+CPPFLAGS= 	@CPPFLAGS@ @EXTRA_INCLUDE_DIRS@
+
+LD= 		@CC@
+LDFLAGS=	@LDFLAGS@
+RANLIB= 	@RANLIB@
+INSTALL= 	@INSTALL@
+MAKEDEP= 	@MAKEDEP@
+MAKEDEPCLEAN= 	@MAKEDEPCLEAN@
+
+DESTDIR=	@prefix@/bin
+MANDIR=		@prefix@/man
+#EXEC_PREFIX=	@exec_prefix@
+
+MRTLIB= 	../../lib/libmrt.a
+CFGLIB=		../../lib/libcfg.a
+MRT_LIBS=	$(CFGLIB) $(MRTLIB)
+SYS_LIBS=	@LIBS@
+LIBS=		$(MRT_LIBS) $(EXTRA_LIBS) $(SYS_LIBS)
+
+QUANTIFY=	@QUANTIFY@
+PURIFY=		@PURIFY@  -cache-dir=./
+
+SHELL = 	/bin/sh
+CP =		cp -p
+RM =		rm -f
+ARFLAGS =	crv
+
+PGPDIR =	@PGPDIR@

@@ -1,0 +1,46 @@
+ Sep 24, 2001
+		   IRRd 2.1.2  Release notes
+
+  The 2.1.2 release fixes a bug in irr_rpsl_submit which resulted in the
+  process exiting prematurely on Linux (due to a redundant fclose() call).
+  There was also a bug in the configure script which resulted in PGP not
+  being correctly enabled on systems with PGP/GnuPG binaries.  Manual updates
+  have also been made to correct an erroneous documentation concerning
+  invoking irr_rpsl_submit via email submissions and the use of the "-D" flag.
+  Also note that irr_rpsl_submit must be able to update the PGP directory and
+  ring files in order to support PGP authentication.
+
+ Sep 18, 2001
+		   IRRd 2.1.1  Release notes
+
+  The 2.1.1 release fixes a possible race condition in the UII code
+  with short-lived UII telnet connections.  Also, an updated PDF manual,
+  ChangeLog, and NOTES file are now included in the distribution.
+
+
+ Sep 13, 2001
+
+                   IRRd 2.1.0  Release notes
+
+  The 2.1.0 release of IRRD is primarily a bugfix and portability update.
+  The primary target systems for current development are now Solaris,
+  Linux, and FreeBSD.  
+
+Fixes/Enhancements
+
+  Numerous portability fixes for installation on Linux/FreeBSD systems
+  Fixes to address various compiler warnings
+  UII interface now works correctly under Linux
+  fix a serious memory leak in whois port connection teardown
+  a number of additional minor memory leaks also fixed
+  enhancement to atomic database update code to prevent zombie processes
+  add option to drop priveleges and run as a non-root user/group
+  removed a number of unused files that had been imported from the MRT codebase
+  streamlined configure script -- removed a number of unneeded checks
+  phone/fax attribute verification was rejecting valid phone number formats
+  inet6num object support now functional (indepedent of kernel IPV6 support)
+  support added for GnuPG in addition to PGP
+  fixed issue with "at" expression evalution for "inject:" and "peering:" attrs
+  Ranges on route-set macros now evaluated when performing macro expansions.
+  Be more lenient in serial number processing
+  (allow whitespace/trailing newlines in .CURRENTSERIAL files).

@@ -1,0 +1,17 @@
+#!/usr/bin/perl
+
+if (!$ARGV[0]) {
+    print "ERROR: No target source field supplied, abort!\n";
+    exit;
+}
+
+$source = $ARGV[0];
+
+while (<STDIN>) {
+  if (/^(\*so|source)(:\s+)/) {
+	print "$1$2$source\n";
+  }
+  else {
+    print $_;
+  }
+}

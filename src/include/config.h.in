@@ -1,0 +1,162 @@
+/* include/config.h.in.  Generated automatically from configure.in by autoheader.  */
+/* 
+ * $Id: config.h.in,v 1.9 2001/08/14 16:40:26 ljb Exp $
+ */
+
+
+/* Define if using alloca.c.  */
+#undef C_ALLOCA
+
+/* Define to empty if the keyword does not work.  */
+#undef const
+
+/* Define to one of _getb67, GETB67, getb67 for Cray-2 and Cray-YMP systems.
+   This function is required for alloca.c support on those systems.  */
+#undef CRAY_STACKSEG_END
+
+/* Define if you have alloca, as a function or macro.  */
+#undef HAVE_ALLOCA
+
+/* Define if you have <alloca.h> and it should be used (not on Ultrix).  */
+#undef HAVE_ALLOCA_H
+
+/* Define if the `setpgrp' function takes no argument.  */
+#undef SETPGRP_VOID
+
+/* If using the C implementation of alloca, define if you know the
+   direction of stack growth for your system; otherwise it will be
+   automatically deduced at run-time.
+ STACK_DIRECTION > 0 => grows toward higher addresses
+ STACK_DIRECTION < 0 => grows toward lower addresses
+ STACK_DIRECTION = 0 => direction of growth unknown
+ */
+#undef STACK_DIRECTION
+
+/* Define if you have the ANSI C header files.  */
+#undef STDC_HEADERS
+
+/* Define if you can safely include both <sys/time.h> and <time.h>.  */
+#undef TIME_WITH_SYS_TIME
+
+/* Define if your <sys/time.h> declares struct tm.  */
+#undef TM_IN_SYS_TIME
+
+/* Defined if you have IPV6 support */
+#undef HAVE_IPV6
+
+/* Define if you have struct in6_addr */
+#undef HAVE_STRUCT_IN6_ADDR
+
+/* Define if you have pthread library (-lpthread) */
+#undef HAVE_LIBPTHREAD
+
+/* Define if you are using gdbm */
+#undef USE_GDBM
+
+/* Define if you using berkeley db */
+#undef USE_DB1
+
+/* Define if you have pthread_attr_setscope */
+#undef HAVE_PTHREAD_ATTR_SETSCOPE
+
+/* Define if you have u_char, u_int, u_short, and u_long */
+#undef HAVE_U_TYPES
+
+#undef HAVE_MAIL
+
+#undef HAVE_SENDMAIL
+
+#undef PGP
+
+#undef HAVE_GZIP
+
+#undef HAVE_IRRDCACHER
+
+#undef HAVE_WGET
+
+/* Define if you have the gethostbyaddr_r function.  */
+#undef HAVE_GETHOSTBYADDR_R
+
+/* Define if you have the gethostbyname_r function.  */
+#undef HAVE_GETHOSTBYNAME_R
+
+/* Define if you have the inet_ntop function.  */
+#undef HAVE_INET_NTOP
+
+/* Define if you have the declaration for the inet_ntop function.  */
+#undef HAVE_DECL_INET_NTOP
+
+/* Define if you have the localtime_r function.  */
+#undef HAVE_LOCALTIME_R
+
+/* Define if you have the memmove function.  */
+#undef HAVE_MEMMOVE
+
+/* Define if you have the setsid function.  */
+#undef HAVE_SETSID
+
+/* Define if you have the sigaction function.  */
+#undef HAVE_SIGACTION
+
+/* Define if you have the sigprocmask function.  */
+#undef HAVE_SIGPROCMASK
+
+/* Define if you have the sigset function.  */
+#undef HAVE_SIGSET
+
+/* Define if you have the strerror function.  */
+#undef HAVE_STRERROR
+
+/* Define if you have the strtok_r function.  */
+#undef HAVE_STRTOK_R
+
+/* Define if you have the mkstemp function.  */
+#undef HAVE_MKSTEMP
+
+/* Define if you have the declaration for the mkstemp function.  */
+#undef HAVE_DECL_MKSTEMP
+
+/* Define if you have the declaration for the getdtablesize function.  */
+#undef HAVE_DECL_GETDTABLESIZE
+
+/* Define if you have the declaration for the utimes function.  */
+#undef HAVE_DECL_UTIMES
+
+/* Define if you have the snprintf function.  */
+#undef HAVE_SNPRINTF
+
+/* Define if you have the dirname function.  */
+#undef HAVE_DIRNAME
+
+/* Define if you have the basename function.  */
+#undef HAVE_BASENAME
+
+/* Define if you have the thr_setconcurrency function.  */
+#undef HAVE_THR_SETCONCURRENCY
+
+/* Define if you have the <gdbm.h> header file.  */
+#undef HAVE_GDBM_H
+
+/* Define if you have the <pthread.h> header file.  */
+#undef HAVE_PTHREAD_H
+
+/* Define if you have the <resolv.h> header file.  */
+#undef HAVE_RESOLV_H
+
+/* Define if you have the <string.h> header file.  */
+#undef HAVE_STRING_H
+
+/* Define if you have the <strings.h> header file.  */
+#undef HAVE_STRINGS_H
+
+/* Define if you have the <libgen.h> header file.  */
+#undef HAVE_LIBGEN_H
+
+/* Define if you have the <sys/select.h> header file.  */
+#undef HAVE_SYS_SELECT_H
+
+/* Define if you have the <sys/stropts.h> header file.  */
+#undef HAVE_SYS_STROPTS_H
+
+/* Define if you have the <sys/time.h> header file.  */
+#undef HAVE_SYS_TIME_H

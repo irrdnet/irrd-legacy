@@ -1,0 +1,9 @@
+ALLCLASSFILES = SendMail.class \
+                GeneralDialog.class \
+#                IPMA_Constants.class \
+#                ASRDataChecker.class \
+#                ASRDataSet.class \
+#                ASResolver.class \
+                PreferenceManager.class \
+                PrefMenuItemGUI.class   \
+#		URLCommon.class

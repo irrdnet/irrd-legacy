@@ -1,0 +1,99 @@
+.\"irrd.8 --
+.\"
+.\" Created: Aug 16 2001
+.\"
+.TH IRRD 8 "16 Aug 2001" "IRRD" "IRRD"
+.SH NAME
+irrd \- stand-alone Internet Routing Registry database
+.SH SYNOPSIS
+.BI "irrd"
+[-a] [-d database directory] [-f conf file] [-g group name] [-l user name]
+[-m] [-n] [-r] [-s password] [-u] [-v] [-w irr port] [-x]
+.SH DESCRIPTION
+.B irrd
+is a stand-alone Internet Routing Registry database server. irrd can store information and answer
+queries about local network, campus and ISP backbone topology, address allocation and routing policies.
+irrd can be used as an independent local database server, or as part of the global Internet Routing
+Registry (IRR). The Internet Routing Registry is the union of a growing number of world-wide routing
+policy databases, including servers operated by Cable & Wireless, APNIC, Merit, Bell Canada, RIPE,
+Verio, and many other organizations. See http://www.irr.net/docs/list.html for an up-to-date list of
+registries.
+irrd supports both RIPE-181 and Routing Registry Specification Language (RPSL) routing registry
+syntaxes. The irrd package includes all needed IRR support services, including: automated real-time
+mirroring of other IRR databases, update syntax checking, update security checking, GUI query and
+management tools, and update notification. The current version of irrd also supports most RIPEdb
+whois flags.
+When used in conjunction with policy tools such as RtConfig, Roe, and Aoe, the irrd server allows:
+.PD 1
+.TP 10
+.B 1. Automated generation of router configuration 
+files and access\-lists
+.TP 10 
+.B 2. Internet topology visualization
+.TP 10 
+.B 3. Network trouble-shooting and debugging
+.TP 0
+In addition to the usual RIPE/RPSL whois queries, the irrd Server 
+also provides a protocol for getting information from RIPE/RPSL-style database files that is not easily (or rapidly) obtainable using the
+standard whois queries. These irrd queries can be submitted one-at-a-time via whois, or by establishing
+a connection to the irrd Server, issuing multiple queries, and then closing the connection.
+
+.SH OPTIONS
+The following options are supported:
+.TP 10
+.B \-a
+Enable atomic transactions for database updates
+.TP
+.B \-d <database directory> 
+Set database directory
+.TP
+.B \-f <conf file> 
+Specify the configuration file to use (default: /etc/irrd.conf).
+.TP
+.B \-g <group name> 
+Set the program's group id to the named group after initialization.
+.TP
+.B \-l <user name> 
+Set the program's user id to the named user after initialization.
+.TP
+.B \-m
+use memory mode indexing (faster than disk based index)
+.TP
+.B \-n 
+Do not daemonize
+.TP
+.B \-r 
+Force re-indexing of databases
+.TP
+.B \-s <password> 
+Set the password for the UII interactive interface
+.TP
+.B \-u 
+don't allow privileged commands
+.TP
+.B \-v 
+Verbose logging, debug mode
+.TP
+.B \-w <irr port>
+Set the port used by irrd for whois/mirror connections (default 43).
+.TP
+.B \-x
+Don't attempt an initial bootstrap auto-fetch of empty databases
+
+.SH USAGE
+.SS Interactive Interface
+irrd provides an interactive user interface that shows the status of measurement tests and parameters.
+The port number can be specified in the configuration. The default is TCP port 5673, or the number associated with 
+.B irrd 
+in /etc/services. If a password is specified in the configuration, it must be supplied
+on login.
+
+Unix shell-like redirection (or filename) is available for output. To edit a line, emacs-like line editing
+including ^a, ^b, ^e, ^f, ^d, ^k, ^u and ^c is available. To reuse a previous line, tcsh-line history function
+is available by typing ^p and ^n. 
+
+The irrd command language shares many similarities with the language used on Cisco Systems routers.
+
+.SH SEE ALSO
+http://www.irrd.net/irrd.pdf
+

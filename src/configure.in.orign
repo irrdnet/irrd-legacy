@@ -1,0 +1,517 @@
+dnl Process this file with autoconf to produce a configure script.
+AC_REVISION($Revision: 1.1.1.1 $)
+
+AC_INIT(lib/mrt/prefix.c)
+AC_CONFIG_HEADER(include/config.h)
+
+AC_ARG_ENABLE(ipv6,
+[  --disable-ipv6          disable IPv6 always],
+[disable_ipv6=yes],)
+
+AC_ARG_ENABLE(thread,
+[  --disable-thread        disable thread always],
+[disable_thread=yes],)
+
+AC_ARG_ENABLE(Wall,
+[  --disable-Wall          disable -Wall option always],
+[disable_wall=yes],)
+
+dnl what OS are we? Create directory in /src/obj
+AC_CANONICAL_HOST
+pwd=`pwd`
+pwd=`basename $pwd`
+if test "$pwd" = "src"; then
+    os=${host_os}
+else
+    os=`expr $pwd : 'src\.\(.*\)'`
+fi
+mkdir -p "obj/$os/lib"
+mkdir -p "obj/$os/bin"
+exec_prefix="../../obj/$os"
+
+dnl Solaris needs the libs, bsdi does not
+case "$host_os" in
+	bsdi*) IRRD_OPS_LIBS=""
+	CRYPT_LIB=""
+        AC_DEFINE(USE_FLOCK)
+	;;
+	*linux*) IRRD_OPS_LIBS=""
+	CRYPT_LIB="-lcrypt"
+        AC_DEFINE(USE_LOCKF) 
+	;;
+	*freebsd*) IRRD_OPS_LIBS=""
+	CRYPT_LIB="-lcrypt"
+        AC_DEFINE(USE_FLOCK)
+	;;
+	*osf4*) IRRD_OPS_LIBS=""
+	CRYPT_LIB=""
+        AC_DEFINE(USE_FLOCK)
+        AC_DEFINE(_PTHREAD_ENV_CXX)
+	;;
+	*) IRRD_OPS_LIBS="-lsocket -lnsl"
+	CRYPT_LIB="-lcrypt"
+        AC_DEFINE(USE_LOCKF)
+	;;
+esac
+
+AC_PROG_CC
+AC_PROG_CPP
+
+dnl find flex and bixon
+AC_PATH_PROG(FLEX_PATH,flex,no)
+if test $FLEX_PATH = no; then
+    FLEX_PATH="lex"
+fi
+AC_PATH_PROG(BISON_PATH,bison,no)
+if test $BISON_PATH = no; then
+    BISON_PATH=""
+    echo "** No BISON -- only IRRD will be built! **"
+fi
+AC_SUBST(FLEX_PATH)
+AC_SUBST(BISON_PATH)
+
+dnl sendmail mail and pgp/pgpv
+AC_PATH_PROG(SENDMAIL_PATH,sendmail,no,$PATH:/usr/lib)
+if test $SENDMAIL_PATH = no; then
+    SENDMAIL_PATH=""
+else
+    AC_DEFINE(HAVE_SENDMAIL)
+fi
+AC_PATH_PROG(MAIL_PATH,mail,no)
+if test $MAIL_PATH = no; then
+    MAIL_PATH=""
+else
+    AC_DEFINE(HAVE_MAIL)
+fi
+AC_PATH_PROG(GZIP_PATH,gzip,no)
+if test $GZIP_PATH = no; then
+    GZIP_PATH=""
+else
+    AC_DEFINE(HAVE_GZIP)
+fi
+AC_PATH_PROG(PGPV_PATH,pgpv,no)
+if test $PGPV_PATH = no; then
+    AC_PATH_PROG(PGPV_PATH,pgp,no)
+    if test $PGPV_PATH = no; then
+        PGPV_PATH=""
+        AC_DEFINE(PGP,0)
+    else
+        AC_DEFINE(PGP,26)
+    fi
+else
+    AC_DEFINE(PGP, 5)        
+fi
+AC_SUBST(SENDMAIL_PATH)
+AC_SUBST(MAIL_PATH)
+AC_SUBST(PGPV_PATH)
+AC_SUBST(GZIP_PATH)
+
+dnl See if crypt.h exists
+AC_CHECK_HEADERS(crypt.h)
+
+HOST_OS="$os"
+AC_SUBST(exec_prefix)
+AC_SUBST(HOST_OS)
+IN_H="/usr/include/netinet/in.h"
+IF_H="/usr/include/net/if.h"
+
+dnl set default of no support in case no support
+KERNEL_OBJS="none.o"
+dnl DESTDIR=/usr/local/sbin
+dnl MANDIR=/usr/local/man
+MODULES=""
+
+dnl is there any elegant way?
+dnl PROGRAM_DIRS=`(cd programs; \
+dnl	for i in *; do \
+dnl	    if test -d $i -a $i != CVS -a -f $i/Makefile; \
+dnl		then echo $ac_n "$i $ac_c"; fi; \
+dnl        done)`
+PROGRAM_DIRS="IRRd hdr_comm irrd_ops irr_check irr_rpsl_check irr_notify irr_submit"
+LIB_DIRS=`(cd lib; \
+	for i in *; do \
+	    if test -d $i -a $i != CVS -a -f $i/Makefile; \
+		then echo $ac_n "$i $ac_c"; fi; \
+        done)`
+
+EXTRA_INCLUDE_DIRS=""
+EXTRA_LIBS=""
+CPPFLAGS="-I../../include -DFUNCPROTO -I/usr/local/include"
+dnl defining FUNCPROTO ensures that struct library uses portotype
+dnl we don't expect non-ANSI (K&R) C compilers to be used
+dnl Some compiles may define __STDC__ by itself which makes it enable, 
+dnl but struct library also requires its values is non-zero
+
+
+
+dnl AC_PROC_CC may set an intial CFLAGS depending on whether it accepts "-g".
+dnl CFLAGS="-g"
+LDFLAGS="$LDFLAGS -L/usr/local/lib"
+AC_MSG_CHECKING(for -Wall option)
+if test "$disable_wall" = yes; then
+   AC_MSG_RESULT(disabled)
+elif test "$CC" = "gcc"; then
+   CFLAGS="$CFLAGS -Wall"
+   AC_MSG_RESULT(yes)
+else
+   AC_MSG_RESULT(no)
+fi
+QUANTIFY="quantify"
+PURIFY="purify"
+
+AC_DEFUN(AC_FILE_EXIST, [
+if test -f "$1" >/dev/null 2>&1; then
+  ifelse([$2], , :, [$2])
+  ifelse([$3], , , [else $3])
+fi])
+
+AC_DEFUN(AC_DIR_EXIST, [
+if test -d "$1" >/dev/null 2>&1; then
+  ifelse([$2], , :, [$2])
+  ifelse([$3], , , [else $3])
+fi])
+
+dnl $2 may be a list (no quotes)
+AC_DEFUN(AC_EGREP_HEADER2, [
+if egrep "$1" $2 >/dev/null 2>&1; then
+  ifelse([$3], , :, [$3])
+  ifelse([$4], , , [else $4])
+fi])
+
+case "${host_os}" in
+    *bsdi* | *freebsd* | *netbsd* )
+dnl use kernel source if available
+        AC_DIR_EXIST(/sys/sys, [
+            CPPFLAGS="$CPPFLAGS -I/sys"
+            IN_H="$IN_H /sys/netinet/in.h"
+            IF_H="$IF_H /sys/net/if.h"])
+    ;;
+    * ) 
+dnl including header files under /sys makes SIOCGIFCONF confused on sunos.
+    ;;
+esac
+
+dnl Add the ICMP code;  we'll have to turn this into an interactive
+dnl question during the configure process later...
+dnl MODULES="-D_NETNOW_ICMP_ $MODULES"
+
+case "${host_os}" in
+    *solaris2.6* )
+        AC_DEFINE(SOLARIS26)
+        LIBS="$LIBS -lsocket -lnsl"
+        KERNEL_OBJS="solaris.o"
+    ;;
+    *solaris* )
+dnl     LIBS="$LIBS -lsocket -lnsl -L/usr/ucblib -lucb"
+        LIBS="$LIBS -lsocket -lnsl"
+dnl -lnls should be the last because resolver should be linked first
+        KERNEL_OBJS="solaris.o"
+    ;;
+    *bsdi* )
+	CFLAGS="$CFLAGS -DSMALL_ENDIAN -DBSDOS"
+        LIBS="$LIBS -lipc"
+        KERNEL_OBJS="freebsd.o"
+    ;;
+    *freebsd* )
+	CFLAGS="$CFLAGS -DSMALL_ENDIAN"
+        LIBS="$LIBS -lkvm"
+        KERNEL_OBJS="freebsd.o"
+    ;;
+    *netbsd* )
+        KERNEL_OBJS="freebsd.o"
+    ;;
+    *sunos* ) 
+        KERNEL_OBJS="sunos.o"
+    ;;
+    *linux* )
+dnl        AC_DEFINE(HAVE_PHYSICAL_INTERFACE)
+	KERNEL_OBJS="linux.o"
+        IN_H="$IN_H /usr/include/linux/in.h"
+        IF_H="$IF_H /usr/include/linux/if.h"
+	AC_DIR_EXIST(/usr/src/linux/include, [
+dnl            CPPFLAGS="$CPPFLAGS -I/usr/src/linux/include"
+            IN_H="$IN_H /usr/src/linux/include/linux/in.h"
+            IF_H="$IF_H /usr/src/linux/include/linux/if.h"])
+dnl -O2 is required for avoiding undefined reference to cmsg_nxthdr
+	CFLAGS="-O2 $CFLAGS"
+	AC_MSG_CHECKING(for GNU libc)
+	AC_EGREP_HEADER(yes, /usr/include/features.h, [
+#ifdef __GLIBC__
+  yes
+#endif
+	], [GLIBC=1; AC_MSG_RESULT(yes)], AC_MSG_RESULT(no))
+	AC_EGREP_HEADER(ipv6mr_ifindex, netinet/in.h, 
+		        AC_DEFINE(HAVE_IPV6MR_IFINDEX))
+    ;;
+    osf* )
+	if test $CC = "cc" ; then
+           CPPFLAGS="$CPPFLAGS -taso -pthread -call_shared"
+        fi
+        CPPFLAGS="$CPPFLAGS -D_THREAD_SAFE -L/usr/shlib"
+        ac_pthrlib="pthreads"
+	LDFLAGS="$LDFLAGS -lpthread -lmach -lexc -lc"
+    ;;
+
+    *sysv4.2MP* )
+        LIBS="$LIBS -lsocket -lnsl -lthread"
+        CPPFLAGS="-D_XOPEN_SOURCE -D_XOPEN_SOURCE_EXTENDED=1 $CPPFLAGS"
+	CFLAGS="-Xc $CFLAGS"
+     ;;
+
+esac
+
+dnl Checks for programs.
+AC_PROG_MAKE_SET
+dnl because it will be executed in program/*
+ac_install_sh=../../$ac_install_sh
+AC_PROG_INSTALL
+AC_PROG_RANLIB
+AC_CHECK_PROGS(MAKEDEP, makedepend mkdep)
+if test "$MAKEDEP" = "makedepend"; then
+    MAKEDEPCLEAN="rm -f .depend"
+fi
+AC_SUBST(MAKEDEPCLEAN)
+
+dnl Checks for pthread libraries. (linux has pthread.h only, so ...)
+AC_MSG_CHECKING(for thread support)
+if test "$disable_thread" = yes; then
+  AC_MSG_RESULT(disabled)
+else
+  AC_MSG_RESULT(later)
+  if test ! -n "$ac_pthrlib"; then 
+    ac_pthrlib="pthread"
+  fi;
+  AC_CHECK_LIB($ac_pthrlib, pthread_create, [
+    AC_CHECK_HEADER(pthread.h, [
+        AC_DEFINE(HAVE_PTHREAD_H)
+	AC_DEFINE(HAVE_LIBPTHREAD)
+	QUANTIFY="$QUANTIFY -cache-dir=\"./\""
+        PURIFY="$PURIFY -cache-dir=\"./\""
+        THREADLIBS="-l$ac_pthrlib"])])
+fi
+AC_SUBST(THREADLIBS)
+
+dnl Checks for bind libraries.
+AC_CHECK_LIB(bind, gethostbyname, [LIBS="-lbind $LIBS"],
+    [AC_CHECK_LIB(resolv, gethostbyname, [LIBS="-lresolv $LIBS"])])
+dnl AC_CHECK_LIB(resolv, inet_pton, [LIBS="-lresolv $LIBS"])
+
+dnl This is Jerry's lib check area
+AC_CHECK_LIB(gdbm, gdbm_open, [exist_gdbm=yes],[exist_gdbm=no])
+if test $exist_gdbm = yes; then
+AC_CHECK_HEADERS(gdbm.h, [exist_gdbm=yes],[exist_gdbm=no])
+fi
+
+AC_CHECK_LIB(db, dbopen, [exist_db1=yes],[exist_db1=no])
+if test $exist_db1 = yes; then
+AC_CHECK_HEADERS(db.h, [exist_db1=yes],[exist_db1=no])
+fi
+
+AC_MSG_CHECKING(for GDBM preference)
+gdbm_pref=no
+AC_ARG_WITH(gdbm,
+[  --with-gdbm             Use GNU DBM package (default)],
+[ if test $withval = no; then
+    gdbm_pref=NOGDBM
+    AC_MSG_RESULT(don't use GDBM)
+  else
+    AC_MSG_RESULT(use GDBM)
+    gdbm_pref=GDBM
+  fi],
+[AC_MSG_RESULT(none expressed)]
+)
+
+AC_MSG_CHECKING(for DB1 preference)
+db1_pref=no
+AC_ARG_WITH(db1,
+[  --with-db1              Use Berkely DB1 package],
+[ if test $withval = no; then
+    db1_pref=NODB1
+    AC_MSG_RESULT(don't use DB1)
+  else
+    AC_MSG_RESULT(use DB1)
+    db1_pref=DB1
+  fi],
+[AC_MSG_RESULT(none expressed)]
+)
+
+AC_MSG_CHECKING(DB package availability and user preferences)
+if test $gdbm_pref = GDBM; then
+  if test $exist_gdbm = yes; then
+    AC_DEFINE(USE_GDBM)
+    DB_LIB="-lgdbm"
+    db_check=done
+    AC_MSG_RESULT(using GDBM)
+  fi
+fi
+
+if test "$db_check" != "done"; then
+  if test "$db1_pref" = "DB1"; then
+    if test $exist_db1 = yes; then
+        AC_DEFINE(USE_DB1)
+        DB_LIB="-ldb"   
+        db_check=done
+        AC_MSG_RESULT(using DB1)
+    fi
+  fi
+fi
+
+if test "$db_check" != "done"; then
+  if test "$gdbm_pref" != "NOGDBM"; then
+    if test $exist_gdbm = yes; then
+      AC_DEFINE(USE_GDBM)
+      DB_LIB="-lgdbm"   
+      db_check=done
+    AC_MSG_RESULT(using GDBM)
+    fi
+  fi
+fi
+
+if test "$db_check" != "done"; then
+  if test "$db1_pref" != "NODB1"; then
+    if test $exist_db1 = yes; then
+      AC_DEFINE(USE_DB1)
+      DB_LIB="-ldb"
+      db_check=done
+    AC_MSG_RESULT(using DB1)
+    fi
+  fi
+fi
+
+if test "$db_check" != "done"; then
+  AC_MSG_RESULT(no DB packages will be used)
+fi
+
+dnl Checks for header files.
+AC_HEADER_STDC
+
+dnl Checks for functions.
+AC_FUNC_SETPGRP	
+
+AC_CHECK_HEADERS(stropts.h)
+AC_CHECK_HEADERS(sys/sockio.h malloc.h sys/stropts.h sys/select.h sys/time.h)
+AC_CHECK_HEADERS(sys/ethernet.h netinet/if_ether.h net/ethernet.h, AC_DEFINE(HAVE_ETHER_ADDR))
+AC_CHECK_HEADERS(sys/dlpi.h net/bpf.h, AC_DEFINE(HAVE_PHYSICAL_INTERFACE))
+
+dnl Checks for typedefs, structures, and compiler characteristics.
+AC_C_CONST
+AC_HEADER_TIME
+AC_STRUCT_TM
+
+dnl IPV6 support? Assume support is there if IPPROTO_IPV6 exists...
+AC_MSG_CHECKING(for IPv6 kernel support)
+if test "$disable_ipv6" = yes; then
+  AC_MSG_RESULT(disabled)
+else
+  AC_EGREP_HEADER2(IPPROTO_IPV6, ${IN_H}, [
+  case "${host_os}" in
+    *linux* )
+	AC_FILE_EXIST(/proc/net/ipv6_route, [
+	    AC_FILE_EXIST(/usr/inet6/lib/libinet6.a,
+
+                [LIBS="-L/usr/inet6/lib -linet6 $LIBS"
+		 CPPFLAGS="-I../../include -I/usr/inet6/include $CPPFLAGS"
+                 AC_DEFINE(HAVE_IPV6) AC_MSG_RESULT(yes... Linux IPv6)
+
+dnl		 AC_MSG_CHECKING(for RTNETLINK support)
+dnl		 AC_EGREP_HEADER(yes, /usr/include/linux/autoconf.h, [
+dnl #ifdef CONFIG_RTNETLINK
+dnl yes
+dnl #endif
+dnl		 ], AC_MSG_RESULT(yes), 
+dnl		 AC_MSG_RESULT(no... recommend CONFIG_RTNETLINK))
+
+dnl these are required for inet6-app on the Linux versions that don't have them
+dnl now they are in it
+dnl		 AC_CHECK_TYPE(uint8_t, __u8)
+dnl		 AC_CHECK_TYPE(uint16_t, __u16)
+dnl		 AC_CHECK_TYPE(uint32_t, __u32)
+		 ],
+
+		[AC_MSG_RESULT(no... require inet6-apps)])],
+            AC_MSG_RESULT(no))
+	    AC_FILE_EXIST(/usr/include/netinet/icmp6.h, [
+	      AC_DEFINE(HAVE_IPV6) AC_MSG_RESULT(yes... Linux IPv6)
+ 	      AC_DEFINE(HAVE_LINUX_2_2_5_IPV6)
+	    ]
+         )
+    ;;
+    *solaris* )
+	AC_FILE_EXIST(/usr/ipv6/sbin/ifconfig, [
+                AC_DEFINE(HAVE_IPV6) AC_DEFINE(SOLARIS_IPV6)
+	        AC_MSG_RESULT(yes... Solaris IPv6)], 
+            AC_MSG_RESULT(no))
+    ;;
+    * )
+dnl checking to see if INRIA IPV6
+	AC_FILE_EXIST(/sbin/autoconf6, [
+            AC_DEFINE(HAVE_IPV6) AC_DEFINE(INRIA_IPV6)
+            AC_MSG_RESULT(yes... INRIA IPv6)], 
+dnl checking to see if NRL IPV6
+	AC_FILE_EXIST(/usr/inet6/lib/libinet6.a, [
+            LIBS="-L/usr/inet6/lib -linet6 $LIBS"
+            AC_DEFINE(HAVE_IPV6) AC_DEFINE(NRL_IPV6)
+dnl NRL_IPV6 requires -DINET6
+            CPPFLAGS="-DINET6 $CPPFLAGS"
+            AC_MSG_RESULT(yes... NRL IPv6)], 
+dnl checking to see if WIDE IPV6
+	AC_FILE_EXIST(/usr/local/v6/lib/libinet6.a, [
+            LIBS="-L/usr/local/v6/lib -linet6 $LIBS"
+            AC_DEFINE(HAVE_IPV6) AC_DEFINE(WIDE_IPV6)
+            AC_MSG_RESULT(yes... WIDE IPv6)], 
+        AC_MSG_RESULT(no))))
+    ;;
+esac
+], AC_MSG_RESULT(no))
+fi
+
+dnl IPv4 multicast support
+AC_MSG_CHECKING(for IPv4 mutlicast support)
+AC_EGREP_HEADER2(IFF_MULTICAST, ${IF_H}, [
+case "${host_os}" in
+    *linux* )
+        AC_FILE_EXIST(/proc/net/igmp, [
+            AC_DEFINE(HAVE_IFF_MULTICAST) AC_MSG_RESULT(yes)], 
+            AC_MSG_RESULT(no))
+    ;;
+    * )
+	AC_DEFINE(HAVE_IFF_MULTICAST)
+	AC_MSG_RESULT(yes)
+    ;;
+esac
+], AC_MSG_RESULT(no))
+
+dnl Checks for library functions.
+AC_CHECK_FUNCS(localtime_r gethostbyname_r thr_setconcurrency)
+AC_CHECK_FUNCS(strptime)
+AC_CHECK_FUNCS(sigaction sigset sigrelse)
+AC_CHECK_FUNCS(sigprocmask)
+AC_CHECK_FUNCS(memmove)
+AC_CHECK_FUNCS(inet_ntop addr2ascii)
+AC_CHECK_FUNCS(strerror)
+
+AC_SUBST(KERNEL_OBJS)
+AC_SUBST(KVM_LIB)
+AC_SUBST(DB_LIB)
+AC_SUBST(DESTDIR)
+AC_SUBST(MANDIR)
+AC_SUBST(MODULES)
+AC_SUBST(IRRD_OPS_LIBS)
+AC_SUBST(CRYPT_LIB)
+
+AC_SUBST(CFLAGS)
+AC_SUBST(CPPFLAGS)
+AC_SUBST(DEFINES)
+AC_SUBST(EXTRA_INCLUDE_DIRS)
+AC_SUBST(EXTRA_LIBS)
+AC_SUBST(PROGRAM_DIRS)
+AC_SUBST(LIB_DIRS)
+AC_SUBST(QUANTIFY)
+AC_SUBST(PURIFY)
+
+AC_OUTPUT(
+./Makefile 
+./Make.include
+./include/pipeline_defs.h
+)
+

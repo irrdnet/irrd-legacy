@@ -1,0 +1,9 @@
+all:	$(OBJS)
+
+clean:
+	$(RM) *.o *.a core *.core *~*
+
+depend:
+	@for i in $(OBJS); do \
+	    $(MAKEDEP) $(CFLAGS) `basename $$i .o`.c; \
+	done

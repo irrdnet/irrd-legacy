@@ -1,0 +1,3204 @@
+2001-09-24 16:39  ljb
+
+	* NOTES:   update release notes for new release.
+
+2001-09-24 16:17  ljb
+
+	* src/include/version.h:   update version number and date for new
+	release
+
+2001-09-24 16:16  ljb
+
+	* irrd-user.pdf, irrd-user.sgml:   manual update for
+	irr_rpsl_submit command.  Note that irr_rpsl_submit may
+	need to be installed set-uid in order to up date the PGP directory
+	contents.
+
+2001-09-21 16:31  ljb
+
+	* src/: configure, configure.in:   configure script did not
+	properly set PGP variable for pgp support.
+
+2001-09-21 15:45  ljb
+
+	* irrd-user.sgml:    The manual indicated that the -D flag should
+	be used with irr_rpsl_submit
+	when configured for e-mail submissions.  The flag should only be
+	used with command line or TCP submissions as it disables response
+	email to submissions.
+
+2001-09-20 13:24  ljb
+
+	* irrd-user.sgml:   Correct location of crypt_gen.c file.
+
+2001-09-19 17:40  ljb
+
+	* src/programs/irr_submit/pgpchk.c:   Don't close infile in
+	pgpdecodefile as it gets closed by call_pipeline.
+
+2001-09-19 17:36  ljb
+
+	* src/programs/irr_submit/mailchk.c:   error fprintf provided wrong
+	filename for parameter.
+
+2001-09-18 13:50  ljb
+
+	* src/include/version.h:   Update version number and date for new
+	2.1.1 release.
+
+2001-09-18 13:49  ljb
+
+	* NOTES:   Add a release notes file to the distribution.
+
+2001-09-18 13:25  ljb
+
+	* README:   Update README to note that IRRj and Windows port are no
+	longer supported.
+
+2001-09-18 13:17  ljb
+
+	* irrd-user.pdf, irrd-user.sgml:    Incorporate manual into the
+	distribution.
+
+2001-09-17 17:46  ljb
+
+	* src/lib/mrt/: mrt.c, user.c:	 Possible race condition for
+	short-lived UII connections.  Use mutex
+	lock to delay start_uii() routine until after the thread structure
+	has been initialized.
+
+2001-09-17 15:45  ljb
+
+	* src/programs/IRRd/scan.c:   Don't put *i6 under RIPE-181 objects.
+
+2001-09-13 09:01  ljb
+
+	* src/include/version.h:   update date string to reflect current
+	date
+
+2001-09-10 14:58  ljb
+
+	* src/programs/IRRd/irrd.8:   manpage had wrong default for conf
+	file.
+
+2001-09-04 17:09  ljb
+
+	* src/programs/IRRd/irrd_util.c:   Be more lenient when evaluating
+	serial numbers.  Allow for presence
+	of white space/trailing newlines in SERIALNUMBER files.
+
+2001-09-04 14:12  ljb
+
+	* src/programs/IRRd/rpsl_commands.c:	Support range expansion on
+	route-sets when applied to a route-set macro.
+	Note, the current code will only support ranges on macro's one
+	level deep.
+
+2001-08-31 12:50  ljb
+
+	* src/programs/IRRd/rpsl_commands.c:	set_name was checking for
+	"rs-" string twice.
+
+2001-08-30 14:10  ljb
+
+	* src/lib/mrt/prefix.c:   clean up messed up formatting in
+	ascii2prefix routine.
+
+2001-08-28 17:43  ljb
+
+	* src/include/irr_notify.h:   Add a prototype for
+	update_pgp_ring_new function.
+
+2001-08-28 17:12  ljb
+
+	* src/programs/irr_rpsl_check/rpsl.y:	Fix parsing bug for "at"
+	statements in "inject:" and "peering" attributes.
+
+2001-08-28 16:31  ljb
+
+	* src/programs/irr_rpsl_check/dictionary.c:   find_arg_context had
+	comparison of enum value with NULL. revert to older
+	fix for this routine.
+
+2001-08-28 16:09  ljb
+
+	* src/configure:  Need to generate configure with autoconf 2.50 in
+	order to support
+	AC_CHECK_DECLS macro.
+
+2001-08-28 13:29  gerald
+
+	* src/: Make.include.in, configure, configure.in,
+	include/irr_defs.h.in, include/pipeline_defs.h.in,
+	programs/irr_notify/notify.c, programs/irr_notify/util.c,
+	programs/irr_rpsl_check/dictionary.c,
+	programs/irr_rpsl_check/syntax_attrs.c,
+	programs/irr_submit/call_pipeline.c, programs/irr_submit/pgpchk.c: 
+	
+	* autoconf'd GPG and PGPv5.  IRRd will default to GPG if it is
+	available.  Default can be overriden with the '--with-pgpv5'
+	command line option.	- modified IRRd so that it can continue to
+	run even if no PGP is installed.    - removed support for 2.6.
+	
+	* Added a new GPG library.
+	
+	* Converted notify.c to use the pgp lib.  It had been using a  
+	local fuction for pgp operations.
+	
+	* Removed debug statements from dictionary.c.
+	
+	* Modified the parser so that it can handle case where PGP is not
+	available on the system.
+	
+	* Converted pgpchk.c to use the PGP lib instead of local logic.
+
+2001-08-28 13:25  gerald
+
+	* src/programs/pgp/: Makefile, pgp.c: 
+	
+	PGP v5 library modules.
+
+2001-08-28 13:24  gerald
+
+	* src/programs/pgp/pgpv5/: Makefile, pgp.c: 
+	
+	PGP v5 library modules moved to a new subdir (ie, pgpv5).
+
+2001-08-28 13:22  gerald
+
+	* src/programs/pgp/gpg/: Makefile, gpg.c: 
+	
+	New GPG library module.
+
+2001-08-17 12:31  ljb
+
+	* src/programs/IRRd/Makefile:	Add an install-man target to
+	install the man page.
+
+2001-08-17 12:24  ljb
+
+	* src/programs/IRRd/irrd.8:   Add a man page for the IRRd program.
+
+2001-08-17 11:35  ljb
+
+	* src/Make.include.in:	  Changed default install directory to be
+	/usr/local/bin instead of
+	/usr/local/sbin.
+
+2001-08-17 11:20  ljb
+
+	* src/include/version.h:   Update version number and date.
+
+2001-08-14 14:23  ljb
+
+	* src/programs/irr_rpsl_check/dictionary.c:   Screwy code in
+	find_arg_context().  Clean up to fix compiler warnings.
+
+2001-08-14 12:48  ljb
+
+	* src/programs/irr_rpsl_check/: rpsl.fl, rpsl.y:   The parser was
+	not allowing legitimate phone numbers.	Simply treat
+	the field as free text for now.
+
+2001-08-14 12:41  ljb
+
+	* src/: configure, configure.in:    removed check for sys/sockio.h
+	as the include is not referenced anywhere.
+
+2001-08-14 12:40  ljb
+
+	* src/include/config.h.in:   removed check for sys/sockio.h in
+	configure script
+
+2001-08-13 17:15  ljb
+
+	* src/: configure.in, configure:    Change default for FreeBSD >
+	2.2.8 to build threaded version of irrd.
+
+2001-08-09 16:52  ljb
+
+	* src/: configure, configure.in:   Consolidate the configure
+	entries for FreeBSD/NetBSD/OpenBSD as they
+	are the same.
+
+2001-08-09 16:44  ljb
+
+	* src/: configure.in, configure:    More cleanup.  Remove BSDOS
+	define.
+
+2001-08-09 16:42  ljb
+
+	* src/programs/: irr_notify/Makefile, irr_rpsl_check/Makefile,
+	irr_ripe181_check/Makefile:    Clean up of Makefile
+
+2001-08-09 16:39  ljb
+
+	* src/: configure.in, configure:    Cleanup of configure script. 
+	get rid of FREEBSD4 specific check.  Add
+	-pthread to LDFLAGS for FreeBSD/OpenBSD/NetBSD.  They should work
+	with thread support now.
+
+2001-08-09 16:15  ljb
+
+	* src/programs/IRRd/telnet.c:	Remove SMALL_ENDIAN dependency in
+	code.
+
+2001-08-09 16:06  ljb
+
+	* src/acconfig.h:   removed FREEBSD4 define
+
+2001-08-09 16:04  ljb
+
+	* src/include/config.h.in:   Remove FREEBSD4 define
+
+2001-08-09 16:03  ljb
+
+	* src/include/timer.h:	  FREEBSD4 define dependency removed.
+
+2001-08-09 16:02  ljb
+
+	* src/include/mrt_thread.h:   Another FREEBSD4 define dependency
+	removed
+
+2001-08-09 16:01  ljb
+
+	* src/include/mrt.h:	Remove dependency on FREEBSD4 define for
+	memmove function (freebsd already
+	has it).
+
+2001-08-09 15:57  ljb
+
+	* src/lib/mrt/trace.c:	 Check for FREEBSD4 is unneccessary
+
+2001-08-09 14:51  ljb
+
+	* src/lib/mrt/trace.c:	  Use a cast to when setting thread_id to
+	-1 to prevent FreeBSD from
+	complaining.
+
+2001-08-07 17:09  ljb
+
+	* src/lib/mrt/user.c:	Fix use of wrong variable name for uii
+	structure.
+
+2001-08-07 16:04  ljb
+
+	* src/lib/mrt/user_util.c:   UII did not work under Linux.  The
+	scheduling of threads is handled
+	differently under Linux than Solaris with new threads being run
+	before control is returned to the parent process (Solaris behaves
+	in the opposite manner).  This results in uii->schedule->self not
+	being set when uii_send_buffer is called.   Do a trivial fix for
+	this.
+
+2001-08-07 16:00  ljb
+
+	* src/programs/IRRd/scan.c:   Add *i6: short form of inet6num
+	object.
+
+2001-08-07 15:23  ljb
+
+	* src/programs/IRRd/telnet.c:	Need to reset timeval struct before
+	each select call as the value
+	may be updated by select call.	 This was causing IRR connections
+	to prematurely timeout under Linux.
+
+2001-08-07 13:46  ljb
+
+	* src/lib/mrt/mrt.c:  Change MRT_VERSION to IRRD_VERSION
+
+2001-08-07 13:09  ljb
+
+	* src/programs/IRRd/: config.c, commands.c:   Change MRT_VERSION to
+	IRRD_VERSION.
+
+2001-08-07 13:09  ljb
+
+	* src/programs/IRRd/main.c:    remove -p flag as it does not
+	currently do anything.	Fix -x flag so
+	it actually does something.  Add -g and -l flags to allow setting
+	the group and user id's, respectively.	Change MRT_VERSION to
+	IRRD_VERSION.
+
+2001-08-07 13:04  ljb
+
+	* src/include/version.h:   New version number for IRRd
+
+2001-08-06 13:42  ljb
+
+	* src/programs/IRRd/Makefile:	 add -follow-child-processes option
+	to purify version of irrd.
+
+2001-08-06 13:37  ljb
+
+	* src/programs/IRRd/telnet.c:	 When closing whois port
+	connection, delete_schedule was called
+	instead of destroy_schedule which resulted in a memory leak.  The
+	schedule struct is not needed at all in a threaded configuration. 
+	Conditional compile out the schedule struct for threaded
+	compilation.
+
+2001-08-06 13:33  ljb
+
+	* src/programs/IRRd/irrd.h:	Reduce size of MIRROR_BUFFER
+
+2001-08-06 13:33  ljb
+
+	* src/programs/IRRd/scan.c:    remove setvbuf call which was
+	allocating 400K per database.  adjust
+	some buffer sizes to reduce stack usage.  journal_irr_update called
+	with db_offset uninitialized which caused purify to complain.
+
+2001-08-06 13:30  ljb
+
+	* src/programs/IRRd/main.c:   Format error for "kill" command.
+
+2001-08-06 13:29  ljb
+
+	* src/programs/IRRd/irrd_util.c:   Just some format clean-ups.
+
+2001-08-06 13:27  ljb
+
+	* src/programs/IRRd/config.c:	 Clean-up some mem-leaks in some of
+	the config commands.
+
+2001-08-06 13:02  ljb
+
+	* src/lib/mrt/user.c:	uii was calling delete_schedule instead of
+	destroy_schedule on connection
+	close.	This resulted in a memory leak for every uii connection.
+
+2001-08-06 13:01  ljb
+
+	* src/lib/mrt/schedule.c:   New_schedule did 2 strdup's if
+	description was NULL without freeing
+	the results of the first strdup.
+
+2001-07-27 12:59  ljb
+
+	* src/lib/radix/: demo.c, radix.c:   A couple files that missed the
+	conversion for DOS to UNIX end-of-line
+	convention.
+
+2001-07-17 12:44  gerald
+
+	* src/programs/pgp/pgp.c: 
+	Test.  Added a comment.
+
+2001-07-17 12:20  gerald
+
+	* src/programs/irr_ripe181_check/: Makefile, attr_tokens.pl,
+	canonical.c, hdr_build.c, irr_attrs.c, main.c, prefix.c,
+	ripe181.fl, ripe181.output, ripe181.tab.c, ripe181.tab.h,
+	ripe181.y, sample.conf, syntax_attrs.c, test.c, util.c: 
+	Obsolete.
+
+2001-07-17 11:35  ljb
+
+	* src/programs/irr_ripe181_check/prefix.c:   Missed commit on this
+	for IPV6 support patch.  Does the RIPE181 code
+	matter anymore?
+
+2001-07-13 15:15  ljb
+
+	* src/programs/IRRd/: Makefile, atomic_trans.c, commands.c,
+	config.c, database.c, db1_support.c, dbm_support.c, irrd.h,
+	irrd_util.c, journal.c, mirror.c, mirrorstatus.c, route.c,
+	rpsl_commands.c, scan.c, statusfile.c, telnet.c, uii_commands.c,
+	update.c:   Portability and other fixes for irrd.   Changed static
+	variables in
+	mirror.c and telnet.c to use dynamically allocated one (possible
+	threading issues with statics).
+
+2001-07-13 14:59  ljb
+
+	* src/programs/irrdcacher/: wget.2.5.1, wget.2.6, wget.bsdi,
+	wget.dec, wget.freebsd, wget.sun4:   wget binaries are corrupted
+	and don't really belong in the distribution
+	anyway.
+
+2001-07-13 14:56  ljb
+
+	* src/programs/irr_submit/: Makefile, call_pipeline.c:	 Add compat
+	library support.
+
+2001-07-13 14:53  ljb
+
+	* src/programs/irr_rpsl_check/: Makefile, hdr_build.c, irr_attrs.c,
+	prefix.c, rpsl.fl:    Add support for using yacc instead of bison
+	on those systems that don't
+	have bison by default (FreeBSD and Solaris).  Need to include
+	sys/types.h and unistd.h for compiling on FreeBSD.
+
+2001-07-13 14:43  ljb
+
+	* src/programs/irr_notify/Makefile:   Update Makefile to link with
+	compat library.
+
+2001-07-13 14:28  ljb
+
+	* src/programs/hdr_comm/: hdr_comm.c, read_conf.c:    Portability
+	fixes.	Include unistd.h in  hdr_comm.c and add prototype
+	for snprintf in read_conf.c.
+
+2001-07-13 14:19  ljb
+
+	* src/programs/atomic_ops/atomic_ops.c:    Fix for my_cp and my_mv
+	commands which were resulting in zombie
+	processes due to a the lack of a waitpid call in parent process. 
+	Changing these function to use internal code to accomplish moves
+	and copies rather than forking and execing mv and cp Unix commands.
+
+2001-07-13 14:17  ljb
+
+	* src/programs/Makefile:   update to Makefile to add new compat
+	directory to build list.
+
+2001-07-13 14:15  ljb
+
+	* src/programs/compat/: Makefile, inet_ntop.c, inet_pton.c,
+	mkstemp.c, snprintf.c:	 Compatibility library routines.  Mainly
+	added for building irrd on
+	Solaris 2.5.1.
+
+2001-07-13 14:13  ljb
+
+	* src/: Make.include.in, Makefile, acconfig.h, configure,
+	configure.in:	updates and cleanup of Makefile and configure
+	script.
+
+2001-07-13 14:10  ljb
+
+	* src/include/: alist.h, api6.h, aspath.h, atomic_ops.h, bgp.h,
+	bgp_proto.h, cache.h, community.h, config.h.in, config_file.h,
+	defs.h, dvmrp.h, filter.h, flist.h, igmp.h, interface.h, io.h,
+	irr_check.h, irr_defs.h.in, irr_notify.h, irr_rpsl_check.h,
+	irrd_ops.h, monitor.h, mrt.h, mrt_errno.h, object.h, ospf_proto.h,
+	pim.h, pipeline_defs.h, port_serv_lib.h, proto.h, protoconf.h,
+	rib.h, rip.h, ripng.h, select.h, view.h:   cleanup of include
+	files.	remove unused files.
+
+2001-07-13 14:02  ljb
+
+	* src/lib/: config/Makefile, config/bgpconf.c, config/commconf.c,
+	config/config_file.c, config/dvmrpconf.c, config/load.c,
+	config/multiconf.c, config/pimconf.c, config/ripconf.c,
+	config/rtmapconf.c, mrt/Makefile, mrt/alist.c, mrt/buffer.c,
+	mrt/compat.c, mrt/error.c, mrt/gateway.c, mrt/hashfn.c, mrt/mrt.c,
+	mrt/nexthop.c, mrt/object.c, mrt/prefix.c, mrt/reboot.c,
+	mrt/route_util.c, mrt/select.c, mrt/trace.c, mrt/user.c,
+	mrt/user_old.c, mrt/user_util.c, mrt/util.c, mrt/vars.c:   Cleanup
+	of code from MRT support routines -- remove unused files.
+
+2001-07-13 14:02  ljb
+
+	* src/lib/: Make.include, Makefile, struct/Makefile, struct/New.c,
+	struct/linked_list.c:	Cleanup of code from MRT support routines.
+
+2001-07-13 13:57  ljb
+
+	* src/lib/io/: Makefile, io.c:	  Code from MRT that is no longer
+	used.
+
+2001-06-22 14:59  gerald
+
+	* src/programs/irr_rpsl_check/: rpsl.fl, rpsl.y: 
+	* Finished support for domain objects.	   -got syntax info from
+	ripe ncc regarding 'refer' syntax      which was added post
+	ripe-049.     -final testing.
+	
+	* Added support for the "~" tilda operator per Mark Prior's
+	request.    The operator was defined in the rpsl RFC but was never
+	supported.
+	
+	* A couple of parser formating bug fixes in which regular
+	expression   components were being concatenated.
+
+2001-06-18 12:43  gerald
+
+	* src/programs/irr_rpsl_check/: rpsl.fl, rpsl.y, util.c: 
+	Added parser support for domain objects.  Still need to do more
+	testing.  There was also 2 attributes that were added post ripe-049
+	so I wrote the ripe folks to get the syntax.  Then will be done.
+
+2001-06-14 15:12  ljb
+
+	* src/programs/irr_rpsl_check/irr_attrs.c:   Don't redefine
+	MAX_COUNTRIES in here.	util.c is getting value from
+	irr_rpsl_check.h.   Should probably make this a NULL terminated
+	array.	Why is this array currently empty?
+
+2001-06-14 15:10  ljb
+
+	* src/include/irr_rpsl_check.h:   countries[] array currently has
+	zero entries.	MAX_COUNTRIES should match
+	number entries.  Why not use a NULL terminated array?
+
+2001-06-12 16:06  ljb
+
+	* src/programs/irr_submit/call_pipeline.c:    Neglected in include
+	file <netinet/in.h> needed by <arpa/inet.h>.
+	Caused compilation problems on Solaris 2.5.1.
+
+2001-06-12 14:46  ljb
+
+	* src/programs/irrdcacher/sample-cron:	 dos2unix conversion.
+
+2001-06-12 14:27  ljb
+
+	* src/programs/IRRd/sample.conf:   dos2unix conversion.
+
+2001-06-12 14:22  ljb
+
+	* src/programs/: irr_notify/main.c, hdr_comm/hdr_fields.c:   
+	dos2unix conversion.
+
+2001-06-12 14:19  ljb
+
+	* src/programs/irr_submit/: auth.c, comdata.c, example, example.1,
+	example.2, mailchk.c, notifyif.c, sample_config_file, synchkif.c,
+	trans_list.c, util.c:	More dos2unix conversions to Unix
+	end-of-line standard.
+
+2001-06-12 14:07  ljb
+
+	* src/programs/irr_util/: IRR_query.pl, attr_tokens.pl,
+	create_templates.pl, irrd_log_report.pl, crypt_gen.c, mailloop.pl,
+	ripe_subset.pl, templates.config, web_query.pl:      dos2unix
+	conversions on files to convert to Unix linefeed style.  Also,
+	use consistent pathname of /usr/bin/perl in perl scripts.
+
+2001-06-11 13:15  ljb
+
+	* src/programs/irr_notify/notify.c:	A recent change was undone
+	by the latest commit into CVS.	Restore
+	change back to the file in CVS.
+
+2001-06-11 13:09  ljb
+
+	* src/include/pipeline_defs.h.in:     Files seems to have been
+	messed up by a recent check-in.
+
+2001-06-09 17:41  gerald
+
+	* src/: include/pipeline_defs.h.in, programs/irr_notify/notify.c,
+	programs/irr_rpsl_check/main.c, programs/irr_rpsl_check/rpsl.y,
+	programs/irr_submit/pgpchk.c, programs/irrdcacher/irrdcacher: 
+	-irrdcacher  Reversed a recent change from '/private/tmp' to
+	'/var/tmp' which  it uses for a temp dir.  Needs to match the irrd
+	default.
+	
+	-pgpchk.c  changed pgpdecodefile () to pgpdecodefile_new () which
+	is the	new pgp code we should be using.
+
+2001-06-04 15:09  ljb
+
+	* src/programs/irrdcacher/: irrdcacher, ripe2rpsl, update_source:  
+	Change path to perl from /usr/local/bin/perl to /usr/bin/perl for
+	better
+	platfrom portability.  Also update_source and ripe2rpsl files had
+	been converted to DOS-style end-of-line, change back to Unix
+	convention.
+
+2001-06-04 15:02  ljb
+
+	* src/programs/rps_dist/: file_utils.c, mirror_update.c, utils.c:  
+	Temp filname mtr.XXXXX only has 5 X's.	Should have 6 X's for
+	mktemp().
+
+2001-06-04 14:58  ljb
+
+	* src/include/radix.h:	  add function declaration for
+	radix_search_exact_raw()
+
+2001-06-04 14:56  ljb
+
+	* src/programs/irr_notify/util.c:   update_pgp_ring_new() is
+	declared void but tried to return a value.
+
+2001-06-04 14:52  ljb
+
+	* src/lib/struct/linked_list.c:   Initialize variables to appease
+	gcc.
+
+2001-06-04 14:50  ljb
+
+	* src/lib/mrt/nexthop.c:   removed unused variable sin6_addr.
+
+2001-06-04 14:43  ljb
+
+	* src/programs/atomic_ops/atomic_ops.c:   Missing return value in
+	restore_files()
+
+2001-06-04 14:36  ljb
+
+	* src/programs/IRRd/irrd_util.c:   Needed to include sys/stat.h to
+	get mkdir() function.
+
+2001-06-04 13:48  ljb
+
+	* src/programs/irr_notify/notify.c:   Comment out unused function
+	and variable.
+
+2001-06-04 13:44  ljb
+
+	* src/programs/IRRd/statusfile.c:   Fix  check for libgen.h file.
+
+2001-06-04 13:42  ljb
+
+	* src/include/config.h.in:    Add defines for mkstemp() function
+	presence and libgen.h.
+
+2001-06-04 13:40  ljb
+
+	* src/lib/mrt/compat.c:   Not correctly detecting the presence of
+	libgen.h for basename/dirname
+	functions.
+
+2001-06-04 13:29  ljb
+
+	* src/programs/irr_submit/call_pipeline.c:    gcc complains about
+	attempt to init an int variable with NULL.
+
+2001-06-04 13:27  ljb
+
+	* src/programs/irr_rpsl_check/dictionary.c:   Need to include
+	<string.h> to rid compiler warnings.
+
+2001-06-04 13:22  ljb
+
+	* src/lib/mrt/user_util.c:   Cleanups to fix compile warnings.
+
+2001-06-04 13:19  ljb
+
+	* src/lib/mrt/user.c:	Initialize end_quote variable to make gcc
+	happy.
+
+2001-06-04 13:15  ljb
+
+	* src/lib/mrt/prefix.c:   HAVE_GETHOSTBYADDR_R define incorrectly
+	referred to as GETHOSTBYADDR_R
+
+2001-06-04 13:11  ljb
+
+	* src/programs/IRRd/atomic_trans.c:   Need to include sys/types.h
+	and sys/stat.h to get the fstat function
+	for Linux, FreeBSD, etc.
+
+2001-06-04 13:02  ljb
+
+	* src/programs/IRRd/main.c:    Typo in comment field of #endif
+	statement.  removed unused db_name_compare
+	function.  gcc is now happy.
+
+2001-06-04 12:59  ljb
+
+	* src/include/hdr_comm.h:    comment in #endif statement missing
+	comment delimiters.
+
+2001-06-04 12:52  ljb
+
+	* src/programs/hdr_comm/trace.c:     Passing a short or char to
+	second arg of va_arg causes gcc to complain
+	and generate an error.	Need to specify type int and do a cast on
+	the result.  Also, the file had been on a DOS box at some point and
+	had the wrong end-of-line termination (/r/n).  Converted back to
+	Unix.
+
+2001-06-04 12:50  ljb
+
+	* src/lib/mrt/: trace.c, buffer.c:     Passing a short or char to
+	second arg of va_arg causes gcc to complain
+	and generate an error.	Need to specify type int and do a cast on
+	the result.
+
+2001-06-04 12:29  ljb
+
+	* src/include/pipeline_defs.h.in:    File had been converted to DOS
+	end-of-line format.  Restore back to
+	Unix style.
+
+2001-05-09 17:52  dalef
+
+	* src/programs/irrdcacher/irrdcacher:	Changed /var/tmp to
+	/private/tmp for CACHEDIR to be compatible with
+	irrd for !B command. -dalef
+
+2001-05-09 17:51  dalef
+
+	* src/programs/IRRd/: rpsl_commands.c, uii_commands.c:	Increased
+	stack size in rpsl_commands.c from 100 to 500. Removed -t
+	option from irrdcacher call in uii_commands.c.	-dalef
+
+2001-04-24 13:22  gerald
+
+	* src/: include/irr_rpsl_check.h,
+	programs/irr_rpsl_check/irr_attrs.c,
+	programs/irr_rpsl_check/rpsl.y, programs/irr_util/ripedb.config: 
+	Fixed bug in which 'member-of' attr in the inet-rtr object was not
+	being recogized.  Root cause was misconfiguration in the
+	ripedb.config file.
+
+2001-01-31 21:08  labovit
+
+	* src/: include/read_conf.h, programs/IRRd/main.c,
+	programs/hdr_comm/read_conf.c, programs/irr_notify/notify_msgs.c,
+	programs/irr_notify/trans_hdrs.c: 
+	Added support for response_header_notify and
+	response_header_forward config options
+
+2001-01-12 12:53  gerald
+
+	* src/programs/: irr_rpsl_check/util.c, irrdcacher/ripe2rpsl: 
+	* Fixed a Y2k + 1 problem in the ripe2rpsl utility.  2001 dates
+	were being converted to 1901.
+	
+	* Fixed our sanity check on handles to require minimum length of 4
+	from 5.
+
+2000-12-19 17:47  gerald
+
+	* src/: include/irr_rpsl_check.h,
+	programs/irr_rpsl_check/syntax_attrs.c,
+	programs/irr_rpsl_check/util.c: 
+	* relaxed the handle syntax checking to allow for all	the new
+	cases that keep popping up.  Also the check   is case-insensitive
+	now to conform to rpsl.
+	
+	  Basically the only checking we do now is...
+	
+	  1. handle has at least 5 characters
+	  2. no special character other than '-',
+	  3. must start with an alpha
+	  4. cannot end in an '-'.
+
+2000-11-26 14:05  gerald
+
+	* src/programs/: IRRd/commands.c, IRRd/irrd.h, IRRd/main.c,
+	IRRd/rpsl_commands.c, IRRd/telnet.c, irrdcacher/irrdcacher: 
+	* Eliminated the security hole from the new irrdcacher.   
+	irrdcacher now uses the temp dir from the irrd.conf file    instead
+	of a command line option.
+	
+	  Also, made irrdcacher run only on the local machine (ie,
+	  it telnets to 'localhost' and is no longer a command lin
+	  option.
+	
+	* updated irrd with the new !B syntax:
+	
+	  !B<comma seperated list of DB's>
+
+2000-11-15 15:42  gerald
+
+	* src/programs/: IRRd/config.c, IRRd/irrd_prototypes.h,
+	IRRd/main.c, IRRd/telnet.c, irr_notify/util.c,
+	irr_submit/call_pipeline.c, pgp/pgp.c: 
+	* fixed the pgp lib to use execlp (blech!).  This will	 fix the
+	perms problem.
+	
+	* added a couple minor things to the query port filtering geeb	
+	put in.
+
+2000-11-14 16:30  geeb
+
+	* src/programs/IRRd/main.c: Add support for ACL's on the irr_port
+
+2000-11-14 16:29  geeb
+
+	* src/programs/IRRd/irrd_prototypes.h: Updated the config_irr_port
+	prototype
+
+2000-11-14 16:28  geeb
+
+	* src/programs/IRRd/config.c: Added support in the config_irr_port
+	for specifying an access list
+
+2000-11-14 16:27  geeb
+
+	* src/programs/IRRd/irrd.h: Added a few vars in the irr_t struct
+	for ACL's
+
+2000-11-14 16:26  geeb
+
+	* src/programs/IRRd/telnet.c: Fixed the missing ; on the timeout
+	line
+	
+	Added access list check on the irr_port
+
+2000-11-14 11:13  gerald
+
+	* src/: include/pgp.h, programs/IRRd/telnet.c, programs/pgp/pgp.c: 
+	* decreased connection timeout from 5 minutes to 1 minute.
+	
+	* WIP on the pgp lib to convert the exec call to avoid	 ring perms
+	problem. (not as easy as you would think)
+
+2000-10-30 13:42  gerald
+
+	* src/programs/: IRRd/journal.c, irr_rpsl_check/dictionary.c: 
+	* Fixed a static buffer problem in dictionary.c which would  
+	overflow on long strings.
+	
+	* checked in heas's fix for *.JOURNAL file handle leak.
+
+2000-10-20 13:17  gerald
+
+	* src/programs/: IRRd/uii_commands.c, irrdcacher/irrdcacher: 
+	* added comments to uii_commands.c
+	
+	* udpated irrdcacher to assume everything to import   is a DB and
+	to auto-fetch *.CURRENTSERIALS if they	 exist.  Also updated the
+	!B invokation to conform to   the new semantics.
+
+2000-10-17 16:36  gerald
+
+	* src/programs/rps_dist/mirror_update.c: 
+	* small fix to finish off the last bug to get the !us...!ue right.
+
+2000-10-17 15:19  gerald
+
+	* src/programs/: irr_notify/notify.c, rps_dist/mirror_update.c: 
+	* added some comments in nofify.c
+	
+	* fixed an rpsdist function responsbile for sending IRRd the  
+	!us...!ue command.  Removed function sensitivity to user  
+	formatting (which would cause irrd to barf).
+
+2000-10-16 12:18  gerald
+
+	* src/programs/: IRRd/database.c, irr_submit/call_pipeline.c: 
+	* added 'strerror' fun call to the export process to get more  
+	info on why exports are failing.
+	
+	* reverted back to old pgp initial decode fun due to perms problem 
+	 with the execl call.
+
+2000-10-16 09:33  polandj
+
+	* src/programs/rps_dist/: init_utils.c, mirror_update.c, rpsdist.c,
+	select.c, utils.c:   - gethostbyname_r to gethostbyname (linux
+	version has completely
+	    different args.
+	  - Some cleanup
+	  - Bugfix with !j return values not being parsed right
+	  - Auto-sync now works (though, I think there's a race condition)
+
+2000-10-15 18:38  polandj
+
+	* src/programs/rps_dist/: init_utils.c, mirror_update.c, rpsdist.c,
+	rpsdist.h, user_update.c, utils.c: 
+	  - Removed some random printfs
+	  - Fixed trace (and a file naming error)
+	  - Made it so lost connections to mirrors are auto
+	    re-established
+	  - When a mirror connection is made, the mirror repository
+	    makes sure it's up to date by sending a !j, and requesting
+	    any transactions it does't have.
+	  - Fixed lotsa trace messages
+	  - (only minimally tested)
+
+2000-10-13 20:41  polandj
+
+	* src/programs/IRRd/commands.c: When removing !ms, I forgot one
+	rather important piece...
+
+2000-10-12 17:34  polandj
+
+	* src/programs/rps_dist/init_utils.c: Stupid error that I did
+	locally but never put in CVS.  regex wasn't matching on certs that
+	contained an F in the hex key
+
+2000-10-11 20:29  polandj
+
+	* src/programs/IRRd/commands.c: 
+	  - Removed the !m support...no longer needed
+
+2000-10-09 14:38  polandj
+
+	* src/programs/irrj/v2/CheckBoxList.java: While debugging
+	elsewhere, found a glitch here
+
+2000-10-09 10:06  polandj
+
+	* src/programs/rps_dist/: user_update.c, utils.c: Changes to
+	compile on linux with no warnings
+
+2000-10-08 16:04  polandj
+
+	* src/programs/rps_dist/: init_utils.c, mirror_update.c, rpsdist.c,
+	utils.c:   - a Few bugfixes
+	  - Changed Char * host to unsigned long in core datastructs
+	  - Changed !ms to !us
+
+2000-10-08 16:02  polandj
+
+	* src/programs/hdr_comm/read_conf.c: Changed to allow new rpsdist
+	allow syntax
+
+2000-10-08 15:48  polandj
+
+	* src/programs/hdr_comm/read_conf.c: Bugfix
+
+2000-10-08 11:20  gerald
+
+	* src/programs/: IRRd/rpsl_commands.c, IRRd/scan.c,
+	irr_notify/notify.c: 
+	* fixed a special indexing error.  updates not getting	 folded
+	into the special indexing.
+	
+	* hack to fix the pgp perms problem.
+
+2000-10-06 16:49  gerald
+
+	* src/programs/: IRRd/config.c, IRRd/main.c, irr_submit/pgpchk.c: 
+	* fixed the rpsdist config parsing to declare proper  
+	authoritative mode.
+
+2000-10-05 20:15  gerald
+
+	* src/programs/: hdr_comm/hdr_comm.c, irr_notify/notify.c,
+	irr_submit/pgpchk.c, pgp/pgp.c: 
+	* fixed a nagging bug that occured if the "subject" line   in email
+	submission was empty.
+	
+	* fixed a logic error in the pgpdecode module.
+	
+	* fixed a perms error that occured on pgp adds/dels.
+	
+	* fluffed up some comments in the code.
+
+2000-10-04 19:00  gerald
+
+	* src/programs/: irr_rpsl_check/canonical.c, irr_submit/pgpchk.c: 
+	Fixed a couple more of those "mkstemp" statements.  Added debug.
+
+2000-10-01 17:51  polandj
+
+	* src/programs/hdr_comm/read_conf.c: multiple bugfixes
+
+2000-10-01 17:51  polandj
+
+	* src/programs/rps_dist/init_utils.c: bugfix   -  host changed to 
+	rpsdist_host
+
+2000-10-01 17:01  polandj
+
+	* src/programs/rps_dist/user_update.c: Fixed irr_submit return
+	codes to always begin with an 'F' or 'C'
+
+2000-09-28 22:25  polandj
+
+	* src/include/read_conf.h: slight mod
+
+2000-09-28 22:25  polandj
+
+	* src/programs/hdr_comm/read_conf.c: Took out the conversion of
+	hosts to their addresses should actually compile again now
+
+2000-09-28 22:23  polandj
+
+	* src/programs/rps_dist/: file_utils.c, init_utils.c,
+	mirror_update.c, rpsdist.c, rpsdist.h, select.c, update.c, utils.c:
+	
+	  - New conf format
+	  - Access lists on incoming connections
+	  - buncha other stuff
+
+2000-09-28 16:29  gerald
+
+	* src/programs/: IRRd/irrd_util.c, irr_notify/Makefile,
+	irr_rpsl_check/Makefile, irr_submit/Makefile, pgp/Makefile,
+	rps_dist/Makefile: 
+	* renamed our pgp lib to libirrpgp.a.
+	
+	* fixed a bug in the whois flag processing that would	pop-up if
+	the user specified more than 1 flag.
+
+2000-09-26 20:57  polandj
+
+	* src/include/read_conf.h: the h file.
+	
+	I think something weird just happened with the versions of
+	read_conf.c..
+	
+	 CVS:
+	-------------------------------------------------------------------
+	---
+
+2000-09-26 20:55  polandj
+
+	* src/programs/hdr_comm/read_conf.c: The latest read_conf checkin. 
+	Proovides some new rpsdist commands that Jerry already put into the
+	IRRd parser.
+	
+	There's one added thing to the read_conf.h, which I'll add next.
+
+2000-09-26 20:02  gerald
+
+	* src/install-sh: 
+	* adding back with correct perms.
+
+2000-09-26 20:01  gerald
+
+	* src/install-sh: 
+	* trying to get this damn file with the correct permissions.
+
+2000-09-26 19:57  gerald
+
+	* src/install-sh: 
+	* perms change to allow execute.
+
+2000-09-26 16:12  gerald
+
+	* src/programs/: hdr_comm/hdr_comm.c, irr_submit/comdata.c,
+	irr_submit/mailchk.c, irr_submit/main.c: 
+	* Bug fix in the mail header processing pipeline module.  We   were
+	looking for a blankline between the email header and the   body of
+	the message by checking for a '\n'.  The bug would   show up in a
+	case like this ' \n'.  fixed the check with   a regular expression
+	to encompass all blank line representations.
+
+2000-09-21 18:14  gerald
+
+	* src/programs/: IRRd/commands.c, IRRd/scan.c, IRRd/update.c,
+	irr_submit/call_pipeline.c: 
+	* Added more logging statements and fixed some of the lame   one's
+	we had in there.  Gettting a statement from strerror   'No such
+	file or directory' is about as helpful as a hole   in the head.
+
+2000-09-20 19:55  gerald
+
+	* src/programs/: IRRd/config.c, IRRd/irrd_prototypes.h,
+	IRRd/main.c, hdr_comm/hdr_comm.c, irr_notify/notify.c,
+	irr_submit/pgpchk.c, irrd_ops/Makefile: 
+	* bug fix in the pgp processing module.
+	
+	* expanded the syntax in the irrd parser for the   rpsdist config
+	commands.
+
+2000-09-19 17:54  gerald
+
+	* src/: include/irr_rpsl_check.h, include/irrauth.h,
+	include/pipeline_defs.h, programs/irr_rpsl_check/rpsl.y,
+	programs/irr_rpsl_check/syntax_attrs.c,
+	programs/irr_submit/call_pipeline.c, programs/irr_submit/main.c,
+	programs/pgp/pgp.c: 
+	* bug fix when adding keys with expiration date instead   of
+	indefinte.
+	
+	* removed some old pgp code from the synatx checker.
+	
+	* turned on the new pgp code in call_pipeline.c.  this code  
+	accepts detached sig's, has some bug fixes and was re-written	to
+	use the pgp lib.
+
+2000-09-11 12:08  polandj
+
+	* src/programs/rps_dist/: Makefile, file_utils.c, init_utils.c,
+	mirror_update.c, old_code.c, rpsdist.c, rpsdist.h, select.c,
+	update.c, user_update.c, utils.c: This checkin does the following: 
+	  - Fixes a SIGPIPE problem after a long time with no updates	 -
+	Allows for adding databases on the fly (completely untested)	-
+	Fixes problem with Transaction request responses being buffered,
+	and	 therefore not processed right when you want them to be.   
+	 - Allows mirrors who aren't auth for a DB to connect to us, but
+	they	   cannot send to us.	  - Keeps track of who sent to a
+	transaction to us, we don't resend it to       them.	 - Drops
+	transaction requests we cannot satisfy	   - Other stuff I've
+	forgotten
+
+2000-09-05 23:23  gerald
+
+	* src/: include/read_conf.h, programs/IRRd/config.c,
+	programs/IRRd/irrd.h, programs/IRRd/irrd_prototypes.h,
+	programs/IRRd/main.c, programs/hdr_comm/read_conf.c,
+	programs/irr_submit/main.c: 
+	* Fixed the irrd.conf file so that we could configure for   rpsdist
+	and co-exist with irrd.
+	
+	* rpsdist DB's can be configured with 3 commands:
+	
+	rpsdist_database <dbname> [trusted host port hexid]
+	rpsdist_database <dbname> authoritative hexid pgppass
+	rpsdist_database <dbname> accept host
+	
+	* also wrote coresponding parse functions for the irrd.conf  
+	parser for the pipeline.
+	
+	This scheme allows co-existence between irrd styly mirroring and
+	rpsdist mirroring.  At some point when we are 100% rpsdist
+	compliant we can remove the conf support for the irrd related
+	commands.
+
+2000-09-05 10:42  jeffhaas
+
+	* src/programs/IRRd/commands.c: Fixed buffer overflows
+
+2000-09-04 12:57  gerald
+
+	* src/programs/IRRd/: Makefile, atomic_trans.c, commands.c,
+	irrd_prototypes.h, journal.c, main.c, scan.c: 
+	* Added a new module 'atomic_trans.c' which has all the atomic
+	transaction support functions bundled together.
+	
+	* finished initial testing/coding of the transaction support  
+	mechanism.  The '-a' irrd command line flag must be selected   to
+	turn on transaction support.
+	
+	Features: 1. if a transaction cannot be applied in it's entirety
+	irrd	will rollback the DB (and journal if necessary) to it's   
+	original state prior to the transaction.  An error message    is
+	propagated back to the user.
+	
+	2. if the system crashes during a transaction irrd will be able   
+	to return the DB to a consistent state upon bootstrap.
+	
+	   If the transaction did not finish, irrd will re-apply the update
+	   to the DB on bootstrap.  By examining a special transaction file
+	   irrd will be able to tell at what point a transaction failed
+	   and be able to re-apply the transaction.
+
+2000-08-31 13:49  gerald
+
+	* src/programs/: IRRd/commands.c, IRRd/database.c, IRRd/irrd.h,
+	IRRd/irrd_prototypes.h, IRRd/journal.c, IRRd/main.c, IRRd/scan.c,
+	atomic_ops/atomic_ops.c, irr_notify/notify.c,
+	irr_submit/call_pipeline.c: 
+	This is the work over the last week or so for the atomic
+	transaction support for IRRd.
+	
+	It *should* be out of the way.	To cause IRRd use atomic
+	transactions you invoke it with the '-a' command line flag.
+	
+	However, I did have to touch a few line of the irrd code.  eg, I
+	rewrote the write_irr_serial () function from void to int so that I
+	could call it and know if it was successfull.  To do this I had to
+	change the system file calls.
+	
+	So we should proceed with caution before deploying it.	Jon and I
+	are testing and will get plenty of cycles in to make sure no new
+	bugs have been introduced.
+
+2000-08-31 12:48  polandj
+
+	* src/programs/rps_dist/: init_utils.c, mirror_update.c, rpsdist.c,
+	rpsdist.h, user_update.c, utils.c: Latest checkin, bugfixes, logic
+	changes, etc, etc.
+
+2000-08-30 14:06  jeffhaas
+
+	* src/programs/IRRd/mirror.c: Added fix for mirroring where we
+	receive an "% ERROR" line that doesn't specifically have to do with
+	a serial range problem.
+
+2000-08-25 09:18  polandj
+
+	* src/programs/rps_dist/: file_utils.c, init_utils.c, journal.c,
+	mirror_update.c, rpsdist.c, rpsdist.h, select.c, update.c,
+	user_update.c, utils.c: Fixed a few bugs, changed the journal
+	format.
+	
+	Added "transaction-request" response mechanism, operates as per the
+	spec.
+
+2000-08-24 09:52  polandj
+
+	* src/programs/rps_dist/: file_utils.c, init_utils.c, journal.c,
+	mirror_update.c, rpsdist.c, rpsdist.h, select.c: PGP key-cert
+	objects now propagate properly between repositories.
+	
+	Next (today):	-  transaction-request responses
+
+2000-08-23 18:55  labovit
+
+	* src/: acconfig.h, configure, configure.in,
+	include/pipeline_defs.h, lib/mrt/compat.c,
+	programs/IRRd/statusfile.c, programs/irr_submit/call_pipeline.c: 
+	We now build on FreeBSD again: Added a test for libgen. If it is
+	not found, we use routines in the lib/mrt/compat.c library.
+
+2000-08-23 13:06  labovit
+
+	* src/: include/pipeline_defs.h, programs/Makefile,
+	programs/rps_dist/rpsdist.c, programs/rps_dist/rpsdist.h: 
+	Changes so we build on NetBSD
+
+2000-08-22 14:52  labovit
+
+	* src/install-sh: 
+	Changed execute bits
+
+2000-08-22 14:52  labovit
+
+	* src/include/pipeline_defs.h: 
+	Nothing
+	
+	CVS:
+	-------------------------------------------------------------------
+	---
+
+2000-08-22 14:51  labovit
+
+	* src/lib/mrt/user.c: 
+	
+	Fix for Jerry so he can include !# and other wacky characters
+	within quotation marks in the UII and config.
+
+2000-08-22 13:11  labovit
+
+	* src/programs/IRRd/irrd_util.c: 
+	Grumble -- CVS was confused.
+
+2000-08-22 12:55  labovit
+
+	* src/programs/IRRd/main.c: 
+	Removed a spurious NT ifdef which casued IRRd to default to
+	c:/irrd.conf
+
+2000-08-22 12:55  labovit
+
+	* src/lib/mrt/user.c: 
+	Added system version stuff.
+
+2000-08-22 12:54  labovit
+
+	* src/include/version.h: [no log message]
+
+2000-08-22 11:10  gerald
+
+	* src/programs/pgp/pgp.c: 
+	Ok.  I got it right this time.
+
+2000-08-22 11:00  gerald
+
+	* src/programs/pgp/pgp.c: 
+	Bug fix that would cause fingerprints to not be returned for hex
+	id's that started with a leading '0'.
+
+2000-08-21 20:57  labovit
+
+	* src/lib/mrt/user_util.c: 
+	Fixed quote processing (I think) per Jerry's request.
+
+2000-08-21 15:24  labovit
+
+	* src/include/version.h: 
+	Upped date
+
+2000-08-21 15:21  labovit
+
+	* src/programs/IRRd/: Makefile, irrd.h, main.c, uii_commands.c,
+	util.c: 
+	Renamed irrd_util.c
+
+2000-08-21 14:08  gerald
+
+	* src/programs/: Makefile, IRRd/config.c, IRRd/main.c,
+	hdr_comm/read_conf.c: 
+	* Minor tweak in the regular expression for passwords.
+	
+	* Fixed compile bug in which we were building irrd before  
+	atomic_ops lib on which it relies.
+	
+	* Fixed a 'strncpy' bug; we were omitting the '\0' terminator	in
+	some cases.
+
+2000-08-21 10:49  polandj
+
+	* src/programs/rps_dist/: Makefile, mirror_update.c, rpsdist.c:
+	Fixed a memory leak, and a deadlock problem.
+
+2000-08-20 19:19  polandj
+
+	* src/programs/IRRd/commands.c: The proper fix
+
+2000-08-20 18:59  polandj
+
+	* src/programs/IRRd/: commands.c, scan.c: Found the problem (I like
+	purify):    We were calling mkstemp to create the update filename,
+	then manually opening the file.  But, mkstemp opens the file for us
+	(and we never closed it).  As a quick fix, I wrapped the called to
+	mkstemp in a close.  Now that I think about it, it makes more sense
+	to just open the fd to get the FILE *.	I wish I could cancel cvs
+	checkins :)
+	
+	I'll do it right and check it in real soon
+
+2000-08-20 18:37  polandj
+
+	* src/programs/rps_dist/: file_utils.c, init_utils.c, journal.c,
+	mirror_update.c, rpsdist.c, select.c, update.c, user_update.c,
+	utils.c: Basically just cleanup.  I didn't get the test machines up
+	because I instead found a bug in IRRd I couldn't track down.  On
+	updates, IRRd leaks file descriptors (i.e. isn't closing a file,
+	per update).
+	
+	i.e. four consecutive updates: zippy# lsof | grep -c irrd 25 zippy#
+	lsof | grep -c irrd 26 zippy# lsof | grep -c irrd 27 zippy# lsof |
+	grep -c irrd 28
+
+2000-08-19 10:35  polandj
+
+	* src/programs/irrj/: v1/Makefile, v1/ipma/Makefile,
+	v1/ipma/Help/CErrorWindow.java, v1/ipma/Help/CHelpWindow.java,
+	v1/ipma/Help/CHelpWindowParent.java, v1/ipma/Help/Makefile,
+	v1/ipma/Help/Makefile.filelist, v1/ipma/Util/ASRDataChecker.java,
+	v1/ipma/Util/ASRDataSet.java, v1/ipma/Util/ASResolver.java,
+	v1/ipma/Util/CMenuCreator.java, v1/ipma/Util/GeneralDialog.java,
+	v1/ipma/Util/IPMAStandard.java, v1/ipma/Util/IPMA_Constants.java,
+	v1/ipma/Util/Makefile, v1/ipma/Util/Makefile.filelist,
+	v1/ipma/Util/PrefMenuItemGUI.java,
+	v1/ipma/Util/PreferenceManager.java, v1/ipma/Util/SendMail.class,
+	v1/ipma/Util/SendMail.java, v1/ipma/Util/URLCommon.java,
+	v1/ipma/Window/CPopupWindow.java, v1/ipma/Window/CWindow.java,
+	v1/ipma/Window/ColoredMultiList.java, v1/ipma/Window/DateMenu.java,
+	v1/ipma/Window/DateMenuItem.java, v1/ipma/Window/Makefile,
+	v1/ipma/Window/Makefile.filelist, v1/ipma/Window/TimeZoneMenu.java,
+	v1/ipma/Window/TimeZoneMenuItem.java, v1/irr/CIRRWindow.java,
+	v1/irr/Display.java, v1/irr/GeneralErrorWindow.java,
+	v1/irr/GetRequest.java, v1/irr/IRRWindow.java, v1/irr/IRRj.java,
+	v1/irr/MailWindow.java, v1/irr/Makefile, v1/irr/Makefile.filelist,
+	v1/irr/OptionsMenu.java, v1/irr/irr, v1/irr/irr.html,
+	v1/irr/redLabel.java, v1/netscape/Makefile,
+	v1/netscape/security/ForbiddenTargetException.java,
+	v1/netscape/security/Makefile,
+	v1/netscape/security/Makefile.filelist,
+	v1/netscape/security/ParameterizedStringTarget.java,
+	v1/netscape/security/ParameterizedTarget.java,
+	v1/netscape/security/Principal.java,
+	v1/netscape/security/Privilege.java,
+	v1/netscape/security/PrivilegeManager.java,
+	v1/netscape/security/PrivilegeTable.java,
+	v1/netscape/security/Target.java,
+	v1/netscape/security/UserTarget.java, v2/CheckBoxList.java,
+	v2/EditorWindow.java, v2/FindWindow.java, v2/GetRequest.java,
+	v2/IRRj.java, v2/IrrdSearchPane.java, v2/IrrdTextArea.java,
+	v2/IrrdTextAreaUI.java, v2/IrrdView.java, v2/IrrjApplet.java,
+	v2/LimitTextField.java, v2/Makefile, v2/ObjectWizard.java,
+	v2/OptionsData.java, v2/OptionsWindow.java, v2/RpslObject.java,
+	v2/defaults.irr, v2/images/Back24.gif, v2/images/Copy16.gif,
+	v2/images/Copy24.gif, v2/images/Delete16.gif, v2/images/Find24.gif,
+	v2/images/Forward24.gif, v2/images/Help24.gif,
+	v2/images/Open24.gif, v2/images/Paste24.gif,
+	v2/images/Preferences24.gif, v2/images/Redo24.gif,
+	v2/images/Save24.gif, v2/images/Stop24.gif, v2/images/Undo24.gif,
+	v2/images/irrj.gif: Sorry for all the emails this is going to
+	generate...	-  Moved old IRRj into irrj/v1	   -  New IRRj is
+	in irrj/v2
+
+2000-08-19 10:04  polandj
+
+	* src/programs/rps_dist/: compression_utils.c, file_utils.c,
+	init_utils.c, journal.c, mirror_update.c, old_code.c, rpsdist.c,
+	rpsdist.h, select.c, update.c, user_update.c, utils.c: Here it is:
+	the new RPS-DIST mirroring code.  It supports all the RPS-DIST user
+	updates, plus the following:   -  Supports out-of-order queueing  
+	-  Supports automatically requesting missing transactions   -  Full
+	PGP authorization between mirrors   -  The rest of the spec...
+	
+	Doesn't have:	-  Heartbeats	-  Transaction-request response
+	(the spec is very weak here, I don't want      to code something
+	that I know will kill the server.	i.e. "give me 0 - 10000,
+	all gzip'd seperately")    -  Automatic PGP key generation (this
+	would be nice! It would simplify the  code and the setup)   -  PGP
+	keys are only entered into the keyring of the originating
+	repository.  I'll need to fix this soon   -  Automatically adding a
+	previously unheard of DB
+	
+	It's also not at all fully tested.  I can submit a route object via
+	irr_submit to one repository and have it show up in the second.  By
+	repository I mean rps_dist and IRRd.
+	
+	I'll do more mods today and tomorrow, as well as more testing. 
+	Then monday I'll bring up a pair of test machines for everyone on
+	the team to blast away at.
+
+2000-08-19 09:48  polandj
+
+	* src/programs/irrd_ops/irrd_ops.c: Modified so it reads the 'C'
+	from IRRd after sending a !ms
+
+2000-08-18 14:41  labovit
+
+	* src/: WindowsVisualC++/IRRd/IRRd.plg,
+	WindowsVisualC++/IRRd/Debug/IRRd.bsc, include/atomic_ops.h,
+	include/ntconfig.h, lib/mrt/compat.c, programs/IRRd/commands.c,
+	programs/IRRd/config.c, programs/IRRd/database.c,
+	programs/IRRd/irrd.h, programs/IRRd/irrd_util.c,
+	programs/IRRd/main.c, programs/IRRd/statusfile.c,
+	programs/IRRd/telnet.c, programs/IRRd/uii_commands.c,
+	programs/IRRd/util.c, programs/atomic_ops/atomic_ops.c: 
+	Changes so we build again on Windows2000.  Only IRRd (and not
+	pipeline) programs are support.  This version also does not support
+	remote irrdcacher fetches.
+	
+	I renamed the util.c file in IRRd to irrd_util.c again -- VisualC++
+	gets confused with the similarly named file in lib/mrt/util.c
+
+2000-08-18 13:12  labovit
+
+	* src/include/version.h: 
+	Upped version date
+
+2000-08-18 11:53  polandj
+
+	* src/programs/hdr_comm/read_conf.c: Fixed typo:    obj->host =
+	strdup(q+rm[2].rm_so);	  obj->host = strdup(q+rm[3].rm_so); 
+	became:    obj->host = strdup(q+rm[2].rm_so);	 obj->port =
+	strdup(q+rm[3].rm_so);
+
+2000-08-18 11:45  gerald
+
+	* src/programs/: IRRd/templates.c, irr_rpsl_check/irr_attrs.c,
+	irr_rpsl_check/rpsl.y, irr_util/ripedb.config,
+	irr_util/templates.config: 
+	* fixed an omission from the new objects added yesterday.    Forgot
+	to define them as using the special attributes	  (eg, override,
+	delete, ...)
+	
+	* updated the IRRd templates for the new objects (ie, '-t' flag)
+
+2000-08-17 17:56  gerald
+
+	* src/: include/irr_rpsl_check.h, include/read_conf.h,
+	programs/hdr_comm/read_conf.c, programs/irr_rpsl_check/irr_attrs.c,
+	programs/irr_rpsl_check/rpsl.fl, programs/irr_rpsl_check/rpsl.y,
+	programs/irr_rpsl_check/syntax_attrs.c,
+	programs/irr_submit/pgpchk.c, programs/irr_util/ripedb.config: 
+	* added support for repository objects.
+	
+	* started support for inetnum and domain objects   (allocation
+	support, here we come!)
+	
+	* added mirror host and port information to the   read_conf.c
+	pipeline irrd.conf parsing module.
+	
+	* got rid of some debug statements.
+
+2000-08-17 16:24  labovit
+
+	* src/lib/mrt/user_util.c: Backed out some changes after testing on
+	Solaris.
+
+2000-08-17 16:24  labovit
+
+	* src/include/pipeline_defs.h: -
+
+2000-08-17 13:50  labovit
+
+	* src/: include/pipeline_defs.h, lib/mrt/user_util.c,
+	lib/mrt/util.c: 
+	Per Jerry's request, spaces inside of quotations are treated as a
+	single token when parsing the config or UII. We do not support
+	nested quotations.
+
+2000-08-17 12:55  labovit
+
+	* src/programs/IRRd/telnet.c: 
+	Quick typo fix so eveything still builds.
+
+2000-08-16 14:39  labovit
+
+	* src/programs/IRRd/: config.c, irrd.h, irrd_prototypes.h, main.c,
+	telnet.c: 
+	Added "irr-database %s no-default". If configured a database will
+	NOT be searched in queries unless explicitly listed by a "!s"
+	command.
+	
+	This feature is per user request.
+
+2000-08-16 14:10  labovit
+
+	* src/: config.status, include/pipeline_defs.h,
+	programs/irr_ripe181_check/ripe181.tab.c: 
+	Should not be in CVS
+
+2000-08-16 12:12  polandj
+
+	* src/programs/Makefile: Added rps_dist dir to the directories to
+	make.
+
+2000-08-16 11:44  gerald
+
+	* src/: include/irr_defs.h.in, include/irr_rpsl_check.h,
+	programs/irr_rpsl_check/irr_attrs.c,
+	programs/irr_rpsl_check/rpsl.fl, programs/irr_rpsl_check/rpsl.y,
+	programs/irr_util/ripedb.config: 
+	* fixed a compile problem.
+	
+	* about 1/2 way done with support for 'repository' objects.
+
+2000-08-15 20:20  gerald
+
+	* src/: include/read_conf.h, programs/Makefile,
+	programs/IRRd/main.c, programs/hdr_comm/read_conf.c,
+	programs/irr_notify/notify.c,
+	programs/irr_rpsl_check/syntax_attrs.c,
+	programs/irr_submit/call_pipeline.c, programs/irr_submit/pgpchk.c,
+	programs/pgp/pgp.c: 
+	* cleaned up the read_conf.c routine to deal with no conf file,
+	corrupted conf file, wrong conf file info, NULL pointers, ...
+	
+	the pipeline will run regardless of the configuration and give the
+	user back a response.
+	
+	* took out some old debug.
+	
+	* fixed some output statements to conform to better english.
+	
+	* made dir_chks () a linkable lib routine for the pipeline mods (by
+	linking the libhdr_com.a lib).
+
+2000-08-15 15:41  gerald
+
+	* src/programs/: irr_rpsl_check/syntax_attrs.c, pgp/pgp.c: 
+	* converted the pgp lib to use '/bin/sh' instead of '/bin/csh'
+	
+	* fixed a pgp permissions bug that cropped up for user 'daemon' and
+	no other user.
+
+2000-08-15 12:07  gerald
+
+	* src/: include/irr_rpsl_check.h, include/pgp.h,
+	include/read_conf.h, programs/IRRd/config.c,
+	programs/IRRd/database.c, programs/IRRd/irrd.h,
+	programs/IRRd/irrd_prototypes.h, programs/IRRd/main.c,
+	programs/IRRd/util.c, programs/atomic_ops/atomic_ops.c,
+	programs/hdr_comm/read_conf.c, programs/irr_rpsl_check/rpsl.y,
+	programs/irr_rpsl_check/syntax_attrs.c, programs/irr_submit/main.c,
+	programs/pgp/pgp.c: 
+	* bug fix in rpsl.y that could affect gpg keys.
+	
+	* re-did the cachedir_chks () routine and renamed   dir_chks () so
+	that it could perform similar	checks on an arbitrary directory
+	(not just the	cache directory).  Function   checks dir
+	permissions and if you set a flag   will try and create the dir if
+	it doesn't exit.
+	
+	* added 2 new irrd.conf commands:
+	
+	irr_database <db name> repos_hexid <hexid> irr_database <db name>
+	pgppass <pgppass>
+	
+	   also added parallel support in read_conf.c.
+	
+	* added another routine to the pgp library 'pgp_free ()'   which
+	(as the name implies) returns memory used in   an information
+	struct that is passed between user and lib.
+	
+	* updated the 'pgp_fingerpr ()' function so that it detects   if a
+	key is a signing key or not.
+	
+	* updated logic in the atomic ops lib so that it knew when   no
+	backups were made and thus would not panic during a restore.   
+	Such a situation might occur when bootstrapping irrd and    the
+	user has not supplied an initial DB file.
+
+2000-08-11 17:04  gerald
+
+	* src/programs/IRRd/: Makefile, config.c, database.c,
+	irrd_prototypes.h, main.c, uii_commands.c, util.c: 
+	* Put in some code that ...    - creates the DB cache directory
+	should it not exist.	- log any errors with with the DB directory
+	on bootstrap,	   eg, insufficient permissions, couldn't create,
+	...
+	
+	* Put in code for newbies running in verbose mode that flags  
+	"strange" situations and ask's them if they wish to continue, eg  
+	- no cache dir specified   - empty DB's in cache   - no db's
+	defined in config file	 - ...
+
+2000-08-10 22:53  gerald
+
+	* src/: config.status, configure, configure.in,
+	include/atomic_ops.h, include/config.h.in, include/irr_defs.h.in,
+	include/pipeline_defs.h, programs/IRRd/config.c,
+	programs/IRRd/database.c, programs/IRRd/irrd.h,
+	programs/IRRd/irrd_prototypes.h, programs/IRRd/main.c,
+	programs/IRRd/uii_commands.c, programs/atomic_ops/atomic_ops.c: 
+	* updated autoconf to create a new header file "irr_defs.h" which
+	has path definitions for mv, cp, irrdcacher, wget, ...	Used by the
+	atomic_ops lib and irrd.
+	
+	* updated irrd so that it uses the paths from autoconf for
+	irrdcacher and wget if found.  Ditto for the atomic_ops lib for mv
+	and cp.
+	
+	* did the last little bit of testing and fixing up of the
+	irrdcacher fetching routines.  It's ready for team members to blast
+	away at it.  We'd like to have this function as stable as possible
+	for the 2.0 release.
+
+2000-08-09 22:57  gerald
+
+	* src/programs/IRRd/: database.c, uii_commands.c: 
+	* (thanks purify!)  Bug squash.  Ok.  Now the bootstrap   auto-load
+	feature is working.
+	
+	* Also fixed a minor gdb compile bug.
+
+2000-08-09 22:00  gerald
+
+	* src/: include/atomic_ops.h, programs/Makefile,
+	programs/IRRd/Makefile, programs/IRRd/commands.c,
+	programs/IRRd/config.c, programs/IRRd/database.c,
+	programs/IRRd/irrd.h, programs/IRRd/irrd_prototypes.h,
+	programs/IRRd/main.c, programs/IRRd/scan.c,
+	programs/IRRd/uii_commands.c, programs/atomic_ops/Makefile,
+	programs/atomic_ops/atomic_ops.c, programs/irrdcacher/irrdcacher,
+	programs/pgp/pgp.c: 
+	* fixed the usage statement in main.c:
+	
+	% ./irrd -h Usage: ./irrd    [-f <irrd.conf file>]    [-p
+	<uii_port> ]	[-d <irr_directory>]	[-v verbose mode]    [-s
+	<password>]    [-x cancel bootstrap missing DB auto-fetch]    [-n
+	do not daemonize]    [-m use memory mode indexing]    [-u don't
+	allow privileged commands]    [-r force rebuild of indices on
+	bootstrap]    [-w <irr_port>]
+	
+	IRRd 2.0.0 Alpha [08/01/2000] compiled on Aug  9 2000
+	
+	* updated irrdcacher and commands.c to send in conform to the new
+	!B command, eg !B/var/tmp,rgnet
+	
+	Renamed the irrdcacher command flag '-c' for cache dir to '-t' for
+	temp dir.
+	
+	* updated irrd so that if a DB is missing on bootstrap it tries to
+	fetch it remotely by checking it's remote_ftp_dir irrd.conf value
+	and then ftp://ftp.radb.net/radb/dbase if that doesn't work.  Also
+	added an '-x' flag to override/skip this behavior if desired.
+	
+	Have a bug still to be worked out.  So stay away from the bootstrap
+	auto-load feature for the moment.
+
+2000-08-09 21:28  labovit
+
+	* src/: config.status, include/pipeline_defs.h, include/version.h,
+	programs/IRRd/irrd_prototypes.h, programs/IRRd/main.c,
+	programs/IRRd/mirrorstatus.c, programs/IRRd/uii_commands.c,
+	programs/IRRd/util.c: 
+	
+	Added database locking to kill command.  Added sorting by database
+	name (per request) Started adding default database feature (also
+	per user request)
+
+2000-08-07 15:12  polandj
+
+	* src/programs/rps_dist/: Makefile, file_utils.c, init_utils.c,
+	journal.c, mirror_update.c, old_code.c, rpsdist.c, rpsdist.h,
+	update.c, user_update.c, utils.c: hmm...I don't remember modifying
+	all these files.  Still untested
+	
+	Here's what this adds:	*   - Polling thread function		   
+			DONE  *   - parse objects to make them ready for
+	IRRd		 DONE  *   - mirror_submit file remover at
+	initialization		DONE  *   - PGP file maker function	   
+			      DELAYED  *   - Scan for *.RPS.JOURNAL to
+	build proper DB list	    DONE  *   - SIGINT catcher to exit
+	cleanly 		       DONE
+	
+	Still to be done:  *   - Is a mirror listed in irrd.conf implicitly
+	trusted?  *   - from_trusted_peer() checking function  *   - How to
+	signal threads to exit?  *   - Create file of Open connections for
+	init scan?  *	- Fix flush routine (maybe just delete it?)  *	 -
+	Signing HexId and PGPPASS stored where?  *   - process_heartbeat()
+	func  *   - process_trans_request() func
+
+2000-08-06 18:28  polandj
+
+	* src/programs/pgp/pgp.c: removed the check_pgp_sig and the
+	supporting exec_pgp function.  If still needed, the bodies are
+	located in rps_dist/old_code.c for the time being.
+
+2000-08-06 14:40  polandj
+
+	* src/programs/hdr_comm/read_conf.c: Bugfix in the make_pgpname
+	function, in cases where dirname ended with a '/', the '.pgp'
+	wasn't appended.
+
+2000-08-05 12:00  polandj
+
+	* src/programs/rps_dist/file_utils.c: Bugfix...(aka typo)
+
+2000-08-05 11:43  polandj
+
+	* src/programs/rps_dist/Makefile: Forgot to add "include
+	../../Make.include"
+
+2000-08-05 11:42  polandj
+
+	* src/programs/rps_dist/: Makefile, select.c, user_update.c:
+	Changes to make on Solaris and Linux via autoconf.
+
+2000-08-05 11:27  polandj
+
+	* src/: configure, configure.in: Modified to check for pthread libs
+	under liunx.
+
+2000-08-04 16:52  polandj
+
+	* src/programs/rps_dist/: old_code.c, select.c, utils.c: Last of em
+
+2000-08-04 16:50  polandj
+
+	* src/programs/rps_dist/rpsdist.c: forgot another...
+
+2000-08-04 16:49  polandj
+
+	* src/programs/rps_dist/rpsdist.h: Forgot the all important h file
+
+2000-08-04 16:47  polandj
+
+	* src/programs/rps_dist/mirror_update.c: It helps if it actually
+	compiles :)
+
+2000-08-04 16:38  polandj
+
+	* src/programs/rps_dist/: Makefile, commands.c, commands.h,
+	compression_utils.c, file_utils.c, init_utils.c, journal.c,
+	mirror_update.c, rps.c, rps.h, rps_dist.c, rps_headers.c,
+	rps_select.c, update.c, user_update.c, util.c: Next big checkin:
+	first step in mirroring code.	 - Mirroring is completely untested
+	   - Just wanted to checkin to save it	  - Still needs logic to
+	handle:        - Polling	- Heartbeat timers	  - Crash
+	recovery	- Live addition of DB's        - Heartbeat checking
+	   - Has logic to handle	- Queing out of order transactions
+	(MAX 10)	- Stripping a completely specified mirror stream
+	
+	  - Much renaming to split up the routines better
+	  - No changes to the user code (just changed files)
+
+2000-08-04 07:47  gerald
+
+	* src/: config.status, include/pipeline_defs.h,
+	programs/irr_submit/pgpchk.c: 
+	* I updated the call to pgpv with a "+batchmode=1" parm to   to
+	suppress interactive input.
+	
+	Note that this change is to our ancient pgp routine.  There is
+	another pgp routine which has already been written will replace
+	this one very soon.  The reason for not using the new routine is to
+	avoid making too many changes at the same time, having already
+	injected new 'PGPKEY-' processing code.
+
+2000-08-04 00:14  labovit
+
+	* src/: lib/timer/timer.c, programs/IRRd/commands.c,
+	programs/IRRd/telnet.c: 
+	Bug fixes.  Also changed default security setting of !us command
+	when no access list specified.
+
+2000-08-03 17:36  gerald
+
+	* src/: config.status, configure, configure.in, include/pgp.h,
+	include/pipeline_defs.h, include/pipeline_defs.h.in,
+	programs/pgp/pgp.c: 
+	* added the last two planned initial routines to our pgp lib:
+	
+	  pgp_sign_detached ()
+	  pgp_sign_regular ()
+	
+	  I am through now with the initial cut of our lib.
+	
+	* Updated autoconf to find the path to the "pgps" sign binary.
+
+2000-08-03 14:47  labovit
+
+	* src/: config.status, include/pipeline_defs.h, lib/mrt/user.c,
+	programs/IRRd/commands.c, programs/irr_notify/notify.c,
+	programs/irr_rpsl_check/canonical.c,
+	programs/irr_rpsl_check/rpsl.fl,
+	programs/irr_rpsl_check/syntax_attrs.c: 
+	Finally! Fixed the netbsd (and linux) timer problem. Turned out to
+	be a simple, but hard to catch bug. We block out thread signals
+	when we start a UII connection. Turns out to be a bit of a race
+	condition that only happens if running optimized (gcc -O) code, and
+	(of course), you make a UII connection to the daemon at the right
+	instant.
+	
+	Also did some cleanup (mktemp->mkstemp).
+
+2000-08-03 13:11  gerald
+
+	* src/programs/: IRRd/commands.c, IRRd/scan.c, IRRd/scan.h,
+	IRRd/templates.c, irr_rpsl_check/attr_tokens.pl,
+	irr_rpsl_check/ripedb.config, irr_util/README,
+	irr_util/attr_tokens.pl, irr_util/create_templates.pl,
+	irr_util/ripedb.config, irr_util/templates.config: 
+	* Added comments to IRRd, et al... to outline the template  
+	generating process and to make it easier next time to
+	add/update/manage   object templates.
+	
+	* I created a script 'create_templates.pl' and an input file  
+	templates.config which automatically creates the object   templates
+	for ~IRRd/templates.c.	The idea is to make   adding, updating and
+	managing the object templates easy by largly   automating the
+	process.
+	
+	* Moved attr_tokens.pl and ripedb.config to the script directory  
+	where they logically belonged.	They are used to generate   many of
+	the data structures used by the parser.
+	
+	* Updated the README file to give a brief synopsis of each script  
+	in the directory (since it was empty before :)
+
+2000-08-02 22:39  gerald
+
+	* src/: config.status, include/pipeline_defs.h,
+	programs/IRRd/commands.c, programs/IRRd/config.c,
+	programs/IRRd/irrd.h, programs/IRRd/scan.c, programs/IRRd/scan.h,
+	programs/IRRd/templates.c, programs/IRRd/util.c,
+	programs/irr_rpsl_check/rpsl.fl, programs/irr_rpsl_check/rpsl.y: 
+	* Updated the parser to handle GPG keys.
+	
+	* Fixed the '-t' core dump.  Also added templates for all remaining
+	rpsl objects.  Also added the repository object in preparation ro
+	rps dist.
+	
+	* Fixed a bug in the '-t' routine.
+	
+	* Wrote a perl script to generate the object templates from the
+	parser information.
+
+2000-08-01 19:36  labovit
+
+	* src/: config.status, configure, configure.in,
+	include/pipeline_defs.h, programs/hdr_comm/hdr_comm.c,
+	programs/irr_submit/call_pipeline.c, programs/pgp/pgp.c: 
+	Some minor changes for NetBSD.	Also fixing mktemp vulnerability --
+	should be mkstemp (race condition)
+
+2000-08-01 16:38  labovit
+
+	* src/: config.status, include/config.h, include/pipeline_defs.h,
+	include/version.h, programs/IRRd/database.c,
+	programs/IRRd/statusfile.c, programs/irrd_ops/irrd_ops.c: 
+	Minor changes for build on Linux and NetBSD Fixed tmp[MAXLINE] bug
+	in statusfile Cleaned up a few trace statements which were missing
+	newlines Overall, nothing really major
+
+2000-07-31 20:40  labovit
+
+	* src/programs/IRRd/: irrd.h, rwlock.h, templates.c: 
+	Some changes to build on NT again.  Added more template entries (No
+	template available) so IRRd won't core dump on a "-t key-cert
+	query".
+
+2000-07-30 10:04  gerald
+
+	* src/programs/irr_rpsl_check/: rpsl.fl, rpsl.y: 
+	Bug fix.
+
+2000-07-29 17:22  gerald
+
+	* src/programs/: irr_submit/auth.c, pgp/pgp.c: 
+	* a couple of clean-up tasks in the pgp lib
+	
+	* removed a comment line from authl.c
+
+2000-07-28 09:38  gerald
+
+	* src/programs/: hdr_comm/read_conf.c, irr_submit/call_pipeline.c: 
+	* added pgp support to make sure the PGP directory is non-null	
+	and exists.  Now the user does not have to explicity create   the
+	pgp directory when installing irrd.
+
+2000-07-27 21:13  gerald
+
+	* src/: include/hdr_comm.h, programs/hdr_comm/hdr_comm.c,
+	programs/hdr_comm/hdr_fields.c, programs/irr_notify/util.c,
+	programs/irr_submit/auth.c, programs/irr_submit/comdata.c,
+	programs/irr_submit/pgpchk.c: 
+	In preperation for this Sunday's conversion...
+	
+	* I removed support for the 'PGP_FROM' authentication feature
+
+2000-07-27 13:49  polandj
+
+	* src/programs/rps_dist/: Makefile, commands.c, journal.c,
+	read_conf.c, rps.c, rps.h, rps_daemon.c, rps_dist.c, rps_headers.c,
+	rps_select.c, util.c: Finally...     This is the user submission
+	update.  This code accounts for everything in  our proposed system
+	for irr_submit/rps_dist/irrd integration.  Funcionality of this
+	update:   -  Fixed rps_select bug   -  RPS DIST keeps it's own
+	journal   -  Crash recovery (querying irrd for results after a
+	crash is still	    untested)	-  A slew of other little things
+	
+	Next:	-  Change read_conf so pgp_dir is never NULL   -  Arrange
+	and split the files in this directory into better categories   - 
+	Start to re-work the mirror logic
+
+2000-07-27 12:06  gerald
+
+	* src/programs/irrd_ops/irrd_ops.c: 
+	* bug fix
+
+2000-07-27 10:55  gerald
+
+	* src/: include/config.h, programs/irr_notify/notify.c,
+	programs/irr_submit/Makefile, programs/irrd_ops/irrd_ops.c,
+	programs/pgp/pgp.c: 
+	* fixed a couple compile errors :(
+	
+	* fixed a couple bugs that jon pointed out
+	
+	* (hopefully) fixed the "repeated" operation bug jon   has been
+	wrestling with.
+	
+	* updated the dist so that it would *not* build the ripe181 parser.
+	   -the code is getting stale and this is the first step in
+	deleting     the entire directory from the dist.
+
+2000-07-26 20:03  polandj
+
+	* src/programs/irrd_ops/irrd_ops.c: Found the bug.  A different
+	problem has evolved:  there seems to be a race condition somehow. 
+	However, not sure that't it yet (could be my nasty code leaving
+	files open and eating all the descriptors...:)	)  Will fix next...
+
+2000-07-26 12:51  gerald
+
+	* src/: include/irrauth.h, programs/irr_notify/util.c,
+	programs/irr_submit/call_pipeline.c, programs/irr_submit/comdata.c,
+	programs/irr_submit/pgpchk.c, programs/pgp/pgp.c: 
+	* updated our pgpdecodefile () routine to use the newly created pgp
+	library.  Now all pgp invoking routines have been converted to use
+	the pgp library.
+	
+	It is important to mention that the aforementioned functions have
+	been duplicated from the originals and renamed "*_new".  The reason
+	for this is to not impact the key-cert crossover this sunday. 
+	After the crossover the new code can be migrated into production.
+	
+	* added pgp detached signature support for intitial submissions.
+
+2000-07-26 01:23  polandj
+
+	* src/programs/irrd_ops/irrd_ops.c: Required modifications to get
+	it to work.  Still one oddity:
+	
+	if you:   -  Add a new key successfully   -  Try to add it again,
+	it fails.    -	Try it once more, it succeeds.
+	
+	this code works for adds and deletes, except in the above case. 
+	Will look at it tomorrow (err...later today I guess) :)
+
+2000-07-26 01:20  polandj
+
+	* src/programs/pgp/pgp.c: Modified slightly..	  -  added
+	regfree's     -  Changed logic in delete routine a little
+
+2000-07-25 08:58  gerald
+
+	* src/include/pgp.h: 
+	Helps the building process to have the header file.
+
+2000-07-24 21:06  gerald
+
+	* src/: config.status, include/config.h, include/irr_notify.h,
+	include/irr_rpsl_check.h, programs/Makefile,
+	programs/irr_notify/Makefile, programs/irr_notify/notify.c,
+	programs/irr_notify/util.c, programs/irr_rpsl_check/Makefile,
+	programs/irr_rpsl_check/syntax_attrs.c,
+	programs/irrd_ops/irrd_ops.c, programs/pgp/pgp.c: 
+	* one or 2 minor bug fixes.
+	
+	* mainly I have added a new libpgp.a in our distribution.  This
+	really cleans things up and allows us to support different versions
+	of pgp if we wish.
+	
+	Not to scare anyone, but for the key-cert crossover we will not be
+	using the new pgp lib.	The new lib will be phased in afrer the
+	crossover.  For now we we will using the long tested pgp code
+	(although messy).
+
+2000-07-24 18:57  polandj
+
+	* src/programs/irrd_ops/irrd_ops.c: Changed two things:
+	
+	if( strcmp(curline, ADD_OP) )
+	
+	to
+	
+	if( strncmp(curline, ADD_OP, 3) )  to account for '\n'.
+	
+	also, added:  if( (newline = strchr(curline, '\n')) )	   
+	*newline = '\0'; to get rid of the '\n' on the filename.
+	
+	Adding keys works now, we should be ok with removing if we change
+	irr_submit to make the pgp file as: DEL <userid>
+
+2000-07-20 16:20  polandj
+
+	* src/programs/irrd_ops/irrd_ops.c: Bugfix, in
+	rpsdist_update_pgp_ring
+	
+	if( fgets... != NULL ){   trace....    return e..  }
+	
+	to if( fgets ... == NULL ){ ...  }
+
+2000-07-19 21:57  gerald
+
+	* src/programs/pgp/: Makefile, pgp.c: 
+	Starting a pgp lib for irr_submit, rpsdist, ....
+
+2000-07-19 17:48  gerald
+
+	* src/programs/irrd_ops/irrd_ops.c: 
+	Bug fix.  rpsdist_transaction () returning NULL when it should be
+	returning "C\n" to indicate irrd committed the transaction.
+
+2000-07-19 15:43  gerald
+
+	* src/programs/irrd_ops/irrd_ops.c: 
+	Bug fix.  Was not adding a '\n' after the file names sent to
+	rpsdist.
+
+2000-07-18 22:00  gerald
+
+	* src/: include/irrd_ops.h, programs/irr_notify/notify.c,
+	programs/irrd_ops/irrd_ops.c: 
+	Finished up the coding for irr_submit.	irr_submit is now ready to
+	progress through the stages to rps dist:
+	
+	irr_submit invoked with the '-R' flag will cause it to progress
+	through the rps dist path.  I also have the routines for the next
+	phase, ie, irr_submit and IRRd are transaction capable.  Then of
+	course the last step is to move to rps dist.
+	
+	1. finished the pgp processing.  Lame v5 does will not add keys
+	from STDIN (contrary to the man pages) and this caused some
+	headaches.
+	
+	2. Added some support routines, eg, querying irrd with the !j
+	command.
+	
+	3. backing out of an aborted transaction.
+	
+	All messy stuff but necessary.
+
+2000-07-17 22:49  gerald
+
+	* src/: include/irr_notify.h, include/irrauth.h,
+	include/irrd_ops.h, include/read_conf.h, programs/IRRd/commands.c,
+	programs/hdr_comm/hdr_comm.c, programs/hdr_comm/read_conf.c,
+	programs/irr_notify/main.c, programs/irr_notify/notify.c,
+	programs/irr_notify/trans_hdrs.c, programs/irr_notify/util.c,
+	programs/irr_submit/auth.c, programs/irr_submit/call_pipeline.c,
+	programs/irr_submit/comdata.c, programs/irr_submit/main.c,
+	programs/irr_submit/notifyif.c, programs/irrd_ops/irrd_ops.c: 
+	These changes are all in preparation for the conversion to atomic
+	transactions and rps-dist.
+	
+	At present the code takes the current irr_submit update path (ie,
+	the default).  However, if you specify the '-R' flag it will use
+	the rps dist path.
+	
+	The first phase of the transtion will be to make irr_submit and
+	irrd atomic transaction capable.  irr_submit is now transaction
+	capable but irrd is not.  The irr_submit transaction code will not
+	be used until irrd has been converted.
+	
+	Some highlights:
+	
+	* irr_submit reads the bcc transaction log to construct the rpsdist
+	journal entry.
+	
+	* irr_submit send's 3 files rpsdist, a !us...!ue file for irrd, a
+	pgp updates file and a journal entry file.
+	
+	* rpsdist will maintain the pgp rings and journal files.
+
+2000-07-12 13:24  jeffhaas
+
+	* src/programs/IRRd/mirrorstatus.c: In converations with RIPE,
+	they're thinking about not leaving the remote_oldestjournal value
+	set to "0" on "N" answers.  Code now forces the internal value to
+	"0" no matter what they say.
+
+2000-07-11 16:18  jeffhaas
+
+	* src/programs/IRRd/: COMMANDS.INFO, Makefile, commands.c,
+	config.c, irrd.h, irrd_prototypes.h, main.c, mirrorstatus.c,
+	scan.c, statusfile.c, uii_commands.c: Added additional
+	functionality: o We now have a statusfile library to store various
+	persistant state   information.  This is being used primarily for
+	last database export.  o We track last database export (see above).
+	   + Said information is available via !j - see COMMANDS.INFO	 +
+	Said information is visible via "show database" in uii.    + Said
+	information is visible in a remote mirror via "show mirror-status".
+
+2000-06-30 18:10  gerald
+
+	* src/: include/irr_rpsl_check.h, programs/IRRd/commands.c,
+	programs/IRRd/scan.c, programs/irr_rpsl_check/syntax_attrs.c,
+	programs/irr_submit/main.c: 
+	* Updated the parser to accept DSS/Diffie-Hellman keys.  There is a
+	problem with the fingerprints with this type of key in the RFC.
+
+2000-06-22 16:20  gerald
+
+	* src/: include/irr_rpsl_check.h, include/irrauth.h,
+	programs/IRRd/util.c, programs/irr_rpsl_check/main.c,
+	programs/irr_rpsl_check/rpsl.fl, programs/irr_rpsl_check/rpsl.y,
+	programs/irr_rpsl_check/syntax_attrs.c,
+	programs/irr_rpsl_check/util.c: 
+	* fixed a bug in IRRd were we weren't flushing the write   buffer
+	and error output from the '-t' flag would not show up.
+	
+	* added comments to the new routines I put in recently and updated
+	the   header files so that tracing can occur in the parser.  Also
+	did   some cosmetic cleaning up.  eg, removing commented out code
+	that said   "take out...", ...
+
+2000-06-21 10:58  jeffhaas
+
+	* src/lib/mrt/trace.c: Fixed two problems.  1. trace_set_global
+	really applies only to slave traces of the master that	  is passed
+	in.  We were applying the new parameter to ALL slaves	 regardless
+	who is the master.  2. When we use trace_copy and then set_trace to
+	create a new trace that    has most of the same parameters, we
+	weren't decreasing the refcount    on the original master trace.
+
+2000-06-20 11:18  jeffhaas
+
+	* src/programs/IRRd/: telnet.c, uii_commands.c: Removed some old
+	debug code (commented out).  Fixed some indentation.
+
+2000-06-19 21:54  polandj
+
+	* src/programs/IRRd/commands.c: Added the !ms command.	Just like
+	the !us command except the given database must be one we're NOT
+	authoritative for.
+
+2000-06-19 21:53  polandj
+
+	* src/programs/rps_dist/util.c: The new file
+
+2000-06-19 21:52  polandj
+
+	* src/programs/rps_dist/: Makefile, commands.c, commands.h,
+	read_conf.c, rps.c, rps.h, rps_daemon.c, rps_select.c: Makes on
+	both Solaris and Linux now (still needs a little help, see
+	comments) Split up rpc.c into two files..util.c and rps.c Uses
+	"!ms<support>" to update databases we're not authoritative for. 
+	Other random stuff.  Next:    Checkin !ms irrd	  Checkin the added
+	util.c file    Put journalling and serial support in the rps daemon
+
+2000-06-19 17:11  polandj
+
+	* src/include/irrd_ops.h: Moved those two prototypes here..
+
+2000-06-19 17:11  polandj
+
+	* src/programs/irrd_ops/irrd_ops.c: Moved send_socket_cmd() and
+	read_socked_cmd() function prototypes into irrd_ops.h so I can use
+	em in rps_dist.
+
+2000-06-19 12:59  jeffhaas
+
+	* src/programs/IRRd/templates.c: Changed the file to be more
+	readable.  (Exploiting a little used C-ism, but its fully ANSI
+	compliant.)
+
+2000-06-18 11:39  gerald
+
+	* src/programs/irr_submit/comdata.c: 
+	* Fixed a bug in the 'PGP-FROM' processing.  Ya, only day's away
+	now from scrapping 'PGP-FROM' and moving to 'PGPKEY' and someone
+	ends up tripping over a bug.  Sheesh!
+
+2000-06-17 11:34  gerald
+
+	* src/programs/: IRRd/commands.c, IRRd/util.c,
+	irr_rpsl_check/rpsl.y, irr_rpsl_check/syntax_attrs.c,
+	irr_rpsl_check/util.c: 
+	* made a couple small changes in the set_sources () routine that
+	may have been causing us trouble.
+	
+	* in util.c I changed a few trace statements from 'NORM' to 'ERROR'
+	ie, the mutex_lock () fail traces.
+	
+	* changed the syntax for ph and fax #'s.
+	
+	* loosened the syntax for handles.
+
+2000-06-16 16:47  jeffhaas
+
+	* src/programs/IRRd/mirrorstatus.c: Made timeout 5 seconds for
+	non-pthreaded app.  Per Craig's suggestion, the whole thing should
+	be moved to async access from uii if I can ever find an example on
+	how to code that.
+
+2000-06-16 16:46  jeffhaas
+
+	* src/programs/IRRd/: irrd.h, mirror.c: Added new mirror logging. 
+	Mirror timeout moved to #define in irrd.h - more work needs to be
+	done on mirror timeouts.
+
+2000-06-15 12:42  jeffhaas
+
+	* src/lib/mrt/: connect.c, select.c: Some items that should have
+	been TR_TRACE were TR_INFO instead.
+
+2000-06-15 12:29  jeffhaas
+
+	* src/programs/IRRd/: database.c, irrd_prototypes.h, mirror.c,
+	scan.c, util.c: Removed re-entrancy problems for get_state
+	function.  Cleaned up some variable prototyping - we were using
+	"int" instead of the appropriate enum.
+
+2000-06-15 10:05  gerald
+
+	* src/: config.status, include/config.h, include/hdr_comm.h,
+	include/irr_notify.h, include/irrauth.h, include/irrd_ops.h,
+	include/read_conf.h, programs/IRRd/scan.c,
+	programs/hdr_comm/hdr_comm.c, programs/hdr_comm/hdr_fields.c,
+	programs/hdr_comm/read_conf.c, programs/hdr_comm/trace.c,
+	programs/irr_notify/Makefile, programs/irr_notify/notify.c,
+	programs/irr_notify/notify_msgs.c,
+	programs/irr_notify/trans_hdrs.c, programs/irr_notify/util.c,
+	programs/irr_ripe181_check/canonical.c,
+	programs/irr_ripe181_check/ripe181.tab.c,
+	programs/irr_rpsl_check/canonical.c,
+	programs/irr_rpsl_check/dictionary.c,
+	programs/irr_rpsl_check/hdr_build.c,
+	programs/irr_rpsl_check/irr_attrs.c,
+	programs/irr_rpsl_check/main.c, programs/irr_rpsl_check/prefix.c,
+	programs/irr_rpsl_check/rpsl.fl, programs/irr_rpsl_check/rpsl.y,
+	programs/irr_rpsl_check/syntax_attrs.c,
+	programs/irr_rpsl_check/util.c, programs/irr_submit/auth.c,
+	programs/irr_submit/call_pipeline.c, programs/irr_submit/mailchk.c,
+	programs/irr_submit/main.c, programs/irr_submit/notifyif.c,
+	programs/irrd_ops/irrd_ops.c: 
+	I only changed a couple files :) ...
+	
+	* Lot's of cleaning up.  We were including some of the mrt header
+	files in the pipeline which we definitely did not want.  Also fixed
+	many of the nagging compiler warnings.	It has alway's been a
+	mini-goal of mine to have clean builds.  I like clean builds and
+	feel it has a positive impression on people using our software.
+	
+	* Improved the logging that the pipeline is doing.
+	
+	* Fixed the scan routine so that it accepts trailing comments on
+	objects. It was chopping them off. (Jeff pointed this out)
+
+2000-06-08 12:41  labovit
+
+	* src/programs/irr_ripe181_check/ripe181.tab.c: 
+	This file should not be in CVS
+
+2000-06-08 12:41  labovit
+
+	* src/programs/IRRd/: config.c, irrd.h, irrd_prototypes.h, main.c,
+	uii_commands.c: 
+	Added "no debug server verbose" Added "irr_database remote_ftp_dir"
+	config entry for irrdcacher integreation Added "irrdcacher
+	<database>" uii command
+
+2000-06-08 12:40  labovit
+
+	* src/include/: config.h, version.h: 
+	config.h should not be part of CVS.  Upped the version date.
+
+2000-06-08 12:39  labovit
+
+	* src/config.status: 
+	This file should not be part of CVS...
+
+2000-06-06 16:36  jeffhaas
+
+	* src/programs/IRRd/commands.c: Cleaned up potential buffer
+	overflows in set_sources.  Removed commented code.
+
+2000-06-06 16:35  jeffhaas
+
+	* src/programs/IRRd/: irrd.h, journal.c, mirrorstatus.c: The buffer
+	overflow length checking wasn't doing a MAX(0,curlength - copied
+	length)
+
+2000-06-06 12:57  gerald
+
+	* src/programs/: IRRd/commands.c, irr_rpsl_check/rpsl.y: 
+	* I realaxed the syntax checking rules on phone numbers and fax's. 
+	The spec is much too restictive and is definitely a mistake as it
+	was causing people a lot of headaches (ie, they had no idea they
+	were supposed to include country code and city code into their
+	numbers) and was not accepting numbers like:
+	
+	+1 713 793 0222
+	
+	* I did not change commands.c.	I did some testing and did not fold
+	in any changes.
+
+2000-06-05 17:13  jeffhaas
+
+	* src/programs/IRRd/mirrorstatus.c: Better uii support for "show
+	mirror-status"
+
+2000-06-05 12:01  gerald
+
+	* src/programs/: hdr_comm/read_conf.c, irr_notify/notify_msgs.c,
+	irr_notify/util.c: 
+	* fixed a bug which occasionally was sending a redundant notify to
+	the sender of an update.  Added some logging statements to identify
+	who is getting what type of notification.
+	
+	* took out some useless logging statement from read_conf.c
+
+2000-06-04 11:41  gerald
+
+	* src/: config.status, include/config.h, programs/IRRd/scan.c: 
+	Bug squash, file descriptor overflow.  Somehow we were not closing
+	the *.CURRENTSERIAL file whenver we read it.  So everytime a !B was
+	executed we would reopen the file -- again and again.
+
+2000-06-02 18:57  gerald
+
+	* src/: include/irr_rpsl_check.h,
+	programs/irr_rpsl_check/canonical.c,
+	programs/irr_rpsl_check/rpsl.fl, programs/irr_rpsl_check/rpsl.y,
+	programs/irr_rpsl_check/syntax_attrs.c,
+	programs/irr_rpsl_check/util.c: 
+	* Worked on the 'changed:' attribute.	 - removed warning for
+	providing a date in the future	    and automatically put in the
+	current date	  (this was a real annoyance for our Australian
+	friends)    - if you provide only your email address the parser    
+	 will add today's date for you automatically	- if you make an
+	error on the date a warning is given	  and the current date is
+	supplied.
+	
+	* More word on objects canonicalization.  Mainly on line  
+	continuation and doing a better job.  Fixed a bug also.
+	
+	* Changed syntax on override password to accept only the password  
+	(ie, name of submitter is not required)   - Added string trim so
+	trailing spaces are removed
+	
+	* Added string trim feature where applicable.  Most notably   if
+	you add 100's of spaces on the end of a field which has   no syntax
+	(eg, 'descr:') the parser will trim up to the last   printable
+	character.    (people occasionally submit objects like this and it
+	looks terrible,     as if there is a blank line in the middle of
+	the object)
+	
+	Many of today's fixes came from going through the logs and
+	observing what people are actually doing.
+
+2000-06-02 17:21  jeffhaas
+
+	* src/programs/IRRd/: irrd.h, mirrorstatus.c: You always find the
+	bugs _after_ you do the commit.  Various fixes for mirror-status -
+	slightly better UII and fixed broken behaviour for down remote
+	database.
+
+2000-06-02 16:52  jeffhaas
+
+	* src/programs/IRRd/: Makefile, irrd.h, irrd_prototypes.h, main.c,
+	mirrorstatus.c: Added the functionality to query !j from remote
+	databases via the get_remote_mirrorstatus function.  This can be
+	used later on internally to reseed databases automatically.
+	
+	Also added the "show mirror-status" uii command.  The output is a
+	little rough - will await feedback from group.
+
+2000-06-01 21:14  gerald
+
+	* src/: config.status, configure, configure.in, include/config.h,
+	include/config.h.in, programs/IRRd/Makefile: 
+	After a lot of pain, I got this stupid thing to build on a freebsd
+	4.0.
+	
+	Also, we had an unecessary dependence on libhdr_comm.a in IRRd
+	which was removed.
+
+2000-06-01 18:10  labovit
+
+	* src/lib/mrt/trace.c: 
+	Append is turned on by default.
+
+2000-06-01 16:04  jeffhaas
+
+	* src/programs/IRRd/telnet.c: Jerry's addition of
+	irr_read_command_schedule produced a compiler warning when pthreads
+	is not installed.
+
+2000-06-01 11:41  gerald
+
+	* src/: config.status, configure, configure.in, include/config.h: 
+	Fixed that nagging build bug in which we were building IRRd before
+	building the libhdr.a lib which IRRd uses.
+
+2000-06-01 11:38  jeffhaas
+
+	* src/programs/IRRd/: COMMANDS.INFO, commands.c: Added !j support. 
+	!j support documented in COMMANDS.INFO
+
+2000-06-01 11:11  gerald
+
+	* src/: config.status, configure, configure.in, include/config.h,
+	include/config.h.in, include/mrt.h, include/mrt_thread.h,
+	include/timer.h, lib/mrt/trace.c: 
+	Modified the configure script so that the dist builds on a freebsd
+	4.0.
+
+2000-06-01 01:44  labovit
+
+	* src/programs/IRRd/: Makefile, telnet.c: 
+	Fixed FreeBSD thread core dump problem.
+	
+	The issue was that irrd2.0 is built on the latest MRT thread
+	libraries. For the first time, non-threaded programs have thread
+	accounting/bookeeping. This is actually a good thing.
+	
+	The problem was that the irrd telnet thread registered a select
+	callback (irr_read_command).  The irr_read_comand routing was
+	called from the main select thread (thread 10, by default).  In
+	turn, we would call thread_exit from irr_read_command which was
+	still under the purview of  thread 10.	This is okay the first time
+	around, but we catch an assert the second time we try to delete
+	thread 10.
+	
+	Fixed by actually scheduling irr_read processing instead of calling
+	directly from select. Minor nit.
+
+2000-05-31 15:36  jeffhaas
+
+	* src/programs/IRRd/irrd_prototypes.h: Prototypes for new
+	functions, and prototypes for other functions that were getting
+	compiler warnings otherwise.
+
+2000-05-31 15:35  jeffhaas
+
+	* src/programs/IRRd/journal.c: Related piece of database.c update -
+	the function to determine last journal serial number.
+
+2000-05-31 14:58  jeffhaas
+
+	* src/programs/IRRd/database.c: Lots of changes here: - dbclean
+	functionality now only allows 1 line between objects when cleaning.
+	   It also no longer takes two passes to clean up blank lines after
+	object	  deletion.  - Got rid of some compiler warnings.  - Added
+	warning via trace when database is empty.  - On database load, if
+	journal files are present for a mirrored or   authoritative
+	database, it verifies the CURRENTSERIAL >= the last journal  
+	number.  Otherwise an error is logged.	Function provides a useful 
+	 return value so stronger action could be taken.  - Logged a couple
+	additional TODO's:   + Stronger action needed on failed fseek on
+	database read.	  + Gzipping is required by this module.  Gzipping
+	the output is optional	    and shouldn't be a cause for failure in
+	export.  Whether or not      the zipping is required should be
+	configurable.
+
+2000-05-31 13:41  jeffhaas
+
+	* src/programs/IRRd/util.c: Removed the #ifdefs on the traces.	MRT
+	Trace library already gives us what we need (verbose option - shut
+	it off!)
+
+2000-05-31 12:04  jeffhaas
+
+	* src/programs/IRRd/dbm_support.c: Added some comments.
+
+2000-05-31 10:53  jeffhaas
+
+	* src/programs/IRRd/scan.c: Cleaned up some file opening code.
+
+2000-05-31 10:34  jeffhaas
+
+	* src/programs/IRRd/util.c: #ifdef'd out the majority of the
+	tracing for database locking and unlocking.  The error conditions
+	remain.  The additional logging can be re-enabled by adding #define
+	LOG_ALL_LOCKING 1 to the file.
+
+2000-05-31 10:32  jeffhaas
+
+	* src/programs/IRRd/irrd_util.c: This file appears to be dead.
+
+2000-05-30 17:34  gerald
+
+	* src/: include/config.h, programs/irr_rpsl_check/rpsl.fl: 
+	Fixed a parsing error on the 'key-cert' object.
+
+2000-05-30 16:21  polandj
+
+	* src/programs/rps_dist/: commands.c, rps.c, rps_daemon.c,
+	rps_select.c: Found my mistake.
+
+2000-05-30 13:59  polandj
+
+	* src/programs/rps_dist/: Makefile, commands.c, read_conf.c, rps.c,
+	rps.h, rps_daemon.c, rps_select.c: Checking in latest stuff before
+	I go back through and clean it up.  Still a lingering bug, I think
+	it's a threading issue, but should locate it soon.
+
+2000-05-30 11:47  jeffhaas
+
+	* src/programs/IRRd/scan.c: Fixed scan_irr_serial function so it is
+	guaranteed to return a good value in db structure.  0 is okay if
+	serial file doesn't exist.  Return value of function reflects
+	whether or not the file exists or not.	The calls to this function
+	currently don't look at return value, but that's okay right now (at
+	least in IRRd).
+
+2000-05-30 11:43  jeffhaas
+
+	* src/programs/IRRd/telnet.c: Fixed comments to be ANSI standard
+	(not C++) Fixed compiler warnings.  Function irr_write needs
+	auditing.  See JMH TODO
+
+2000-05-30 11:42  jeffhaas
+
+	* src/programs/IRRd/uii_commands.c: Made comments ANSI standard
+	(not C++) Fixed compiler warnings.  Trace output using strftime %D
+	parameter - compiler was throwing Y2K warnings.  This has been
+	changed.
+
+2000-05-30 11:41  jeffhaas
+
+	* src/programs/IRRd/main.c: Fixed comments to ANSI standard (not
+	C++).  Removed compiler warnings.
+
+2000-05-30 11:40  jeffhaas
+
+	* src/programs/IRRd/irrd.h: last_char variable was (char *) and is
+	now (char).  Fixed buglet in unused util.c code.
+
+2000-05-30 11:39  jeffhaas
+
+	* src/programs/IRRd/config.c: database_t wasn't being init'd to
+	zero!
+
+2000-05-25 16:21  gerald
+
+	* src/: include/irr_rpsl_check.h, programs/irr_notify/util.c,
+	programs/irr_rpsl_check/canonical.c,
+	programs/irr_rpsl_check/irr_attrs.c,
+	programs/irr_rpsl_check/rpsl.fl, programs/irr_rpsl_check/rpsl.y,
+	programs/irr_rpsl_check/util.c: 
+	* Fixed a buffer overlfow bug in the my_strcat () routine.  You can
+	have arbitrarily long attributes.  However, if a threshold is
+	exceeded canonicalization is turned off for that attribute and the
+	attribute is used verbatim as the user typed it.
+	
+	* Did some clean up (Jeff is doing clean up, sounds like a good
+	thing :)
+	
+	* Added comments to certain funtions.
+
+2000-05-24 17:18  gerald
+
+	* src/programs/irr_rpsl_check/: main.c, rpsl.fl, rpsl.y,
+	syntax_attrs.c, util.c: 
+	Just making sure my latest changes are checked in.
+
+2000-05-23 20:01  gerald
+
+	* src/: include/hdr_comm.h, include/irr_notify.h,
+	include/irr_rpsl_check.h, include/irrauth.h,
+	programs/hdr_comm/hdr_comm.c, programs/hdr_comm/hdr_fields.c,
+	programs/irr_notify/notify.c, programs/irr_notify/notify_msgs.c,
+	programs/irr_notify/util.c, programs/irr_rpsl_check/hdr_build.c,
+	programs/irr_rpsl_check/rpsl.fl, programs/irr_rpsl_check/rpsl.y,
+	programs/irr_rpsl_check/syntax_attrs.c,
+	programs/irr_submit/call_pipeline.c,
+	programs/irr_submit/notifyif.c, programs/irrd_ops/irrd_ops.c: 
+	* added jeff's syntax fix for the irrorder attribute.
+	
+	* added support to add key certificates to the local ring.
+	
+	* more twiddling with object canonicalization.
+	
+	I have been doing full pipeline testing with key-cert objects.	The
+	canonicalization is what is taking the extra testing time.
+	
+	I'll probably roll out the new code on the prodcution server if all
+	goes well tomorrow.
+
+2000-05-20 18:50  gerald
+
+	* src/: config.status, configure, configure.in, include/config.h,
+	include/irr_rpsl_check.h, programs/IRRd/commands.c,
+	programs/IRRd/config.c, programs/IRRd/irrd.h, programs/IRRd/main.c,
+	programs/IRRd/scan.c, programs/IRRd/scan.h,
+	programs/hdr_comm/hdr_comm.c, programs/irr_rpsl_check/canonical.c,
+	programs/irr_rpsl_check/irr_attrs.c,
+	programs/irr_rpsl_check/ripedb.config,
+	programs/irr_rpsl_check/rpsl.fl, programs/irr_rpsl_check/rpsl.y,
+	programs/irr_rpsl_check/syntax_attrs.c, programs/irr_submit/auth.c,
+	programs/irr_submit/call_pipeline.c, programs/irr_submit/comdata.c,
+	programs/irr_submit/pgpchk.c: 
+	* Fixed autoconf so that...	- will not consider berkeley DB for
+	an IRRd db package     - IRRd will build on systems that don't have
+	GDBM
+	
+	* Modified IRRd so that if no DB packages are available it   will
+	default to memory mode.
+	
+	* Added 'key-cert:' object support to IRRd.
+	
+	* Added 'PGPKEY-xxxxxxx' authentication checking to the pipeline.
+	
+	* Did some more twiddling with the parser canonicalization.
+
+2000-05-18 16:14  gerald
+
+	* src/: include/irr_rpsl_check.h,
+	programs/irr_rpsl_check/canonical.c,
+	programs/irr_rpsl_check/rpsl.fl, programs/irr_rpsl_check/rpsl.y,
+	programs/irr_rpsl_check/util.c: 
+	* Just about finished off support for key-cert objects and
+	auto-management of pgp key's.  The parsing/checking is done.  All
+	that's left is to actually add the object to irrd's local key ring.
+	
+	* I've got canonicalization of rpsl objects looking pretty good. 
+	Have not done extensive testing but will do so this weekend. 
+	Should have it up on the production server early next week.
+
+2000-05-17 08:44  gerald
+
+	* src/: include/irr_rpsl_check.h,
+	programs/irr_rpsl_check/canonical.c,
+	programs/irr_rpsl_check/irr_attrs.c,
+	programs/irr_rpsl_check/ripedb.config,
+	programs/irr_rpsl_check/rpsl.fl, programs/irr_rpsl_check/rpsl.y,
+	programs/irr_rpsl_check/util.c: 
+	Checking in yesterday's work.
+	
+	* Added support for machine generated fields.  there are 3 such
+	fields in a key-cert object (method, owner(s), key fingerprint). 
+	Still need to be able to remove the aforementioned fields if the
+	user provides them, then will be done with this task.
+	
+	* Added support back in for canonicalization of rpsl objects
+	(woo-hoo!).  It is not finished yet, though.
+
+2000-05-16 14:22  gerald
+
+	* src/: config.status, configure, configure.in, include/config.h,
+	include/config.h.in, include/hdr_comm.h, include/irr_rpsl_check.h,
+	include/irrauth.h, include/pipeline_defs.h,
+	include/pipeline_defs.h.in, programs/hdr_comm/hdr_fields.c,
+	programs/irr_ripe181_check/ripe181.tab.c,
+	programs/irr_rpsl_check/attr_tokens.pl,
+	programs/irr_rpsl_check/irr_attrs.c,
+	programs/irr_rpsl_check/ripedb.config,
+	programs/irr_rpsl_check/rpsl.fl, programs/irr_rpsl_check/rpsl.y,
+	programs/irr_rpsl_check/syntax_attrs.c,
+	programs/irr_rpsl_check/util.c, programs/irr_submit/comdata.c,
+	programs/irr_submit/pgpchk.c: 
+	* fixed a bug in configure.in.	Somehow we were no longer
+	generating pipeline_defs.h.  Also added support to get pgpk and
+	pgpv paths.
+	
+	* minor bug fix in comdata.c.  String for ending PGP signature was
+	incomplete and could match many other messages.
+	
+	* bulk of changes are in the syntax checker.  start of code for pgp
+	signature object support.  Not done yet though.
+
+2000-05-16 12:11  gerald
+
+	* src/programs/irrd_ops/irrd_ops.c: 
+	Just fixed a comment line.
+
+2000-05-10 19:59  labovit
+
+	* src/programs/IRRd/: commands.c, config.c: 
+	Fixed a memory bug -- array bounds read
+	
+	"#define MAX_OBJECT_FILTERS 21"
+	
+	but o_filter has only 20 entries...
+	
+	find_filter_t o_filter[] = {   {"autnum",      AUTNUM_F       },  
+	{"asmacro",	ASMACRO_F      },   {"community",   COMMUNITY_F   
+	},   {"domain",      DOMAIN_F	    },	 {"inetnum",	 INETNUM_F 
+	    },	 {"inet6num",	 INET6NUM_F	},   {"person",     
+	PERSON_F       },   {"dom-prefix",  DOMAIN_PREFIX_F},  
+	{"inet-rtr",	INET_RTR_F     },   {"limerick",    LIMERICK_F	  
+	},   {"mntner",      MNTNER_F	    },	 {"route",	 ROUTE_F   
+	    },	 {"role",	 ROLE_F 	},   {"ipv6-site",  
+	IPV6_SITE_F    },   {"as-set",	    AS_SET_F	   },  
+	{"route-set",	ROUTE_SET_F    },   {"filter-set",  FILTER_SET_F  
+	},   {"rtr-set",     RTR_SET_F	    },	 {"peering-set",
+	PEERING_SET_F  },   {"dictionary",  DICTIONARY_F   } };
+
+2000-05-10 18:18  labovit
+
+	* src/programs/IRRd/commands.c: 
+	Bug fix to resolve core dump when "!s" command is executed without
+	any listed sources.
+
+2000-05-02 16:42  polandj
+
+	* src/programs/rps_dist/: commands.c, commands.h, rps.c: Files
+	removed from the core IRRd.  rps.c is the same, the others are
+	fragments from parsing and header files.
+
+2000-05-02 16:27  polandj
+
+	* src/: include/config.h, programs/IRRd/Makefile,
+	programs/IRRd/commands.c, programs/IRRd/irrd.h,
+	programs/IRRd/irrd_prototypes.h, programs/IRRd/main.c,
+	programs/IRRd/rps.c: Splitting of the rps_dist stuff from the main
+	IRRd module.
+
+2000-05-02 16:26  polandj
+
+	* src/config.status: Should this file be in CVS?
+
+2000-04-24 20:31  gerald
+
+	* src/programs/: irr_submit/auth.c, irr_submit/comdata.c,
+	irr_submit/trans_list.c, irrd_ops/irrd_ops.c: 
+	Got rid of 2 bugs.  One bug would return error messages from
+	irr_rpsl_submit of 'Connection refused' when irrd was up and
+	running.
+	
+	The other bug squash was irrd was not allowing some updates because
+	of a internal connection status mixup.
+
+2000-04-24 20:29  gerald
+
+	* src/programs/IRRd/: commands.c, irrd.h, scan.c, scan.h: 
+	I fixed a bug in which irrd was not recognizing the new rpsl set
+	objects such as peeering-set and rtr-set.  The bug would cause irrd
+	to dump the objects on bootstrap since irrd thought they were junk.
+
+2000-04-24 20:26  gerald
+
+	* src/: config.status, include/config.h: 
+	I did not update this file directly .
+
+2000-04-02 13:32  polandj
+
+	* src/programs/IRRd/: commands.c, rps.c: Was broken on FreeBSD,
+	fixed
+
+2000-03-31 17:10  polandj
+
+	* src/programs/IRRd/: irrd_prototypes.h, rps.c: Just checking in
+	the latest, pgp checking/signing works between two repositories,
+	will check 3 later.
+
+2000-03-28 12:00  polandj
+
+	* src/programs/irrd_ops/irrd_ops.c: Fixed the problem of bad
+	connections being interpreted as a missing maintainer.	The
+	problem, I don't think, wasn't actually that the connection is
+	refused, but is accepted and not handled by IRRd.  So irr_submit
+	would send commands, but never get anything back.  It then assumed
+	that since it got nothing back (a read timeout), that the operation
+	was an ADD.  There was no way to report errors from the function
+	IRRd_fetch_object back to calling functions.
+	
+	This should be re-done when we modify the pipeline for rps dist.
+
+2000-03-25 16:35  polandj
+
+	* src/programs/irr_util/web_query.pl: Just adding the web query
+	Perl script.
+
+2000-03-20 21:36  polandj
+
+	* src/programs/IRRd/: irrd_prototypes.h, rps.c: Works much better
+	now:
+	
+	Redid the gzip/gunzip code for simpler operation.  Added in the PGP
+	checking and PGP signing code:	   PGP checking works, for one
+	signature only (at the moment).      PGP signing on behalf of the
+	repository is done, neglecting choices of	   PGP version, and
+	signing identity (assumes default for now)
+	
+	Next steps:    Put timers around the calls to PGP, gzip, and
+	gunzip.     Fix checking on initial submissions (it doesn't check
+	the timestamp)	   See if two mirrors can ditribute transactions
+	amongst themselves...fully	  RPS-DIST compliantly.     If that
+	works, it should be no problem making a mirror that accepts	  
+	current mirroring, and outputs RPS-DIST mirroring.
+
+2000-03-15 19:41  labovit
+
+	* src/programs/irr_submit/: Makefile, call_pipeline.c: 
+	Cleanup.
+
+2000-03-15 19:41  labovit
+
+	* src/programs/IRRd/: Makefile, irrd.h, main.c: 
+	Some odds and ends, including the start of sorting irr databases.
+
+2000-03-15 19:41  labovit
+
+	* src/lib/mrt/select.c: 
+	I forget.
+
+2000-03-15 19:41  labovit
+
+	* src/include/: config.h, hdr_comm.h: cleanup and fix
+	irr-rpsl_submit build problem.
+
+2000-03-15 19:40  labovit
+
+	* src/config.status: This should not be in CVS...
+
+2000-03-10 14:13  labovit
+
+	* src/programs/IRRd/: commands.c, telnet.c: 
+	Fixed bug(s) with buffered irr_write.
+
+2000-03-08 20:59  polandj
+
+	* src/programs/IRRd/: Makefile, commands.c, irrd.h,
+	irrd_prototypes.h, main.c, rps.c, telnet.c: Merging the RPS DIST
+	stuff into the IRRD2.0 tree.  Fixed it so old style mirroring
+	co-exists with rps style.  rps code is very crude, but is minimally
+	functional.
+
+2000-03-02 20:16  labovit
+
+	* src/: Make.include.in, include/config.h, include/version.h,
+	lib/mrt/connect.c, lib/mrt/select.c, programs/IRRd/Makefile,
+	programs/IRRd/commands.c, programs/IRRd/main.c,
+	programs/IRRd/mirror.c: 
+	Fixed deadlock problem -- we called select_start twice (once in
+	IRRd and once in mrt-start). Simple fix, but took hours to figure
+	out... (sigh)
+
+2000-03-01 20:57  labovit
+
+	* src/programs/IRRd/: irrd_prototypes.h, mirror.c: 
+	Bug fix.
+
+2000-03-01 20:57  labovit
+
+	* src/Make.include: 
+	Built automatically.
+
+2000-03-01 20:42  labovit
+
+	* src/: Make.include, config.status, include/config.h,
+	programs/IRRd/commands.c: 
+	Minor changes.
+
+2000-03-01 19:04  labovit
+
+	* src/: WindowsVisualC++/IRR/IRR.dsw, WindowsVisualC++/IRR/IRR.ncb,
+	WindowsVisualC++/IRRd/IRRd.dsp, WindowsVisualC++/IRRd/IRRd.plg,
+	programs/IRRd/uii_commands.c: 
+	
+	Fixed problem with show_database command and added requested totals
+	feature.  Still looks like there is a serious bug in mirroring
+	code..
+
+2000-02-29 18:24  labovit
+
+	* src/: WindowsVisualC++/IRRd/IRRd.ncb,
+	WindowsVisualC++/IRRd/IRRd.opt, WindowsVisualC++/IRRd/IRRd.plg,
+	include/config.h, include/mrt.h: 
+	Now compile and tested on Solaris 2.6, FreeBSD and Windows2000
+
+2000-02-29 17:59  labovit
+
+	* src/: Make.include, config.log, config.status: 
+	Handle problem with GDB configure
+
+2000-02-29 17:55  labovit
+
+	* src/: Make.include, config.log, config.status, include/config.h,
+	programs/Makefile, programs/irr_ripe181_check/irr_ripe181_check,
+	programs/irr_ripe181_check/lex.yy.c: 
+	Minor fixes to make sure compiles work
+
+2000-02-29 17:28  labovit
+
+	* COPYRIGHT, README, samples/irrd.conf.sample, src/config.guess,
+	src/config.sub, src/Make.include, src/Make.include.in,
+	src/Makefile, src/acconfig.h, src/config.log, src/config.status,
+	src/configure, src/configure.in, src/configure.in.orign,
+	src/dos2unix.pl, src/install-sh, src/programs/Makefile,
+	src/programs/hdr_comm/Makefile, src/programs/hdr_comm/hdr_comm.c,
+	src/programs/hdr_comm/hdr_fields.c,
+	src/programs/hdr_comm/read_conf.c, src/programs/hdr_comm/trace.c,
+	src/programs/IRRd/COMMANDS.INFO, src/programs/IRRd/Makefile,
+	src/programs/IRRd/commands.c, src/programs/IRRd/config.c,
+	src/programs/IRRd/database.c, src/programs/IRRd/db1_support.c,
+	src/programs/IRRd/dbm_support.c, src/programs/IRRd/hash_spec.c,
+	src/programs/IRRd/indicies.c, src/programs/IRRd/irr_lexer.y,
+	src/programs/IRRd/irr_parser.y, src/programs/IRRd/irrd.h,
+	src/programs/IRRd/irrd_prototypes.h, src/programs/IRRd/irrd_util.c,
+	src/programs/IRRd/journal.c, src/programs/IRRd/llstackaux.c,
+	src/programs/IRRd/main.c, src/programs/IRRd/mirror.c,
+	src/programs/IRRd/route.c, src/programs/IRRd/rpsl_commands.c,
+	src/programs/IRRd/rwlock.c, src/programs/IRRd/rwlock.h,
+	src/programs/IRRd/sample.conf, src/programs/IRRd/scan.c,
+	src/programs/IRRd/scan.h, src/programs/IRRd/telnet.c,
+	src/programs/IRRd/templates.c, src/programs/IRRd/uii_commands.c,
+	src/programs/IRRd/update.c, src/programs/IRRd/util.c,
+	src/programs/irrdcacher/README, src/programs/irrdcacher/irrdcacher,
+	src/programs/irrdcacher/ripe2rpsl, src/programs/irrd_ops/Makefile,
+	src/programs/irrd_ops/irrd_ops.c,
+	src/programs/irrdcacher/sample-cron,
+	src/programs/irrdcacher/update_source,
+	src/programs/irrdcacher/wget.2.5.1,
+	src/programs/irrdcacher/wget.2.6,
+	src/programs/irrdcacher/wget.bsdi,
+	src/programs/irrdcacher/wget.dec,
+	src/programs/irrdcacher/wget.freebsd,
+	src/programs/irrdcacher/wget.sun4,
+	src/programs/irr_notify/Makefile, src/programs/irr_notify/main.c,
+	src/programs/irr_notify/notify.c,
+	src/programs/irr_notify/notify_msgs.c,
+	src/programs/irr_notify/trans_hdrs.c,
+	src/programs/irr_notify/util.c,
+	src/programs/irr_rpsl_check/Makefile,
+	src/programs/irr_rpsl_check/attr_tokens.pl,
+	src/programs/irr_rpsl_check/canonical.c,
+	src/programs/irr_rpsl_check/dictionary.c,
+	src/programs/irr_rpsl_check/hdr_build.c,
+	src/programs/irr_rpsl_check/irr_attrs.c,
+	src/programs/irr_rpsl_check/main.c,
+	src/programs/irr_rpsl_check/prefix.c,
+	src/programs/irr_rpsl_check/ripedb.config,
+	src/programs/irr_rpsl_check/rpsl.fl,
+	src/programs/irr_rpsl_check/rpsl.y,
+	src/programs/irr_ripe181_check/attr_tokens.pl,
+	src/programs/irr_rpsl_check/syntax_attrs.c,
+	src/programs/irr_rpsl_check/util.c,
+	src/programs/irr_submit/Makefile, src/programs/irr_submit/auth.c,
+	src/programs/irr_submit/call_pipeline.c,
+	src/programs/irr_submit/comdata.c, src/programs/irr_submit/example,
+	src/programs/irr_submit/example.1,
+	src/programs/irr_submit/example.2,
+	src/programs/irr_submit/mailchk.c, src/programs/irr_submit/main.c,
+	src/programs/irr_submit/notifyif.c,
+	src/programs/irr_submit/pgpchk.c,
+	src/programs/irr_submit/sample_config_file,
+	src/programs/irr_submit/synchkif.c,
+	src/programs/irr_submit/trans_list.c,
+	src/programs/irr_submit/util.c, src/programs/irr_util/IRR_query.pl,
+	src/programs/irr_util/README, src/programs/irr_util/crypt_gen.c,
+	src/programs/irr_util/irrd_log_report.pl,
+	src/programs/irr_util/mailloop.pl,
+	src/programs/irr_util/ripe_subset.pl,
+	src/programs/irr_ripe181_check/Makefile,
+	src/programs/irr_ripe181_check/canonical.c,
+	src/programs/irr_ripe181_check/hdr_build.c,
+	src/programs/irr_ripe181_check/irr_attrs.c,
+	src/programs/irr_ripe181_check/lex.yy.c,
+	src/programs/irr_ripe181_check/main.c,
+	src/programs/irr_ripe181_check/prefix.c,
+	src/programs/irr_ripe181_check/ripe181.fl,
+	src/programs/irr_ripe181_check/ripe181.output,
+	src/programs/irr_ripe181_check/ripe181.tab.c,
+	src/programs/irr_ripe181_check/ripe181.tab.h,
+	src/programs/irr_ripe181_check/ripe181.y,
+	src/programs/irr_ripe181_check/sample.conf,
+	src/programs/irr_ripe181_check/syntax_attrs.c,
+	src/programs/irr_ripe181_check/test.c,
+	src/programs/irr_ripe181_check/util.c,
+	src/programs/irr_ripe181_check/irr_ripe181_check,
+	src/include/New.h, src/include/alist.h, src/include/api6.h,
+	src/include/array.h, src/include/aspath.h, src/include/assert.h,
+	src/include/bgp.h, src/include/bgp_proto.h, src/include/buffer.h,
+	src/include/cache.h, src/include/community.h, src/include/config.h,
+	src/include/config.h.in, src/include/config_file.h,
+	src/include/defs.h, src/include/dvmrp.h, src/include/filter.h,
+	src/include/flist.h, src/include/hash.h, src/include/hdr_comm.h,
+	src/include/igmp.h, src/include/interface.h, src/include/io.h,
+	src/include/irr_check.h, src/include/irr_notify.h,
+	src/include/irr_rpsl_check.h, src/include/irrauth.h,
+	src/include/irrd_ops.h, src/include/linked_list.h,
+	src/include/monitor.h, src/include/mrt.h, src/include/mrt_errno.h,
+	src/include/mrt_thread.h, src/include/ntconfig.h,
+	src/include/object.h, src/include/ospf_proto.h, src/include/pim.h,
+	src/include/pipeline_defs.h, src/include/pipeline_defs.h.in,
+	src/include/port_serv_lib.h, src/include/proto.h,
+	src/WindowsVisualC++/IRR/IRR.dsw, src/WindowsVisualC++/IRR/IRR.ncb,
+	src/WindowsVisualC++/IRR/IRR.opt,
+	src/WindowsVisualC++/IRRd/IRRd.dsp,
+	src/WindowsVisualC++/IRRd/IRRd.dsw,
+	src/WindowsVisualC++/IRRd/IRRd.ncb,
+	src/WindowsVisualC++/IRRd/icon1.ico, src/include/protoconf.h,
+	src/include/pthread_fake.h, src/include/radix.h,
+	src/include/read_conf.h, src/include/rib.h, src/include/rip.h,
+	src/include/ripng.h, src/include/schedule.h, src/include/select.h,
+	src/include/stack.h, src/include/timer.h, src/include/trace.h,
+	src/include/trace2.h, src/include/user.h, src/include/version.h,
+	src/include/view.h, src/WindowsVisualC++/IRRd/IRRd.opt,
+	src/WindowsVisualC++/IRRd/IRRd.plg,
+	src/WindowsVisualC++/IRRd/Script2.aps,
+	src/WindowsVisualC++/IRRd/Script2.rc,
+	src/WindowsVisualC++/IRRd/Script3.aps,
+	src/WindowsVisualC++/IRRd/Script3.rc,
+	src/WindowsVisualC++/IRRd/resource.h,
+	src/WindowsVisualC++/IRRd/Debug/IRRd.bsc, src/lib/Make.include,
+	src/lib/Makefile, src/lib/config/Makefile,
+	src/lib/config/bgpconf.c, src/lib/config/commconf.c,
+	src/lib/config/config_file.c, src/lib/config/dvmrpconf.c,
+	src/lib/config/load.c, src/lib/config/multiconf.c,
+	src/lib/config/pimconf.c, src/lib/config/ripconf.c,
+	src/lib/config/rtmapconf.c, src/lib/io/Makefile, src/lib/io/io.c,
+	src/lib/mrt/Makefile, src/lib/mrt/alist.c, src/lib/mrt/buffer.c,
+	src/lib/mrt/compat.c, src/lib/mrt/connect.c, src/lib/mrt/error.c,
+	src/lib/mrt/gateway.c, src/lib/mrt/hashfn.c, src/lib/mrt/mrt.c,
+	src/lib/mrt/nexthop.c, src/lib/mrt/object.c, src/lib/mrt/prefix.c,
+	src/lib/mrt/reboot.c, src/lib/mrt/route_util.c,
+	src/lib/mrt/schedule.c, src/lib/mrt/select.c, src/lib/mrt/trace.c,
+	src/lib/mrt/user.c, src/lib/mrt/user_old.c,
+	src/lib/mrt/user_util.c, src/lib/mrt/util.c, src/lib/mrt/vars.c,
+	src/lib/radix/Makefile, src/lib/radix/demo.c,
+	src/lib/radix/radix.c, src/lib/struct/array.c,
+	src/lib/struct/hash.c, src/lib/struct/linked_list.c,
+	src/lib/struct/Makefile, src/lib/struct/New.c,
+	src/lib/struct/stack.c, src/lib/timer/Makefile,
+	src/lib/timer/nt_alarm.c, src/lib/timer/signal.c,
+	src/lib/timer/test.c, src/lib/timer/timer.c: Initial revision
+
+2000-02-29 17:28  labovit
+
+	* COPYRIGHT, README, samples/irrd.conf.sample, src/config.guess,
+	src/config.sub, src/Make.include, src/Make.include.in,
+	src/Makefile, src/acconfig.h, src/config.log, src/config.status,
+	src/configure, src/configure.in, src/configure.in.orign,
+	src/dos2unix.pl, src/install-sh, src/programs/Makefile,
+	src/programs/hdr_comm/Makefile, src/programs/hdr_comm/hdr_comm.c,
+	src/programs/hdr_comm/hdr_fields.c,
+	src/programs/hdr_comm/read_conf.c, src/programs/hdr_comm/trace.c,
+	src/programs/IRRd/COMMANDS.INFO, src/programs/IRRd/Makefile,
+	src/programs/IRRd/commands.c, src/programs/IRRd/config.c,
+	src/programs/IRRd/database.c, src/programs/IRRd/db1_support.c,
+	src/programs/IRRd/dbm_support.c, src/programs/IRRd/hash_spec.c,
+	src/programs/IRRd/indicies.c, src/programs/IRRd/irr_lexer.y,
+	src/programs/IRRd/irr_parser.y, src/programs/IRRd/irrd.h,
+	src/programs/IRRd/irrd_prototypes.h, src/programs/IRRd/irrd_util.c,
+	src/programs/IRRd/journal.c, src/programs/IRRd/llstackaux.c,
+	src/programs/IRRd/main.c, src/programs/IRRd/mirror.c,
+	src/programs/IRRd/route.c, src/programs/IRRd/rpsl_commands.c,
+	src/programs/IRRd/rwlock.c, src/programs/IRRd/rwlock.h,
+	src/programs/IRRd/sample.conf, src/programs/IRRd/scan.c,
+	src/programs/IRRd/scan.h, src/programs/IRRd/telnet.c,
+	src/programs/IRRd/templates.c, src/programs/IRRd/uii_commands.c,
+	src/programs/IRRd/update.c, src/programs/IRRd/util.c,
+	src/programs/irrdcacher/README, src/programs/irrdcacher/irrdcacher,
+	src/programs/irrdcacher/ripe2rpsl, src/programs/irrd_ops/Makefile,
+	src/programs/irrd_ops/irrd_ops.c,
+	src/programs/irrdcacher/sample-cron,
+	src/programs/irrdcacher/update_source,
+	src/programs/irrdcacher/wget.2.5.1,
+	src/programs/irrdcacher/wget.2.6,
+	src/programs/irrdcacher/wget.bsdi,
+	src/programs/irrdcacher/wget.dec,
+	src/programs/irrdcacher/wget.freebsd,
+	src/programs/irrdcacher/wget.sun4,
+	src/programs/irr_notify/Makefile, src/programs/irr_notify/main.c,
+	src/programs/irr_notify/notify.c,
+	src/programs/irr_notify/notify_msgs.c,
+	src/programs/irr_notify/trans_hdrs.c,
+	src/programs/irr_notify/util.c,
+	src/programs/irr_rpsl_check/Makefile,
+	src/programs/irr_rpsl_check/attr_tokens.pl,
+	src/programs/irr_rpsl_check/canonical.c,
+	src/programs/irr_rpsl_check/dictionary.c,
+	src/programs/irr_rpsl_check/hdr_build.c,
+	src/programs/irr_rpsl_check/irr_attrs.c,
+	src/programs/irr_rpsl_check/main.c,
+	src/programs/irr_rpsl_check/prefix.c,
+	src/programs/irr_rpsl_check/ripedb.config,
+	src/programs/irr_rpsl_check/rpsl.fl,
+	src/programs/irr_rpsl_check/rpsl.y,
+	src/programs/irr_ripe181_check/attr_tokens.pl,
+	src/programs/irr_rpsl_check/syntax_attrs.c,
+	src/programs/irr_rpsl_check/util.c,
+	src/programs/irr_submit/Makefile, src/programs/irr_submit/auth.c,
+	src/programs/irr_submit/call_pipeline.c,
+	src/programs/irr_submit/comdata.c, src/programs/irr_submit/example,
+	src/programs/irr_submit/example.1,
+	src/programs/irr_submit/example.2,
+	src/programs/irr_submit/mailchk.c, src/programs/irr_submit/main.c,
+	src/programs/irr_submit/notifyif.c,
+	src/programs/irr_submit/pgpchk.c,
+	src/programs/irr_submit/sample_config_file,
+	src/programs/irr_submit/synchkif.c,
+	src/programs/irr_submit/trans_list.c,
+	src/programs/irr_submit/util.c, src/programs/irr_util/IRR_query.pl,
+	src/programs/irr_util/README, src/programs/irr_util/crypt_gen.c,
+	src/programs/irr_util/irrd_log_report.pl,
+	src/programs/irr_util/mailloop.pl,
+	src/programs/irr_util/ripe_subset.pl,
+	src/programs/irr_ripe181_check/Makefile,
+	src/programs/irr_ripe181_check/canonical.c,
+	src/programs/irr_ripe181_check/hdr_build.c,
+	src/programs/irr_ripe181_check/irr_attrs.c,
+	src/programs/irr_ripe181_check/lex.yy.c,
+	src/programs/irr_ripe181_check/main.c,
+	src/programs/irr_ripe181_check/prefix.c,
+	src/programs/irr_ripe181_check/ripe181.fl,
+	src/programs/irr_ripe181_check/ripe181.output,
+	src/programs/irr_ripe181_check/ripe181.tab.c,
+	src/programs/irr_ripe181_check/ripe181.tab.h,
+	src/programs/irr_ripe181_check/ripe181.y,
+	src/programs/irr_ripe181_check/sample.conf,
+	src/programs/irr_ripe181_check/syntax_attrs.c,
+	src/programs/irr_ripe181_check/test.c,
+	src/programs/irr_ripe181_check/util.c,
+	src/programs/irr_ripe181_check/irr_ripe181_check,
+	src/include/New.h, src/include/alist.h, src/include/api6.h,
+	src/include/array.h, src/include/aspath.h, src/include/assert.h,
+	src/include/bgp.h, src/include/bgp_proto.h, src/include/buffer.h,
+	src/include/cache.h, src/include/community.h, src/include/config.h,
+	src/include/config.h.in, src/include/config_file.h,
+	src/include/defs.h, src/include/dvmrp.h, src/include/filter.h,
+	src/include/flist.h, src/include/hash.h, src/include/hdr_comm.h,
+	src/include/igmp.h, src/include/interface.h, src/include/io.h,
+	src/include/irr_check.h, src/include/irr_notify.h,
+	src/include/irr_rpsl_check.h, src/include/irrauth.h,
+	src/include/irrd_ops.h, src/include/linked_list.h,
+	src/include/monitor.h, src/include/mrt.h, src/include/mrt_errno.h,
+	src/include/mrt_thread.h, src/include/ntconfig.h,
+	src/include/object.h, src/include/ospf_proto.h, src/include/pim.h,
+	src/include/pipeline_defs.h, src/include/pipeline_defs.h.in,
+	src/include/port_serv_lib.h, src/include/proto.h,
+	src/WindowsVisualC++/IRR/IRR.dsw, src/WindowsVisualC++/IRR/IRR.ncb,
+	src/WindowsVisualC++/IRR/IRR.opt,
+	src/WindowsVisualC++/IRRd/IRRd.dsp,
+	src/WindowsVisualC++/IRRd/IRRd.dsw,
+	src/WindowsVisualC++/IRRd/IRRd.ncb,
+	src/WindowsVisualC++/IRRd/icon1.ico, src/include/protoconf.h,
+	src/include/pthread_fake.h, src/include/radix.h,
+	src/include/read_conf.h, src/include/rib.h, src/include/rip.h,
+	src/include/ripng.h, src/include/schedule.h, src/include/select.h,
+	src/include/stack.h, src/include/timer.h, src/include/trace.h,
+	src/include/trace2.h, src/include/user.h, src/include/version.h,
+	src/include/view.h, src/WindowsVisualC++/IRRd/IRRd.opt,
+	src/WindowsVisualC++/IRRd/IRRd.plg,
+	src/WindowsVisualC++/IRRd/Script2.aps,
+	src/WindowsVisualC++/IRRd/Script2.rc,
+	src/WindowsVisualC++/IRRd/Script3.aps,
+	src/WindowsVisualC++/IRRd/Script3.rc,
+	src/WindowsVisualC++/IRRd/resource.h,
+	src/WindowsVisualC++/IRRd/Debug/IRRd.bsc, src/lib/Make.include,
+	src/lib/Makefile, src/lib/config/Makefile,
+	src/lib/config/bgpconf.c, src/lib/config/commconf.c,
+	src/lib/config/config_file.c, src/lib/config/dvmrpconf.c,
+	src/lib/config/load.c, src/lib/config/multiconf.c,
+	src/lib/config/pimconf.c, src/lib/config/ripconf.c,
+	src/lib/config/rtmapconf.c, src/lib/io/Makefile, src/lib/io/io.c,
+	src/lib/mrt/Makefile, src/lib/mrt/alist.c, src/lib/mrt/buffer.c,
+	src/lib/mrt/compat.c, src/lib/mrt/connect.c, src/lib/mrt/error.c,
+	src/lib/mrt/gateway.c, src/lib/mrt/hashfn.c, src/lib/mrt/mrt.c,
+	src/lib/mrt/nexthop.c, src/lib/mrt/object.c, src/lib/mrt/prefix.c,
+	src/lib/mrt/reboot.c, src/lib/mrt/route_util.c,
+	src/lib/mrt/schedule.c, src/lib/mrt/select.c, src/lib/mrt/trace.c,
+	src/lib/mrt/user.c, src/lib/mrt/user_old.c,
+	src/lib/mrt/user_util.c, src/lib/mrt/util.c, src/lib/mrt/vars.c,
+	src/lib/radix/Makefile, src/lib/radix/demo.c,
+	src/lib/radix/radix.c, src/lib/struct/array.c,
+	src/lib/struct/hash.c, src/lib/struct/linked_list.c,
+	src/lib/struct/Makefile, src/lib/struct/New.c,
+	src/lib/struct/stack.c, src/lib/timer/Makefile,
+	src/lib/timer/nt_alarm.c, src/lib/timer/signal.c,
+	src/lib/timer/test.c, src/lib/timer/timer.c: [no log message]
+

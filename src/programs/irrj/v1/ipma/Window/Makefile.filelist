@@ -1,0 +1,8 @@
+ALLCLASSFILES = CWindow.class \
+                CPopupWindow.class \
+                CWindow.class \
+                ColoredMultiList.class \
+#                DateMenu.class \
+#                DateMenuItem.class \
+		TimeZoneMenu.class \
+		TimeZoneMenuItem.class

@@ -1,0 +1,8 @@
+#Fri Jun 23 21:31:40 EDT 2000
+pgpexe=pgpo
+submitserver=localhost
+pgpring=/home/smasher/.pgp
+pgpuid=polandj@merit.edu
+submitport=7777
+queryserver=whois.radb.net
+queryport=43

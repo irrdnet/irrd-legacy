@@ -1,0 +1,66 @@
+From test@merit.edu  Fri Sep  4 16:28:45 1998
+Return-Path: test@merit.edu
+Received: from home.merit.edu
+	by fetchmail-4.5.5 POP3
+	for <dogcow/localhost> (single-drop); Fri, 04 Sep 1998 16:28:45 EDT
+Received: from zerbina.merit.edu (zerbina.merit.edu [198.108.60.181]) by home.merit.edu (8.8.8/merit-2.0) with ESMTP id QAA24249 for <dogcow@home.merit.edu>; Fri, 4 Sep 1998 16:27:13 -0400 (EDT)
+Received: (from dogcow@localhost)
+	by zerbina.merit.edu (8.9.1a/8.9.1) id QAA17207
+	for dogcow@home.merit.edu; Fri, 4 Sep 1998 16:27:12 -0400 (EDT)
+Date: Fri, 4 Sep 1998 16:27:12 -0400 (EDT)
+From: Test User <user@localhost>
+Message-Id: <199809042027.QAA17207@zerbina.merit.edu>
+To: auto-dbm@localhost
+Subject:  Test message
+Status: RO
+Content-Length: 443
+Lines: 18
+
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA1
+
+route:           198.108.0.0/14
+descr:          NET-NORTHEASTERN-NET
+origin:         AS237
+mnt-by:         MAINT-GERALD
+changed:        ops@bbnplanet.com 980203
+source:         RADB
+
+-----BEGIN PGP SIGNATURE-----
+Version: PGPfreeware 5.0i for non-commercial use
+Charset: noconv
+
+iQA/AwUBNfBNCEFtBFOqB1wUEQIvTACgjA34CBYL6GyrBCalOJf4RxajtLoAn30s
+nzeFndh+IiSLOkJzdtis0tL1
+=jJ8Y
+-----END PGP SIGNATURE-----
+
+route:          198.108.0.0/18
+descr:          PSINet, Inc.
+origin:         AS229
+mnt-by:         MAINT-GERALD
+changed:        hostinfo@psi.com 971117
+source:         RADB
+
+-----BEGIN PGP SIGNED MESSAGE-----
+
+route:          141.211.0.0/16
+descr:          University of Michigan - Ann Arbor
+descr:          1075 Beal Avenue
+descr:          Ann Arbor
+descr:          MI 48109-2112, USA
+origin:         AS237
+advisory:       AS690 1:3561
+mnt-by:         MERIT-MAINT-MCI
+changed:        jmd@merit.edu 950405
+source:         TEST 
+
+
+-----BEGIN PGP SIGNATURE-----
+Version: 2.6.3
+Charset: noconv
+
+iQBVAwUBNgAqKLnkMQj6e94BAQHNTQH9HWLFmGzQuwbyhGk7mRkIyoi57rhkKycm
+24vX8Zea99qRy6LkqGwEHCVi/nHM46DPpvKzgBXCPAZowJPiXX0svg==
+=Ma7X
+-----END PGP SIGNATURE-----

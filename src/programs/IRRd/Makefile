@@ -1,0 +1,45 @@
+#
+# $Id: Makefile,v 1.16 2001/08/17 16:31:47 ljb Exp $
+# * originally Id: Makefile,v 1.53 1998/08/07 00:13:32 gerald Exp 
+#
+
+include ../../Make.include
+
+GOAL   = irrd
+
+OBJS   = main.o telnet.o scan.o config.o  commands.o database.o update.o mirror.o uii_commands.o journal.o indicies.o rpsl_commands.o route.o dbm_support.o hash_spec.o db1_support.o templates.o irrd_util.o mirrorstatus.o statusfile.o atomic_trans.o $(MRTLIB) $(CFGLIB)
+
+IRRD_LIBS = -L../atomic_ops -latomic_ops -L../compat -lcompat
+
+all:  $(GOAL) 
+
+irrd: $(OBJS)
+	echo "Linking: $(LD) $(LDFLAGS) $(OBJS) -o $@"
+	$(LD) $(LDFLAGS) $(OBJS) -o $@ $(SYS_LIBS) $(IRRD_LIBS) $(DB_LIB)
+
+$(GOAL).purify:	$(OBJS) 
+	$(PURIFY) -follow-child-processes $(LD) $(LDFLAGS) $(OBJS) -o $@ $(SYS_LIBS) $(DB_LIB) $(IRRD_LIBS)
+
+$(GOAL).quantify: $(OBJS) 
+	$(QUANTIFY) $(LD) $(LDFLAGS) $(OBJS) -o $@ $(SYS_LIBS) $(KVM_LIB) $(DB_LIB) $(IRRD_LIBS)
+
+$(GOAL).lint:
+	lint $(CPPFLAGS) `echo $(OBJS) | sed -e 's,\.o,.c,g'`
+
+install: $(GOAL)
+	$(INSTALL) -m 755 $(GOAL) $(DESTDIR)/$(GOAL)
+
+install-man: irrd.8
+	$(INSTALL) -m 644 irrd.8 $(MANDIR)/man8/irrd.8
+
+clean:
+	$(RM) *.o core *.core *~* *.quanitfy *.purify $(GOAL)
+
+*.o: ./irrd.h ./scan.h ./irrd_prototypes.h ../atomic_ops/libatomic_ops.a ../compat/libcompat.a
+
+depend:
+	$(MAKEDEP) $(CFLAGS) $(CPPFLAGS) $(DEFINES) *.c
+
+
+# DO NOT DELETE THIS LINE -- make depend depends on it.
+

@@ -1,0 +1,10 @@
+ALLCLASSFILES =	\
+	ForbiddenTargetException.class	\
+	ParameterizedStringTarget.class	\
+	ParameterizedTarget.class	\
+	Principal.class	\
+	Privilege.class	\
+	PrivilegeManager.class	\
+	PrivilegeTable.class	\
+	Target.class	\
+	UserTarget.class

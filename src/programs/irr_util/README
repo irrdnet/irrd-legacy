@@ -1,0 +1,19 @@
+$Id: README,v 1.2 2000/08/03 17:11:20 gerald Exp $
+
+Utility programs
+
+attr_tokens.pl uses ripedb.config as input to create data structures
+for the parse.  See attr_tokens.pl for details.
+
+create_templates.pl uses templates.config to create the object templates
+used to satisfy the '-t' IRRd command.  See create_templates.pl for more
+details.
+
+crypt_gen.c is a C-program which generates encrypted keys. 
+
+mailloop.pl is used in the pipeline call to irr_submit to detect
+mail loops and take appropriate action.
+
+ripe_subset.pl can take an allocation DB (eg, ripe) and filter
+the route objects, thus reducing the DB size significantly (eg,
+for ftp export)

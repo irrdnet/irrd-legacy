@@ -1,0 +1,21 @@
+$Id: README,v 1.2 2001/09/18 17:25:48 ljb Exp $
+
+This is the source distribution of the Internet 
+Routing Registry Daemon (IRRd).
+
+Source code and documentation for IRRd is available online at:
+  http://www.irrd.net
+
+Also, a user guide is included as part of the distribution as
+irrd-user.pdf.
+
+Send email to irrd-support@irrd.net for assistence/bug/comments.
+
+A mailing list, irrd-discuss@irrd.net is also available for 
+IRRd users to share advice and experiences with the daemon.
+Send mail to irrd-discuss-request@irrd.net for subscriptions/list
+administravia requests.
+
+Please note that IRRj, a Java interface for IRRd, is not supported
+by Merit at present.  Also, the Windows port of IRRd is no longer
+being actively maintained/supported.

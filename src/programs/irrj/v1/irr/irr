@@ -1,0 +1,5 @@
+#!/bin/sh
+
+java irr.IRRj whois.radb.net 43
+
+

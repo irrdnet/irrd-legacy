@@ -1,0 +1,1068 @@
+%option case-insensitive
+
+%{
+#include <stdio.h>
+#include <sys/types.h>
+#include <string.h>
+#include <ctype.h>
+#include <unistd.h>
+#include "y.tab.h"
+#include <irr_defs.h>
+#include <irr_rpsl_check.h>
+
+#define YY_USER_INIT init_scanner()
+
+void init_scanner ();
+
+extern parse_info_t curr_obj;
+extern canon_info_t canon_obj;
+extern int int_size;
+extern int too_many_size;
+extern char *too_many_errors;
+extern char parse_buf[];
+extern int CANONICALIZE_OBJS_FLAG;
+extern int QUICK_CHECK_FLAG;
+extern char *attr_hash[][MAX_ATSQ_LEN];
+extern short attr_map_field[][MAX_ATSQ_LEN];
+extern FILE *dfile;
+void yyerror (char *);
+
+void string_token             ();
+void copy_line                ();
+void copy_line_direct         (parse_info_t *ob, canon_info_t *co, int lcount);
+static enum ATTRS find_class  (parse_info_t *, char *);
+static enum ATTRS find_attr_2 (enum OBJS, char *);
+int is_cookie_attr            (char *); 
+
+int is_printable_char (char *line);
+void string_token ();
+void string_token_2 ();
+char cpl[MAXLINE];
+int start_of_object = 1;
+int start_new_line  = 1;
+int lncont = 0;
+int free_text_flag       = 0;
+int parse_attr_flag      = 0;
+int expect_operator_flag = 0;
+int blob_mode_flag       = 0;
+int skip_object_flag     = 0;
+int skip_attr_flag       = 0;
+int expect_protocol_flag = 0;
+int certif_flag          = 0;
+int intra_bl;  /* JW later this should be taken out of canonical.c */
+long file_pos;
+
+/* orig skip obj
+  \n{LNCONT} { 
+    lncont = 1;
+    copy_line_direct (&curr_obj, &canon_obj, 0);
+    fprintf (dfile, "\\nLNCONT:(%s)\n", yytext);
+    }
+
+  \n { 
+    copy_line_direct (&curr_obj, &canon_obj, 0);
+    BEGIN(CP_LINE);
+    fprintf (dfile, "\\n      :(%s)\n", yytext);
+    return T_NEWLINE;
+    }
+
+  .+ { 
+    copy_line_direct (&curr_obj, &canon_obj, 0);
+    fprintf (dfile, ".+       :(%s)\n", yytext);
+    }
+*/
+/* support for reading in the standard RPSL dictionary */
+FILE  *my_yyin;
+int wrap_count = 0;
+int parse_RPSL_dictionary;
+
+
+/* JW must support if needed later */
+int err_line_printed = 0;
+
+/* count of the current line number we are parsing */
+int lineno = 1;
+
+/* current char position of the line we are parsing */
+int tokenpos = 0;
+
+/* threshold for too many fields */
+/* default is 1 */
+int correct_num_fields;
+
+/* token count of the current line */
+int token_count = 0;
+
+int ERROR_STATE;
+int eof_count = 0;
+
+int n, i, no_colon;
+u_int ri_opts;
+long fpos;
+char c, *p;
+
+
+/*--------token -> int map----*/
+int attr_tokens[MAX_ATTRS] = {
+T_DN_KEY, T_ZC_KEY, T_NS_KEY, T_SD_KEY, T_DI_KEY, T_RF_KEY, T_IN_KEY,
+T_NA_KEY, T_CY_KEY, T_AY_KEY, T_II_KEY, T_GW_KEY, T_RZ_KEY, T_SU_KEY,
+T_RE_KEY, T_QA_KEY, T_RU_KEY, T_SA_KEY, T_ST_KEY, T_RC_KEY, T_EX_KEY,
+T_HI_KEY, T_RA_KEY, T_KC_KEY, T_MH_KEY, T_OW_KEY, T_FP_KEY, T_CT_KEY,
+T_DC_KEY, T_AC_KEY, T_TD_KEY, T_RP_KEY, T_PL_KEY, T_EN_KEY, T_CH_KEY,
+T_DE_KEY, T_HO_KEY, T_MB_KEY, T_NY_KEY, T_OR_KEY, T_RM_KEY, T_RT_KEY,
+T_SO_KEY, T_MO_KEY, T_IJ_KEY, T_CO_KEY, T_AB_KEY, T_AR_KEY, T_EC_KEY,
+T_AN_KEY, T_AA_KEY, T_IP_KEY, T_EP_KEY, T_DF_KEY, T_TC_KEY, T_MF_KEY,
+T_IR_KEY, T_AZ_KEY, T_LA_KEY, T_IF_KEY, T_PE_KEY, T_MR_KEY, T_RI_KEY,
+T_RX_KEY, T_AS_KEY, T_MS_KEY, T_MY_KEY, T_RS_KEY, T_ME_KEY, T_RR_KEY,
+T_MG_KEY, T_PS_KEY, T_PR_KEY, T_FS_KEY, T_FR_KEY, T_PN_KEY, T_AD_KEY,
+T_PH_KEY, T_FX_KEY, T_EM_KEY, T_NH_KEY, T_RO_KEY, T_TB_KEY, T_MT_KEY,
+T_DT_KEY, T_MN_KEY, T_AT_KEY, T_UD_KEY, T_UO_KEY, T_UP_KEY, T_UC_KEY
+};
+
+
+int reserved_word_token[MAX_RESERVED_WORDS] = {
+T_ANY, T_AS_ANY, T_RS_ANY, T_PEERAS, T_AND, T_OR, T_NOT,
+T_ATOMIC, T_FROM, T_TO, T_AT, T_ACTION, T_ACCEPT, T_ANNOUNCE,
+T_EXCEPT, T_REFINE, T_NETWORKS, T_INTO, T_INBOUND, T_OUTBOUND,
+T_UPON, T_HAVE_COMPONENTS, T_EXCLUDE, T_STATIC, T_UNION, T_LIST,
+T_OF, T_OPERATOR, T_MANDATORY, T_OPTIONAL, T_PROTOCOL, T_MASKLEN,
+T_RI_IMPORT, T_RX_EXPORT, T_IRRORDER};
+
+char *reserved_word[MAX_RESERVED_WORDS] = {
+"any", "as-any", "rs-any", "peeras", "and", "or", "not",
+"atomic", "from", "to", "at", "action", "accept", "announce",
+"except", "refine", "networks", "into", "inbound", "outbound",
+"upon", "have-components", "exclude", "static", "union", "list",
+"of", "operator", "mandatory", "optional", "protocol", "masklen",
+"import", "export", "irrorder"};
+
+char *reserved_prefix[MAX_RESERVED_PREFIXES] = {
+"as-", "rs-", "rtrs-", "fltr-", "prng-"};
+
+char *predef_type[MAX_PREDEF_TYPES] = {
+"integer", "real", "enum", "string", "boolean", "rpsl_word", "free_text", "email",
+"as_number", "ipv4_address", "address_prefix", "address_prefix_range",
+"dns_name", "filter", "as_set_name", "route_set_name", "rtr_set_name",
+"filter_set_name", "peering_set_name"};
+
+char *data_type[MAX_DATA_TYPES] = {
+"predefined", "union", "typedef", "list"};
+
+%}
+
+
+/* JW take out
+{NUM}:{NUM} {
+  unsigned int ms, ls;
+  char *colon = strchr(yytext, ':');
+  *colon = 0;
+  ms = atoi(yytext);
+  ls = atoi(colon+1);
+  if (ms > 65535 || ls > 65535)
+    return T_JUNK;
+
+  *colon = ':';
+  string_token ();
+  return T_NUM;
+  }
+*/
+
+NWS             [^ \t\r\n]
+/*
+LNCONT         	[ \t\r#\+]
+*/
+LNCONT		(#|\+|[ \t\r]+{NWS}+.*)
+SPACE   	[\t ]
+PREFIX  	[0-9]+"."[0-9]+"."[0-9]+"."[0-9]+"/"[0-9]+
+SPREFIX  	[0-9]+"."[0-9]+"."[0-9]+"."[0-9]+
+/*TIMEINTERVAL    [[:digit:]]{4}[ \t]+[[:digit:]]{2}":"[[:digit:]]{2}":"[[:digit:]]{2}*/
+NUM            	[[:digit:]]+
+REAL           	[+-]?{NUM}?\.{NUM}(E[+-]?{NUM})?
+DNAME 		[[:alnum:]_-]+
+PREFIXRNG 	{PREFIX}("^+"|"^-"|"^"{NUM}|"^"{NUM}-{NUM})
+REGEX_RANGE     \{{NUM}(,{NUM}?)?\}
+KCHEXID		"PGPKEY-"[[:xdigit:]]{8}
+RPSQUERY        "RPS-QUERY://"
+WHOIS           "WHOIS://"
+MAILTO          "MAILTO://"
+FTP             "FTP://"
+REFER_KEYWORD   "RIPE"|"SIMPLE"|"INTERNIC"|"CLIENTADDRESS"
+PGPKEY		"PGP-KEY"
+MAILFROM 	"MAIL-FROM"
+CRYPTPW 	"CRYPT-PW"
+NONE 		"NONE"
+ANY      	"ANY"
+AT       	"AT"
+AS      	"AS"[1-9][0-9]*
+NAME           	[[:alpha:]]([[:alnum:]_-]*[[:alnum:]])?
+ASNAME         	AS-[[:alnum:]_-]*[[:alnum:]]
+RSNAME         	RS-[[:alnum:]_-]*[[:alnum:]]
+RTRSNAME       	RTRS-[[:alnum:]_-]*[[:alnum:]]
+PRNGNAME       	PRNG-[[:alnum:]_-]*[[:alnum:]]
+FLTRNAME       	FLTR-[[:alnum:]_-]*[[:alnum:]]
+EMAIL   	([^ \t\n]*|\"[^\"]+\")"@"[^ \t\n]*
+RADIX64		[[[:alnum:]\+\/=]+
+
+
+%s CP_LINE PARSE_ATTR SKIP_OBJECT SKIP_ATTR EXPECT_OPERATOR FREE_TEXT
+%s BLOB_MODE EXPECT_PROTOCOL CERTIF
+
+
+%%
+
+<CP_LINE>{
+.*\n? {
+
+    if (start_new_line) {
+      curr_obj.eline_len = 0;
+      curr_obj.elines    = 0;
+      tokenpos           = 0;
+      fseek (canon_obj.efd, 0, SEEK_SET);
+    }
+
+    copy_line (&curr_obj, &canon_obj);
+
+    if (free_text_flag) {
+      free_text_flag = 0;
+      BEGIN(FREE_TEXT);
+    }
+    else if (parse_attr_flag) {
+      parse_attr_flag = 0;
+      BEGIN(PARSE_ATTR);
+    }
+    else if (expect_operator_flag) {
+      expect_operator_flag = 0;
+      BEGIN(EXPECT_OPERATOR);
+    }
+    else if (blob_mode_flag) {
+      blob_mode_flag = 0;
+      BEGIN(BLOB_MODE);
+    }
+    else if (skip_attr_flag) {
+     skip_attr_flag = 0;
+     BEGIN (SKIP_ATTR);
+    } 
+    else if (skip_object_flag) {
+     skip_object_flag = 0;
+     BEGIN (SKIP_OBJECT);
+    } 
+    else if (expect_protocol_flag) {
+     expect_protocol_flag = 0;
+     BEGIN (EXPECT_PROTOCOL);
+    }
+    else if (certif_flag) {
+      certif_flag = 0;
+fprintf (dfile, "CP_LINE: setting state to <CERTIF>\n");
+      BEGIN (CERTIF);
+    }
+    else {
+fprintf (dfile, "setting state to INITIAL...\n");
+      BEGIN(INITIAL); 
+}
+  }
+}
+
+<<EOF>> {
+fprintf (dfile, "enter <eof> error_state=(%d) eof_count=(%d)\n", ERROR_STATE, eof_count);
+    if (++eof_count == 1) {
+/*tfprintf (dfile, "<EOF> return newline\n");*/
+      return T_NEWLINE; 
+    }
+    else {
+/*tfprintf (dfile, "<EOF> return eof eof_count (%d)\n", eof_count); */
+      return T_EOF;
+    }
+}
+
+<SKIP_OBJECT>{
+
+\n {
+  file_pos = ftell (canon_obj.efd);
+  skip_object_flag = 1;
+  BEGIN(CP_LINE);
+  }
+
+\n/([ \t\r]*\n) {
+  BEGIN(CP_LINE);
+  return T_NEWLINE;
+  }
+
+.+ { 
+   if (is_cookie_attr (yytext)) {
+     save_cookie_info (&curr_obj, yytext);
+     curr_obj.eline_len -= (ftell (canon_obj.efd) - file_pos);
+     curr_obj.elines--;
+     fseek (canon_obj.efd, file_pos, SEEK_SET);
+   }
+   }
+}
+
+<BLOB_MODE>{
+
+\n/{LNCONT} { 
+   blob_mode_flag = 1; 
+   BEGIN(CP_LINE); 
+   };
+
+\n { BEGIN(CP_LINE);
+fprintf (dfile, "BLOB_MODE: return T_NEWLINE\n");
+     return T_NEWLINE;
+   }
+
+{NWS}+      {
+   string_token ();
+   return T_BLOB;
+  }
+}
+
+<FREE_TEXT>{
+
+\n/{LNCONT} { 
+fprintf (dfile, "FREE_TEXT: BEGIN(CP_LINE) found line continuation\n");
+   free_text_flag = 1; 
+   BEGIN(CP_LINE); 
+   }
+
+\n {
+fprintf (dfile, "FREE_TEXT: BEGIN(CP_LINE) found a '\\n'\n");
+   BEGIN(CP_LINE);
+   return T_NEWLINE;
+   }
+
+.*[^ \n\t][^\n]* { /* this will accept comments */
+fprintf (dfile, "FREE_TEXT: BEGIN(CP_LINE) returning T_NON_NULL_LINE\n");
+     string_token ();
+     return T_NON_NULL_LINE;
+   }
+}
+
+<SKIP_ATTR>{
+
+.*\n/{LNCONT} { 
+fprintf (dfile, "<SKIP_ATTR>: lncont (%s)\n", yytext);
+   skip_attr_flag = 1; 
+   BEGIN(CP_LINE); 
+   };
+
+.*\n { 
+   BEGIN(CP_LINE);
+fprintf (dfile, "SKIP_ATTR: return T_NEWLINE\n");
+   return T_NEWLINE;
+   }
+}
+
+
+<CERTIF>{
+\n/{LNCONT} { incr_tokenpos (tokenpos);
+              certif_flag = 1;
+              BEGIN(CP_LINE);
+            }
+
+{SPACE}+|#.* { fprintf (dfile, "CERTIF: return {SPACE}\n"); incr_tokenpos (tokenpos); }
+
+"-----BEGIN PGP PUBLIC KEY BLOCK-----" {
+   string_token ();
+fprintf (dfile, "LEX: returning T_BEGIN_PGP_BLOCK (%s)\n", yytext);
+   return T_BEGIN_PGP_BLOCK;
+  }
+
+[^ \t:\n]+":".+ {
+   string_token ();
+fprintf (dfile, "LEX: returning T_VERSION (%s)\n", yytext);
+   return T_VERSION;
+  }
+
+{RADIX64}+ {
+   string_token ();
+   return T_RADIX64;
+  }
+
+"-----END PGP PUBLIC KEY BLOCK-----" {
+   string_token ();
+fprintf (dfile, "LEX: return T_END_PGP_BLOCK, setting expect_lncont_flag = 1\n");
+   return T_END_PGP_BLOCK;
+  }
+
+}
+
+^{NAME}:? {
+fprintf (dfile, "Enter {NAME}: state (%s)...\n", yytext);
+   token_count = 1;
+   incr_tokenpos (tokenpos);
+   no_colon = 0;
+   if (*(yytext + yyleng - 1) == ':') 
+     *(yytext + yyleng - 1) = 0; /* remove ':' */
+   else
+     no_colon = 1;
+
+fprintf (dfile, "no_colon=(%d)\n", no_colon);
+
+   if (start_of_object) {
+      start_of_object = 0;
+      if (no_colon ||
+          find_class (&curr_obj, yytext) == F_NOATTR) {
+        error_msg_queue (&curr_obj, "Unrecognized class type", ERROR_MSG);
+        BEGIN(SKIP_OBJECT);
+        return T_JUNK;
+      }
+      else {
+        if (curr_obj.curr_attr == F_RO ||
+            curr_obj.curr_attr == F_PN)
+          BEGIN(FREE_TEXT);
+        else
+          BEGIN(PARSE_ATTR);
+        canonicalize_key_attr (&curr_obj, &canon_obj, 0);
+        return attr_tokens[curr_obj.curr_attr];
+      }
+   }
+
+  if (no_colon ||
+      (curr_obj.curr_attr = find_attr_2 (curr_obj.type, yytext)) == F_NOATTR) {
+    BEGIN(SKIP_ATTR);
+fprintf (dfile, "couldn't find attribute (%s)\n", yytext);
+    return T_JUNK; 
+  }
+
+  if (curr_obj.curr_attr == F_DE ||
+      curr_obj.curr_attr == F_RM ||
+      curr_obj.curr_attr == F_MH ||
+      curr_obj.curr_attr == F_OW ||
+      curr_obj.curr_attr == F_FP ||
+      curr_obj.curr_attr == F_AD ||
+      curr_obj.curr_attr == F_PH ||
+      curr_obj.curr_attr == F_FX ||
+      curr_obj.curr_attr == F_TB ||
+      curr_obj.curr_attr == F_UD ||
+      curr_obj.curr_attr == F_UP ||
+      curr_obj.curr_attr == F_UC) {
+    BEGIN(FREE_TEXT);    /* Anything goes, even blank lines */
+    if (curr_obj.curr_attr == F_UC) {
+      *(yytext + yyleng - 1) = ':'; /* add back the ':' */
+      yyless (0); /* special processing; pass along entire line */
+      return T_COOKIE;
+    }
+  }
+  else if (curr_obj.curr_attr == F_AC ||
+           curr_obj.curr_attr == F_TC ||
+           curr_obj.curr_attr == F_ZC ||
+           curr_obj.curr_attr == F_NH ||
+	   curr_obj.curr_attr == F_UO)
+    BEGIN(BLOB_MODE);    /* Need to check each non-blank string */
+  else if (curr_obj.curr_attr == F_CT) {/* key certificate field */
+    BEGIN (CERTIF);
+	fprintf (dfile, "LEX: entering CERTIF state\n");
+  }
+  else
+    BEGIN(PARSE_ATTR);
+
+  canonicalize_key_attr (&curr_obj, &canon_obj, 0);
+  return attr_tokens[curr_obj.curr_attr];
+}
+
+<PARSE_ATTR>{
+
+\n/{LNCONT} { 
+  incr_tokenpos (tokenpos);
+  parse_attr_flag = 1;
+  BEGIN(CP_LINE);
+  }
+
+#.*         { incr_tokenpos (tokenpos); }
+{SPACE}+    { incr_tokenpos (tokenpos); }
+
+\n { /* this rule is not matched if there is a line continuation */
+fprintf (dfile, "found a \\n, begin(cp_line)\n");
+   BEGIN(CP_LINE);
+fprintf (dfile, "PARSE_ATTR: return T_NEWLINE\n");
+   return T_NEWLINE;
+   }
+
+{SPREFIX} {
+   if (_is_ipv4_prefix (&curr_obj, yytext, 1)) {
+     if (verbose)
+       fprintf (dfile, "%d T_SPREFIX: %s\n", lineno, yytext);
+     string_token ();
+     return T_SPREFIX;
+   }
+   if (verbose) 
+     fprintf (dfile, "%d T_JUNK: %s\n", lineno,yytext);
+   incr_tokenpos (tokenpos);
+   token_count++;
+   return T_JUNK;
+   }
+
+{PREFIX} {
+   if (_is_ipv4_prefix (&curr_obj, yytext, 0)) {
+     if (verbose)
+       fprintf (dfile, "%d T_PREFIX: %s\n", lineno,yytext);
+     string_token ();
+     return T_PREFIX;
+   }
+   if (verbose) 
+     fprintf (dfile, "%d T_JUNK: %s\n", lineno,yytext);
+   incr_tokenpos (tokenpos);
+   token_count++;
+   return T_JUNK;
+   }
+
+{PREFIXRNG} { 
+   p = strchr (yytext, '^');
+   *p = '\0';
+   if (_is_ipv4_prefix (&curr_obj, yytext, 0)) {
+     *p = '^';
+     if (verbose)
+       fprintf (dfile, "%d T_PREFIXRNG: %s\n", lineno, yytext);
+     string_token ();
+     return T_PREFIXRNG;
+   }
+
+   *p = '^';
+   if (verbose)
+     fprintf (dfile, "%d T_JUNK: %s\n", lineno,yytext);
+   incr_tokenpos (tokenpos);
+   token_count++;
+   return T_JUNK;
+   }
+
+{NUM} { /* num:num rule was above this rule */
+   string_token ();
+   return T_NUM;
+   }
+
+{REAL} {
+   string_token ();
+   return T_REAL;
+   }
+
+
+{AS} { 
+   string_token ();
+   return T_AS;
+   }
+
+
+(({AS}|peeras|{ASNAME}):)*{ASNAME}(:({AS}|peeras|{ASNAME}))* {
+   string_token ();
+   return T_ASNAME;
+   }
+
+(({AS}|peeras|{RSNAME}):)*{RSNAME}(:({AS}|peeras|{RSNAME}))*  {
+   string_token ();
+   return T_RSNAME;
+  }
+
+(({AS}|peeras|{RTRSNAME}):)*{RTRSNAME}(:({AS}|peeras|{RTRSNAME}))*  {
+   string_token ();
+   return T_RTRSNAME;
+  }
+
+(({AS}|peeras|{PRNGNAME}):)*{PRNGNAME}(:({AS}|peeras|{PRNGNAME}))*  {
+   string_token ();
+   return T_PRNGNAME;
+  }
+
+(({AS}|peeras|{FLTRNAME}):)*{FLTRNAME}(:({AS}|peeras|{FLTRNAME}))*  {
+   string_token ();
+   return T_FLTRNAME;
+  }
+
+{KCHEXID} {
+   string_token ();
+   if (curr_obj.curr_attr == F_KC ||
+       curr_obj.curr_attr == F_AT ||
+       curr_obj.curr_attr == F_RC)
+     return T_KCHEXID;
+   else
+     return T_WORD;
+}
+
+{RPSQUERY} {
+   string_token ();
+   return T_RPSQUERY;
+}
+
+{WHOIS} {
+   string_token ();
+   return T_WHOIS;
+}
+
+{MAILTO} {
+   string_token ();
+   return T_MAILTO;
+}
+
+{FTP} {
+   string_token ();
+   return T_FTP;
+}
+
+{PGPKEY} {
+   string_token ();
+   if (curr_obj.curr_attr == F_ST ||
+       curr_obj.curr_attr == F_RU)
+     return T_PGPKEY;
+   else
+     return T_WORD;
+}
+
+{MAILFROM} {
+   string_token ();
+   if (curr_obj.curr_attr == F_AT ||
+       curr_obj.curr_attr == F_ST ||
+       curr_obj.curr_attr == F_RU) {
+     if (curr_obj.curr_attr == F_AT)	
+       BEGIN (BLOB_MODE);
+     return T_MAILFROM;
+   }
+   else
+     return T_WORD;
+}
+
+
+{CRYPTPW} {
+   string_token ();
+   if (curr_obj.curr_attr == F_AT ||
+       curr_obj.curr_attr == F_ST ||
+       curr_obj.curr_attr == F_RU) {
+     if (curr_obj.curr_attr == F_AT)	
+       BEGIN (BLOB_MODE);
+     return T_CRYPTPW;
+   }
+   else
+     return T_WORD;
+}
+
+{NONE} {
+   string_token ();
+   if (curr_obj.curr_attr == F_AT ||
+       curr_obj.curr_attr == F_ST ||
+       curr_obj.curr_attr == F_RU)
+     return T_NONE;
+   else
+     return T_WORD;
+}
+
+{REFER_KEYWORD} {
+   string_token ();
+   if (curr_obj.curr_attr == F_RF)
+     return T_REFER_KEYWORD;
+   else
+     return T_WORD;
+}
+
+"/"{NAME}("/"{NAME})*"/"? { /* directory path */
+   string_token ();
+   return T_DIRPATH;
+}
+
+{NAME} { /* reserved word or rp-attribute, or arbitrary name */
+   string_token ();
+
+   if ((i = is_reserved_word (yytext)) >= 0) {
+      if (i == T_OPERATOR)
+        BEGIN(EXPECT_OPERATOR);
+      else if (i == T_PROTOCOL || i == T_INTO)
+        BEGIN(EXPECT_PROTOCOL);
+      else if (parse_RPSL_dictionary && i == T_STATIC)
+	return T_WORD;
+
+      return i;
+   }
+
+   if (is_RPattr (&rp_attr_ll, yytext) != NULL) {
+      BEGIN(EXPECT_OPERATOR);
+      return T_RP_ATTR;
+   }
+
+   return T_WORD;
+   }
+
+
+{NAME}"."{NAME}  { /* rp-attribute.method or DNS name */
+   char *p = strchr (yytext, '.');
+   *p = 0;
+
+   if (is_RPattr (&rp_attr_ll, yytext) != NULL) {
+      string_token ();
+      *p = '.';
+      yyless ((p - yytext));
+      BEGIN(EXPECT_OPERATOR);
+      return T_RP_ATTR;
+   }
+
+   *p = '.';
+   string_token ();
+   return T_DNAME;
+   }
+
+{DNAME}("."{DNAME})* { /* DNS name */
+   string_token ();
+   if (strchr (yytext, '.') == NULL &&
+       curr_obj.curr_attr != F_SD)
+     return T_JUNK;
+
+   return T_DNAME;
+   }
+
+{EMAIL} {
+   if (curr_obj.curr_attr == F_SA &&
+       !strncasecmp (yytext, "mailto://", 9)) {
+     yyless (9);
+     string_token ();
+     return T_MAILTO;
+   }
+
+   string_token ();
+   if (email_syntax (yytext, &curr_obj))
+     return T_EMAIL;
+   return T_JUNK;
+   }
+
+{REGEX_RANGE} {
+   string_token ();
+   return T_REGEX_RANGE;
+   }
+
+~(\*|\+|{REGEX_RANGE}) {
+   string_token ();
+   return T_OP_TILDA;
+   }
+
+\^- {
+   string_token ();
+   return T_OP_MS;
+   }
+
+\^\+ {
+   string_token ();
+   return T_OP_MS;
+   }
+
+\^{NUM} {
+   string_token ();   
+   return T_OP_MS;
+   }
+
+\^{NUM}-{NUM} {
+   string_token ();
+   return T_OP_MS;
+   }
+
+"..." {
+   string_token ();
+   return T_3DOTS;
+   }
+}
+
+
+<EXPECT_PROTOCOL>{
+
+\n/{LNCONT} { incr_tokenpos (tokenpos);
+              expect_protocol_flag = 1;
+              BEGIN(CP_LINE);
+            }
+
+#.*         { incr_tokenpos (tokenpos); }
+{SPACE}+    { incr_tokenpos (tokenpos); }
+
+{NAME} {
+   string_token ();
+   BEGIN(PARSE_ATTR);
+   if ((i = is_reserved_word (yytext)) >= 0 &&
+       i <= T_OUTBOUND)
+     return T_JUNK;
+   else
+     return T_WORD;
+ }
+
+.|\n {
+   yyless (0); 
+   BEGIN(PARSE_ATTR);
+  }
+}
+
+<EXPECT_OPERATOR>{
+
+\n/{LNCONT} { incr_tokenpos (tokenpos);
+              expect_operator_flag = 1;
+              BEGIN(CP_LINE);
+            }
+
+#.*         { incr_tokenpos (tokenpos); }
+{SPACE}+    { incr_tokenpos (tokenpos); }
+
+
+\n {/* JW need to check this, I think it looks wrong.
+* if we are expecting an operatore (or line cont)
+* then a \n should be an error since no operator
+* was found
+*/
+fprintf (dfile, "\\n begin cp_line (%s)\n", yytext);
+   BEGIN(CP_LINE);
+fprintf (dfile, "EXPECT_OPERATOR: return T_NEWLINE\n");
+   return T_NEWLINE;
+   }
+
+(("<<"|">>"|"+"|"-"|"*"|"/"|"."|"="|"!"|"<"|">")?=|"<"|">"|"()"|"[]") {
+   string_token ();
+   BEGIN(PARSE_ATTR);
+   return T_OP;
+   }
+
+. {
+   yyless (0); 
+   BEGIN(PARSE_ATTR);
+  }
+}
+
+#.*         { fprintf (dfile, "\n\n*******gulping '#' *****\n\n"); 
+              incr_tokenpos (tokenpos); }
+{SPACE}+    { fprintf (dfile, "\n\n*******gulping 'space' *****\n\n"); 
+              incr_tokenpos (tokenpos); }
+
+. { 
+fprintf (dfile, "\n\n**********returning single char (%c)******\n\n", *yytext);
+fprintf (dfile, "NO STATE: single character (%c)\n", *yytext);
+   incr_tokenpos (tokenpos);
+   token_count++;
+   return *yytext;
+   }
+
+\n {
+fprintf (dfile, "returning T_NEWLINE...\n");
+   BEGIN(CP_LINE);
+fprintf (dfile, "NO STATE: string (%s) return T_NEWLINE\n", yytext);
+   return T_NEWLINE;
+   }
+%%
+
+/* flex functions */
+
+void reset_token_buffer () {
+/* if (verbose) fprintf (dfile, "reset_token_buffer ()...\n"); */
+  correct_num_fields = 1;
+  token_count = 0;
+}
+
+
+/* Use for tokens that are of type <string> */
+/* JW: in the end take out the if (curr_obj.curr_attr != ...)
+ * since the goal is to eliminate the token buffer
+ */
+void string_token () {
+
+  /* Syntax error, do not canonicalize tokens */
+  if (ERROR_STATE)
+    return;
+
+  token_count++; /* WARNING: token_count is incremented in copy_token! */	
+  incr_tokenpos (tokenpos); 
+
+  yylval.string = strdup (yytext);
+}
+
+
+
+
+/* Copy the line to the error buffer.
+ * The error buffer is used when an error
+ * occurs on the input line.
+ */
+void copy_line (parse_info_t *ob, canon_info_t *co) {
+  char *yycopy;
+
+  start_new_line = 0;
+  ob->eline_len += yyleng;
+  ob->elines++;
+fprintf (dfile, "\n\ncopy_line (): before write fpos (%ld)\n", ftell (co->efd));
+  fputs (yytext, co->efd);
+  fprintf (dfile, " fpos (%ld) elen (%d) elines (%d) writing line to ebuf:(%s)\n", ftell (co->efd),ob->eline_len,ob->elines, yytext);
+
+  /* If there is no '\n' then we are at the EOF and the last will need
+   * a T_NEWLINE to complete the parse.  'yy_set_bol ()' makes lex '^' 
+   * rules work (ie, '^{NAME}:?').
+   */
+  if (*(yytext + yyleng - 1) != '\n') {
+fprintf (dfile, "COPY_LINE: adding an extra '\\n'\n");
+    fputc ('\n', co->efd);
+    ob->eline_len++;
+    yycopy = strdup (yytext);
+    unput ('\n');
+    for (i = yyleng - 1; i >= 0; --i)
+      unput (yycopy[i]);
+    yy_set_bol (1); /* Without this lex rules that start with '^' wont't work */
+  }
+  else {
+    if (*yytext == '+')
+      yyless (1);
+    else
+      yyless (0);
+  }
+
+}
+
+void copy_line_direct (parse_info_t *ob, canon_info_t *co, int lcount) {
+
+  ob->eline_len += yyleng;
+  ob->elines += lcount;
+
+fprintf (dfile, "\ndirect writing line to ebuf:%s\n", yytext);
+  fputs (yytext, co->efd);
+}
+
+enum ATTRS find_class (parse_info_t *o, char *attr) {
+  int i;
+
+  if (attr == NULL)
+    return F_NOATTR;
+
+  for (i = 0; i < MAX_OBJS; i++)
+    if (!strcasecmp (attr, obj_type[i])) {
+      o->type = (enum OBJS) i;
+      return (o->curr_attr = find_attr_2 (i, attr));
+    }
+
+  return F_NOATTR;
+}
+
+enum ATTRS find_attr_2 (enum OBJS type, char *attr) {
+  int i;
+  
+  if (attr == NULL)
+    return F_NOATTR;
+
+  for (i = 0; *attr_hash[type][i] != '\0'; i++)
+    if (!strcasecmp (attr, attr_hash[type][i]))
+      return (enum ATTRS) attr_map_field[type][i];
+
+  return F_NOATTR;
+}
+
+/* Determine if string 's' is a cookie string.
+ * Cookie strings are inserted into objects
+ * by the email/pgp processing module and has
+ * the date, msg id, subject, and sender info.
+ *
+ * Return:
+ *  1 if is a cookie string
+ *  0 otherwise
+ */
+int is_cookie_attr (char *s) {
+  int ret_val = 0;
+  char *p;
+
+  if (s == NULL)
+    return 0;
+
+  if ((p = strchr (s, ':')) != NULL) {
+    *p = '\0'; /* remove ':' */
+    if (find_attr_2 ((enum OBJS) 1, s) == F_UC)
+      ret_val = 1;
+    *p = ':';
+  }
+
+  return ret_val;
+}
+
+
+void init_scanner () {	
+  extern char *flushfntmpl;
+
+  memset ((char *) &curr_obj, 0, sizeof (curr_obj));
+  start_new_object (&curr_obj, &canon_obj);
+if (verbose) fprintf (dfile, "init_scanner (): curr_obj.num_lines (%d)\n", curr_obj.num_lines);
+  init_regexes ();		
+  reset_token_buffer ();
+  canon_obj.do_canon    = CANONICALIZE_OBJS_FLAG; /* set from command invocation */
+  canon_obj.num_objs    = 0;
+  canon_obj.buffer      = parse_buf;
+  canon_obj.fd          = NULL;
+  canon_obj.flushfntmpl = flushfntmpl;
+  int_size = sizeof (int);
+  too_many_size = strlen (too_many_errors);
+  BEGIN(CP_LINE);
+  ERROR_STATE = 0;
+  ri_opts = 0;
+
+  /* error line template */
+  strcpy (canon_obj.eflushfn, canon_obj.flushfntmpl);
+  mkstemp (canon_obj.eflushfn);
+  if ((canon_obj.efd = fopen (canon_obj.eflushfn, "w+")) == NULL) {
+    fprintf (stderr, "Cannot open error line  buffer (%s).  Abort!\n", 
+	     canon_obj.eflushfn);
+    exit (0);
+  }
+	
+  /* dictionary ll's */
+  type_ll.first    = NULL;
+  type_ll.last     = NULL;
+  rp_attr_ll.first = NULL;
+  rp_attr_ll.last  = NULL;
+  proto_ll.first   = NULL;
+  proto_ll.last    = NULL;
+
+  /* read the standard RPSL dictionary 
+   * then read the normal input stream */
+  my_yyin = yyin;
+  yy_scan_string (RPSL_dictionary);
+  /* let the parser know
+   * 1. do not output the object
+   * 2. only build the data struct's for rp-attr checking
+   */
+  parse_RPSL_dictionary = 1;
+}
+
+int yywrap () {
+
+  if (++wrap_count == 1) {
+fprintf (dfile, "yywrap() state = CP_LINE\n");
+    yy_delete_buffer(YY_CURRENT_BUFFER);
+    yy_switch_to_buffer(yy_create_buffer(my_yyin, YY_BUF_SIZE ));
+    parse_RPSL_dictionary = 0;
+    start_new_object (&curr_obj, &canon_obj);
+    BEGIN(CP_LINE);
+    return 0;
+  }
+
+  return 1;
+}
+
+void yyerror (char *s) {
+  char xbuf[1024];
+
+  fprintf (dfile, "\nn+++++++++yyerror () : error_pos (%d) token_count (%d) correct_fields (%d) num_lines (%d)\n", tokenpos, token_count, correct_num_fields, curr_obj.num_lines);
+
+  /* Stop malloc'ing tokens, we are not
+   * going to canonicalize an error line.
+   * Cut down on memory leaking
+   */
+  ERROR_STATE = 1;
+
+  /* Save the position within the line of the error,
+   * ie, put the '<?>' symbol here.
+   */
+  curr_obj.error_pos = tokenpos;
+
+  if (curr_obj.curr_attr == F_NOATTR) {
+    sprintf (xbuf, "Illegal or unrecognized attribute \"%s\"", yytext);
+    error_msg_queue (&curr_obj, xbuf, ERROR_MSG);
+  }
+/* JW this needs to be resolved, what attr's can be NULL?
+  else if (token_count < 2)
+    error_msg_queue (&curr_obj, "Empty attribute removed", EMPTY_ATTR_MSG);
+*/
+  else if (curr_obj.curr_attr >= MAX_ATTRS)
+    error_msg_queue (&curr_obj, "Internal error attribute too large", ERROR_MSG);
+  else {
+    error_msg_queue (&curr_obj, "Syntax error", ERROR_MSG);
+    
+    /* mark field as seen even though it has an error */
+    curr_obj.attrs[curr_obj.curr_attr]++;
+  }
+
+  /* stop at first error and quit */
+  if (QUICK_CHECK_FLAG) {
+    report_errors (&curr_obj);
+    exit (0);
+  }
+}

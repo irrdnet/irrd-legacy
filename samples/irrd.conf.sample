@@ -1,0 +1,61 @@
+!
+! "Quick Start" IRRd configuration file
+! IRRd Version 2.0 Beta (Nov, 10, 1999)
+!
+! Disable the "User Interactive Port" by
+! commenting out the uii password.
+!
+!password ******
+uii_port 5673
+!
+! Uncomment this out if you want IRRd to send it's
+! trace output to logfile.  Trace output defaults
+! to STDOUT.
+!
+!debug all /var/spool/log/irrd
+!
+! IRRd will cache the databases here.
+irr_directory /var/spool/irr_database
+!
+! This is the IRRd telnet/query port
+irr_port 43
+!
+! Set the mirroring interval in seconds.
+!
+irr_mirror_interval 1800
+!
+! Define the databases.  Note: IRRd assumes the actual
+! database name is <db name>.db.  e.g., radb.db.
+!
+irr_database radb mirror whois.radb.net 43
+irr_database ripe mirror whois.radb.net 43
+irr_database ans mirror whois.radb.net 43
+irr_database canet
+irr_database mci
+!
+! All comments that follow this line are
+! provided to illustrate some of the more advanced
+! IRRd features and are not essential for basic IRRd 
+! operations.
+!
+! Define an access list so that only 
+! 198.108.60.0/24 machines can access IRRd 
+! access-list 10 permit 198.108.60.0 refine
+!
+! Use the access list 
+! irr_database radb access 10
+!
+! syntax for the irr_database command:
+! irr_database <name> [mirror_host <hostname> port <port number>]
+!               [authoritative] [access <num>] [write-access <num>]
+!               [mirror-access <num>]
+!
+! (note: 'write-access' affects the !us...!ue and !B commands.
+!
+! syntax for defining access lists:
+! access-list <number> {permit|deny} <prefix> [refine|exact]
+!
+! syntax for defining databases:
+! irr_database <name> [mirror <mirror host> <mirror port>] [authoritative]
+!               [access <num>] [write-access <num>] [mirror-access <num>]
+!

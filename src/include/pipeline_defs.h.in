@@ -1,0 +1,19 @@
+/* 
+ * $Id
+ */
+
+
+#ifndef _PIPELINEDEFS_H
+#define _PIPELINEDEFS_H
+
+#define SENDMAIL_CMD "@SENDMAIL_PATH@ -t"
+#define MAIL_CMD  "@MAIL_PATH@"
+#define GZIP_CMD  "@GZIP_PATH@"
+#define PGPV    "@PGPV_PATH@"
+#define PGPK    "@PGPK_PATH@"
+#define PGPS    "@PGPS_PATH@"
+#define GPG	"@GPG_PATH@"
+
+
+#endif /* _PIPELINEDEFS_H */
+

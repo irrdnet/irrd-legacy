@@ -1,0 +1,122 @@
+#
+# $Id: COMMANDS.INFO,v 1.3 2000/07/11 20:18:00 jeffhaas Exp $
+ * originally Id: COMMANDS.INFO,v 1.10 1998/07/17 03:07:14 labovit Exp 
+#
+#  ------------------ IRRd Commands --------------------------
+
+IRRd commands implemented:
+
+B command 
+	Build indexes command.
+	Normally issued by 'tcacher' program.
+	eg, !BANS
+g command
+	Get routes with specified origin.
+	eg, !gas1234
+
+h command
+	Get routes with specified community.
+	eg, !hCOMM_NSFNET
+
+i command with option 1
+	Return al: lines of as-macro.  Recursive
+	lookup available.
+	eg, !iAS-ESNETEU     	# non-recursive, don't expand
+				# any embedded marcos
+	eg, !iAS-ESNETEU,1   	# expand any embedded AS marcos
+
+j command
+	View the mirror status (oldest journal number, CURRENTSERIAL) for a db.
+
+	If a : is present after the range, the database was last exported
+	at that serial number.
+
+	eg, !jRADB,RIPE,FOO,BAR
+	eg, !j-*		# Show all databases
+
+	Output:
+
+	A<n>
+	RADB:Y:1000-2000
+	VERIO:Y:3500-4500:4000
+	RIPE:N:0-666
+	FOO:X:<explanatory text - optional>
+	BAR:X:<explanatory text - optional>
+	C
+
+	Y means that the database is mirrorable.
+	N means that the database is not mirrorable, but we're reporting
+  	  the current serial number.  You can use this to check for updates.
+  	  The first number will _always_ be zero.  The second number may be
+  	  zero if the CURRENTSERIAL file doesn't exist.
+	X means that the database doesn't exist, or we're denying information
+  	  about an existing database for administrative reasons.
+
+	Returned DB's are canonicalized to upper case.
+
+man command
+	Get the aut-num object with the specied key.
+	man, -- autnum
+	mam, -- as-macro
+	mcm, -- community
+	mmt, -- maintainer
+	mir, -- inetrouter
+	eg, !man,as1234
+
+q command
+	Quit the trawhoisd session.
+	eg, !q
+
+r command with option l, o, L
+	Route searches.
+        Default finds exact prefix/len match.
+        o - return origin of exact match(es)
+        l - one-level less specific
+	L - all less specific
+	M - all more specific
+	eg, !r141.211.128/24,l
+
+s command
+	Set the sources to the specified list.
+	  Default is all sources.
+	  eg, !sradb,ans
+	lc - show the currently selected sources
+	  eg, !s-lc
+
+t command
+	Set timeout on idle connections. This is for IRR GUI
+        viewers (like ROE/AOE) 
+        t<seconds>
+	eg !t1000
+
+u command
+	Update the database
+	!us<database> -- start update
+	  <ADD | DEL> <OBJECT>
+        !ue -- end update
+
+uwd command
+	Set the global withdrawn flag.
+	!uwd=0 	do not include withdrawn routes
+		in all route output commands (default).
+	!uwd=1	include withdrawn routes in all
+		route output commands.
+
+v command
+	Show the version.  This is the same replay as you'd get from the UII
+	port.  Alternate commands:
+	!v	-- Return a version string to identify the server
+	!-v	-- Backwards compatibility
+	!ver	-- For those who like the succinct but distinguishable
+	version -- For people who like to type
+	
+
+n command
+	Identification of a tool (the name)
+	!n<ascii text>
+	eg !nroe
+
+IRRd treats each database (i.e. radb, ans, mci, ripe) as a
+separate object. As a general algorithm, IRRd will scan each
+database and return an answer from each.
+
