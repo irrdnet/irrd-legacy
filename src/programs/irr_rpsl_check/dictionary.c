@@ -6,6 +6,8 @@
 #include <strings.h>
 #include <string.h>
 #include <regex.h>
+#include <errno.h>
+#include <limits.h>
 
 #include <irr_rpsl_check.h>
 #include <irr_defs.h>
@@ -18,9 +20,11 @@ static int  email_check     (parse_info_t *, char *, predef_t *, int, char *);
 static int  asnum_check     (parse_info_t *, char *, predef_t *, int, char *);
 static int  enum_check      (parse_info_t *, char *, predef_t *, int, char *);
 static int  int_check       (parse_info_t *, char *, predef_t *, int, char *);
-static int  int_check_2     (parse_info_t *, char *, predef_t *, int, char *);
 static int  ipv4_check      (parse_info_t *, char *, predef_t *, int, char *);
 static int  ipv6_check      (parse_info_t *, char *, predef_t *, int, char *);
+
+static int  get_int     (parse_info_t *, char *, int, char *, unsigned long *);
+static int  check_int_range (parse_info_t *, char *, predef_t *, int, unsigned long);
 
 static int  typedef_handler    (parse_info_t *, char *, type_t *, int, 
 				  enum ARG_CONTEXT, char **);
@@ -435,12 +439,24 @@ type_t *create_type (parse_info_t *pi, enum RPSL_DATA_TYPE type, ...) {
     ptype = va_arg (ap, enum PREDEF_TYPE); 
     switch (ptype) {
     case INTEGER:
-      i.lower = atol (va_arg (ap, char *));
-      i.upper = atol (va_arg (ap, char *));
-      t = create_predef (ptype, 1, &i, NULL, NULL);
-      if (i.lower > i.upper)
-	error_msg_queue (pi, "Lower bound value exceeds maximum bound", 
+      i.lower = strtoul (va_arg (ap, char *), NULL, 10);
+      if (i.lower == ULONG_MAX && errno == ERANGE) {
+	error_msg_queue (pi, "Lower bound value exceeds maximum unsigned int", 
 			 ERROR_MSG);
+	break;
+      }
+      i.upper = strtoul (va_arg (ap, char *), NULL, 10);
+      if (i.upper == ULONG_MAX && errno == ERANGE) {
+	error_msg_queue (pi, "Upper bound value exceeds maximum unsigned int", 
+			 ERROR_MSG);
+	break;
+      }
+      if (i.lower > i.upper) {
+	error_msg_queue (pi, "Lower bound value exceeds upper bound", 
+			 ERROR_MSG);
+	break;
+      }
+      t = create_predef (ptype, 1, &i, NULL, NULL);
       break;
     case REAL:
       d.lower = atof (va_arg (ap, char *));
@@ -770,7 +786,7 @@ void print_predef (type_t *t) {
   if (p->ptype == ENUM)
     fprintf (dfile, "%9s%s: (%s)\n", " ", predef_type[p->ptype], p->enum_string);
   else if (p->ptype == INTEGER)
-    fprintf (dfile, "%9s%s: upper (%ld) lower (%ld)\n", " ", predef_type[p->ptype], p->u.i.upper, p->u.i.lower);
+    fprintf (dfile, "%9s%s: upper (%lu) lower (%lu)\n", " ", predef_type[p->ptype], p->u.i.upper, p->u.i.lower);
   else if (p->ptype == REAL)
     fprintf (dfile, "%9s%s: upper (%f) lower (%f)\n", " ", predef_type[p->ptype], p->u.d.upper, p->u.d.lower);
   else
@@ -964,48 +980,89 @@ int int_check (parse_info_t *pi, char *rp_name, predef_t *p,
 		 int show_emsg, char *parm) {
   char *colon;
   int bad_arg;
+  char ebuf[1024];
+  unsigned long return_val, save_val;
 
-  if ((colon = strchr (parm, ':')) == NULL)
-    bad_arg = int_check_2 (pi, rp_name, p, show_emsg, parm);
-  else {
+  fprintf (dfile, "int_check () arg=(%s) lower=(%lu) upper=(%lu)\n", 
+	   parm, p->u.i.lower, p->u.i.upper);
+  if ((colon = strchr (parm, ':')) == NULL) {
+    bad_arg = get_int (pi, rp_name, show_emsg, parm, &return_val);
+  } else {
     *colon = '\0';
-    bad_arg = int_check_2 (pi, rp_name, p, show_emsg, parm);
-
+    bad_arg = get_int (pi, rp_name, show_emsg, parm, &return_val);
+    if (!bad_arg) {
+      if (return_val > 65535) { 
+	bad_arg = 1;
+        if (show_emsg) {
+          snprintf (ebuf, 1024, "community string most significant 16-bit word (%lu) exceeds 65535", 
+	       return_val);
+          error_msg_queue (pi, ebuf, ERROR_MSG);
+	} 
+      }
+    }
     *colon = ':';
-    if (!bad_arg)
-      bad_arg = int_check_2 (pi, rp_name, p, show_emsg, colon + 1);
+    if (!bad_arg) {
+      save_val = return_val * 65536;
+      bad_arg = get_int (pi, rp_name, show_emsg, colon + 1, &return_val);
+      if (!bad_arg) {
+        if (return_val > 65535) { 
+	  bad_arg = 1;
+          if (show_emsg) {
+	    snprintf (ebuf, 1024, "community string least significant 16-bit word (%lu) exceeds 65535", return_val);
+	    error_msg_queue (pi, ebuf, ERROR_MSG);
+	  } 
+	} else {
+	  return_val += save_val;
+	}
+      }
+    }
   }
+  if (!bad_arg)
+    bad_arg = check_int_range (pi, rp_name, p, show_emsg, return_val);
 
   return bad_arg;
 }
 
-int int_check_2 (parse_info_t *pi, char *rp_name, predef_t *p, 
-		 int show_emsg, char *parm) {
-  char ebuf[2048];
+int get_int (parse_info_t *pi, char *rp_name, 
+		 int show_emsg, char *parm, unsigned long *return_val) {
+  char ebuf[1024];
   char *q;
-  long ival;
+  unsigned long ival;
 
-  fprintf (dfile, "int_check () arg=(%s) lower=(%ld) upper=(%ld)\n", 
-	   parm, p->u.i.lower, p->u.i.upper);
   for (q = parm; *q != '\0' && isdigit (*q); q++);
 
   if (*q != '\0') {
     if (show_emsg) {
-      snprintf (ebuf, 2048, "Non-numeric argument value found for RP attribute \"%s\"", 
+      snprintf (ebuf, 1024, "Non-numeric argument value found for RP attribute \"%s\"", 
 	       rp_name);
       error_msg_queue (pi, ebuf, ERROR_MSG);
     }
     return 1;
-  }    
+  }
+  ival = strtoul (parm, NULL, 10);
+  if (ival == ULONG_MAX && errno == ERANGE) {
+    if (show_emsg) {
+      snprintf (ebuf, 1024,
+	       "Integer value (%s) exceeds max unsigned 32-bit integer",
+	       parm);
+      error_msg_queue (pi, ebuf, ERROR_MSG);
+    }
+    return 1;
+  }
+  *return_val = ival;
+  return 0;
+}
+
+int check_int_range (parse_info_t *pi, char *rp_name, predef_t *p, 
+		 int show_emsg, unsigned long ival) {
+  char ebuf[1024];
 
   if (!p->use_bounds)
     return 0;
-
-  ival = atol (parm);
   if (ival < p->u.i.lower) {
     if (show_emsg) {
-      snprintf (ebuf, 2048,
-	       "Integer value (%ld) is less than lower bound (%ld) for RP "
+      snprintf (ebuf, 1024,
+	       "Integer value (%lu) is less than lower bound (%lu) for RP "
 	       "attribute \"%s\"", 
 	       ival, p->u.i.lower, rp_name);
       error_msg_queue (pi, ebuf, ERROR_MSG);
@@ -1015,8 +1072,8 @@ int int_check_2 (parse_info_t *pi, char *rp_name, predef_t *p,
 
   if (ival > p->u.i.upper)  {
     if (show_emsg) {
-      snprintf (ebuf,  2048,
-	       "Integer value (%ld) exceeds upper bound (%ld) for RP attribute "
+      snprintf (ebuf,  1024,
+	       "Integer value (%lu) exceeds upper bound (%lu) for RP attribute "
 	       "\"%s\"", 
 	       ival, p->u.i.upper, rp_name);
       error_msg_queue (pi, ebuf, ERROR_MSG);
@@ -1240,7 +1297,7 @@ int union_handler (parse_info_t *pi, char *rp_name, type_t *t,
     
     if (bad_arg && !too_many_args && show_emsg) {
 
-      snprintf (ebuf, 2048, "RP attr (%s) invalid data type \"%s\"", rp_name, p);
+      snprintf (ebuf, 2048, "RP attr (%s) syntax error \"%s\"", rp_name, p);
       error_msg_queue (pi, ebuf, ERROR_MSG);
       break;
     }

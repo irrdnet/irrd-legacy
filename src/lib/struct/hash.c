@@ -1100,7 +1100,6 @@ unsigned HASH_DefaultHashFunction(char *key, unsigned size)
    return(ret%size);
 }
 
-
 /*-----------------------------------------------------------
  *  Name: 	HASH_DefaultLookupFunction()
  *  Created:	Fri Sep  9 01:06:56 1994
@@ -1112,9 +1111,4 @@ int HASH_DefaultLookupFunction(char *k1, char *k2)
    for (; ((*k1) && ((*k1) == (*k2))); k1++, k2++);
    return(!(*k1 | *k2));
 }
-
-
-
-
-
 

@@ -1,3 +1,36 @@
+ Nov 6, 2006	   IRRd 2.3.3   Release notes
+   Increased error logging broke union dictionary type
+
+ Nov 4, 2006	   IRRd 2.3.2   Release notes
+   IRRd was loosing track of number of connections
+
+ Nov 3, 2006       IRRd 2.3.1   Release notes
+
+   Need to include limits.h in dictionary.c for portability
+
+ Nov 3, 2006       IRRd 2.3.0   Release notes
+
+   Fix integer checks in dictionary for community expressions using ":"
+   syntax.
+
+ Sep 12, 2006      IRRd 2.2.21   Release notes
+
+   Add autoconf check for socklen_t.
+
+ Sep 06, 2006      IRRd 2.2.20   Release notes
+
+   Display existing object on replacement failure.  Also add note
+to contact db-admin if replacement desired.
+
+ Jun 21, 2006      IRRd 2.2.19   Release notes 
+
+   Check AS number in irr_rpsl_check and limit to 65534.
+
+ Nov 28, 2005      IRRd 2.2.13   Release notes 
+
+   Added support for Radix tree indexing of inetnums.  Also improved memory
+usage efficiency.
+ 
  Sep 06, 2005      IRRd 2.2.8   Release notes 
 
     Fix bug when displaying bad DB names used with !j command.

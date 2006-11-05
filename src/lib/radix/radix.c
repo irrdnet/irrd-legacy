@@ -19,7 +19,6 @@ New_Radix (int maxbits)
     radix->maxbits = maxbits;
     radix->head = NULL;
     radix->num_active_node = 0;
-    assert (maxbits <= RADIX_MAXBITS); /* XXX */
     num_active_radix++;
     return (radix);
 }
@@ -32,7 +31,6 @@ New_Radix (int maxbits)
 void
 Destroy_Radix (radix_tree_t *radix, void_fn_t func)
 {
-    assert (radix);
     if (radix->head) {
 
         radix_node_t *Xstack[RADIX_MAXBITS+1];
@@ -47,9 +45,6 @@ Destroy_Radix (radix_tree_t *radix, void_fn_t func)
 		Deref_Prefix (Xrn->prefix);
 		if (Xrn->data && func)
 	    	func (Xrn->data);
-    	    }
-    	    else {
-		assert (Xrn->data == NULL);
     	    }
     	    Delete (Xrn);
 	    Xrn = NULL;
@@ -69,7 +64,6 @@ Destroy_Radix (radix_tree_t *radix, void_fn_t func)
             }
         }
     }
-    assert (radix->num_active_node == 0);
     Delete (radix);
     num_active_radix--;
 }
@@ -82,7 +76,6 @@ void
 radix_process (radix_tree_t *radix, void_fn_t func)
 {
     radix_node_t *node;
-    assert (func);
 
     RADIX_WALK (radix->head, node) {
 	func (node->prefix, node->data);
@@ -95,10 +88,6 @@ radix_search_exact (radix_tree_t *radix, prefix_t *prefix)
     radix_node_t *node;
     u_char *addr;
     u_int bitlen;
-
-    assert (radix);
-    assert (prefix);
-    assert (prefix->bitlen <= radix->maxbits);
 
     if (radix->head == NULL)
 	return (NULL);
@@ -145,8 +134,6 @@ radix_search_exact (radix_tree_t *radix, prefix_t *prefix)
 #endif /* RADIX_DEBUG */
     if (node->bit > bitlen || node->prefix == NULL)
 	return (NULL);
-    assert (node->bit == bitlen);
-    assert (node->bit == node->prefix->bitlen);
     if (comp_with_mask (prefix_tochar (node->prefix), prefix_tochar (prefix),
 			bitlen)) {
 #ifdef RADIX_DEBUG
@@ -166,10 +153,6 @@ radix_search_best (radix_tree_t *radix, prefix_t *prefix, int inclusive)
     u_char *addr;
     u_int bitlen;
     int cnt = 0;
-
-    assert (radix);
-    assert (prefix);
-    assert (prefix->bitlen <= radix->maxbits);
 
     if (radix->head == NULL)
 	return (NULL);
@@ -259,10 +242,6 @@ radix_lookup (radix_tree_t *radix, prefix_t *prefix)
     u_int bitlen, check_bit, differ_bit;
     int i, j, r;
 
-    assert (radix);
-    assert (prefix);
-    assert (prefix->bitlen <= radix->maxbits);
-
     if (radix->head == NULL) {
 	node = New (radix_node_t);
 	node->bit = prefix->bitlen;
@@ -310,11 +289,8 @@ radix_lookup (radix_tree_t *radix, prefix_t *prefix)
 #endif /* RADIX_DEBUG */
 	    node = node->l;
 	}
-
-	assert (node);
     }
 
-    assert (node->prefix);
 #ifdef RADIX_DEBUG
     fprintf (stderr, "radix_lookup: stop at %s/%d\n", 
 	     prefix_toa (node->prefix), node->prefix->bitlen);
@@ -335,7 +311,6 @@ radix_lookup (radix_tree_t *radix, prefix_t *prefix)
 		break;
 	}
 	/* must be found */
-	assert (j < 8);
 	differ_bit = i * 8 + j;
 	break;
     }
@@ -371,7 +346,6 @@ radix_lookup (radix_tree_t *radix, prefix_t *prefix)
 	fprintf (stderr, "radix_lookup: new node #1 %s/%d (glue mod)\n",
 		 prefix_toa (prefix), prefix->bitlen);
 #endif /* RADIX_DEBUG */
-	assert (node->data == NULL);
 	return (node);
     }
 
@@ -387,11 +361,9 @@ radix_lookup (radix_tree_t *radix, prefix_t *prefix)
 	new_node->parent = node;
 	if (node->bit < radix->maxbits &&
 	    BIT_TEST (addr[node->bit >> 3], 0x80 >> (node->bit & 0x07))) {
-	    assert (node->r == NULL);
 	    node->r = new_node;
 	}
 	else {
-	    assert (node->l == NULL);
 	    node->l = new_node;
 	}
 #ifdef RADIX_DEBUG
@@ -411,7 +383,6 @@ radix_lookup (radix_tree_t *radix, prefix_t *prefix)
 	}
 	new_node->parent = node->parent;
 	if (node->parent == NULL) {
-	    assert (radix->head == node);
 	    radix->head = new_node;
 	}
 	else if (node->parent->r == node) {
@@ -445,7 +416,6 @@ radix_lookup (radix_tree_t *radix, prefix_t *prefix)
 	new_node->parent = glue;
 
 	if (node->parent == NULL) {
-	    assert (radix->head == node);
 	    radix->head = glue;
 	}
 	else if (node->parent->r == node) {
@@ -467,9 +437,6 @@ void
 radix_remove (radix_tree_t *radix, radix_node_t *node)
 {
     radix_node_t *parent, *child;
-
-    assert (radix);
-    assert (node);
 
     if (node->r && node->l) {
 #ifdef RADIX_DEBUG
@@ -497,7 +464,6 @@ radix_remove (radix_tree_t *radix, radix_node_t *node)
         radix->num_active_node--;
 
 	if (parent == NULL) {
-	  assert (radix->head == node);
 	  radix->head = NULL;
 	  Delete (node);
 	  node = NULL;
@@ -509,7 +475,6 @@ radix_remove (radix_tree_t *radix, radix_node_t *node)
 	  child = parent->l;
 	}
 	else {
-	    assert (parent->l == node);
 	    parent->l = NULL;
 	    child = parent->r;
 	}
@@ -524,14 +489,12 @@ radix_remove (radix_tree_t *radix, radix_node_t *node)
 	/* we need to remove parent too */
 
 	if (parent->parent == NULL) {
-	    assert (radix->head == parent);
 	    radix->head = child;
 	}
 	else if (parent->parent->r == parent) {
 	    parent->parent->r = child;
 	}
 	else {
-	    assert (parent->parent->l == parent);
 	    parent->parent->l = child;
 	}
 	child->parent = parent->parent;
@@ -549,7 +512,6 @@ radix_remove (radix_tree_t *radix, radix_node_t *node)
 	child = node->r;
     }
     else {
-	assert (node->l);
 	child = node->l;
     }
     parent = node->parent;
@@ -559,7 +521,6 @@ radix_remove (radix_tree_t *radix, radix_node_t *node)
     radix->num_active_node--;
 
     if (parent == NULL) {
-	assert (radix->head == node);
 	radix->head = child;
 	Delete (node);
 	node = NULL;
@@ -570,7 +531,6 @@ radix_remove (radix_tree_t *radix, radix_node_t *node)
 	parent->r = child;
     }
     else {
-        assert (parent->l == node);
 	parent->l = child;
     }
 
@@ -585,10 +545,6 @@ radix_node_t *radix_search_exact_raw (radix_tree_t *radix, prefix_t *prefix) {
   radix_node_t *node;
   u_char *addr;
   u_int bitlen;
-
-  assert (radix);
-  assert (prefix);
-  assert (prefix->bitlen <= radix->maxbits);
 
   if (radix->head == NULL)
     return (NULL);

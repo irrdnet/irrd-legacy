@@ -20,21 +20,21 @@
 extern trace_t *default_trace;
 
 /* irr_database_store
- * 4 count | [2 type | 2 primary/secondary | 2 keylen | 4 offset | 4 len] | ...
+ * 2 count | [1 type | 1 primary/secondary | 4 offset | 4 len] | ...
  */
 
-#define OBJCOUNT_SIZE 4
-#define OBJINFO_SIZE 14 
+#define OBJCOUNT_SIZE 2
+#define OBJINFO_SIZE 10 
 
-int irr_database_store (irr_database_t *database, char *key, u_short p_or_s,
+int irr_database_store (irr_database_t *database, char *key, u_char p_or_s,
 			enum IRR_OBJECTS type, u_long offset, u_long len) {
   hash_item_t *hash_item;
   char *buffer, *cp;
-  u_short _keylen, _type = (u_short) type;
+  u_char _type = (u_char) type;
   u_int _size_old, _size_new;
-  int ret_code = 1, count;
+  u_short count;
+  int ret_code = 1;
 
-  _keylen = strlen (key);
   convert_toupper(key);
   hash_item = HASH_Lookup (database->hash, key);
 
@@ -50,7 +50,7 @@ int irr_database_store (irr_database_t *database, char *key, u_short p_or_s,
   /* just append the new data to the end of the hash entry */
   else {
     cp = hash_item->value;
-    UTIL_GET_NETLONG (count, cp);
+    UTIL_GET_NETSHORT (count, cp);
 
     if (count > 1000) {
       trace (ERROR, default_trace, 
@@ -66,15 +66,14 @@ int irr_database_store (irr_database_t *database, char *key, u_short p_or_s,
     cp = buffer + _size_old;
   } /* end append data */
 
-  UTIL_PUT_NETSHORT (_type, cp); /* type */
-  UTIL_PUT_NETSHORT (p_or_s, cp); /* primary/secondary */
-  UTIL_PUT_NETSHORT (_keylen, cp); /* length of key  */
+  *cp++ = _type;
+  *cp++ = p_or_s;
   UTIL_PUT_NETLONG (offset, cp); 
   UTIL_PUT_NETLONG (len, cp);
 
   cp = buffer;
   count++;
-  UTIL_PUT_NETLONG (count, cp); /* count */
+  UTIL_PUT_NETSHORT (count, cp); /* count */
 
   if (hash_item == NULL) {
     hash_item = New (hash_item_t);
@@ -105,18 +104,19 @@ int irr_hash_destroy (hash_item_t *hash_item) {
 
 /* irr_database_find_matches
  * find matches and extract info from hash table entry
- * 4 count | [2 type | 2 primary/secondary | 2 keylen | 4 offset | 4 len] | ...
+ * 2 count | [1 type | 1 primary/secondary | 4 offset | 4 len] | ...
  */
 int irr_database_find_matches (irr_connection_t *irr, char *key, 
-				   int p_or_s,
+				   u_char p_or_s,
 				   int match_behavior,
 				   enum IRR_OBJECTS type,
 				   u_long *ret_offset, u_long *ret_len) {
   irr_database_t *database;
   hash_item_t *hash_item = NULL;
   u_long offset, len;
-  u_short _type, _p_or_s, _keylen;
-  int count, exit_on_match = 0;
+  u_char _type, _p_or_s;
+  u_short count;
+  int exit_on_match = 0;
   char *cp;
 
   convert_toupper(key);
@@ -132,19 +132,13 @@ int irr_database_find_matches (irr_connection_t *irr, char *key,
       continue;
 
     cp = hash_item->value;
-    UTIL_GET_NETLONG (count, cp);
+    UTIL_GET_NETSHORT (count, cp);
     
     while (count--) {
-      _type = _p_or_s = _keylen = 0;
-      UTIL_GET_NETSHORT (_type, cp);
-      UTIL_GET_NETSHORT (_p_or_s, cp);
-      UTIL_GET_NETSHORT (_keylen, cp);
+      _type = *cp++;
+      _p_or_s = *cp++;
       UTIL_GET_NETLONG (offset, cp);
       UTIL_GET_NETLONG (len, cp);
-
-      /* exact match on keys, so maint-as195 != maintas1955 */
-      if (strlen (key) != _keylen) 
-	continue;
 
       /*
        * if (p_or_s != PRIMARY)
@@ -163,7 +157,7 @@ int irr_database_find_matches (irr_connection_t *irr, char *key,
 	*ret_len = len;
 	break;
       }
-      irr_build_answer (irr, database, _type, offset, len, NULL);
+      irr_build_answer (irr, database, _type, offset, len);
 
       /* RAWHOISD_MODE means exit after first the match */
       if (exit_on_match)
@@ -172,7 +166,6 @@ int irr_database_find_matches (irr_connection_t *irr, char *key,
     if (exit_on_match)
       break;
   }
-
   return (1);
 }
 
@@ -200,18 +193,15 @@ int find_object_offset_len (irr_database_t *db, char *key,
 }
 
 /* irr_database_remove
- * 4 count | [2 type | 2 primary/secondary | 2 keylen | 4 offset | 4 len] | ...
+ * 2 count | [1 type | 1 primary/secondary | 4 offset | 4 len] | ...
  *
  */
-int irr_database_remove (irr_database_t *database, char *key, u_short p_or_s,
-			 enum IRR_OBJECTS type, u_long offset, u_long len) {
+int irr_database_remove (irr_database_t *database, char *key, u_long offset) {
   hash_item_t *hash_item;
   char *cp;
   char *buffer_new = NULL;
-  u_short _type = (u_short) type;
-  u_short _p_or_s, _keylen;
-  u_long _offset, _len;
-  int count, new_count;
+  u_long _offset;
+  u_short count, new_count;
   
   convert_toupper (key);
   hash_item = HASH_Lookup (database->hash, key);
@@ -223,9 +213,9 @@ int irr_database_remove (irr_database_t *database, char *key, u_short p_or_s,
   }
 
   cp = hash_item->value;
-  UTIL_GET_NETLONG (count, cp);
+  UTIL_GET_NETSHORT (count, cp);
 
-  if (count <= 0) {
+  if (count == 0) {
       trace (ERROR, default_trace, 
      "irr_database_remove(): count value (%d) for hash key %s is <= 0\n", count, key);
       return -1;
@@ -236,11 +226,9 @@ int irr_database_remove (irr_database_t *database, char *key, u_short p_or_s,
     int found = 0;
 
     while (!found) {
-      UTIL_GET_NETSHORT (_type, cp); /* type */
-      UTIL_GET_NETSHORT (_p_or_s, cp); /* primary/secondary */
-      UTIL_GET_NETSHORT (_keylen, cp); /* primary/secondary */
+      cp += 2;	/* skip over type and primary/secondary flag */
       UTIL_GET_NETLONG (_offset, cp); 
-      UTIL_GET_NETLONG (_len, cp);
+      cp += 4;	/* skip length field */
       count--; 
       if (offset == _offset) found = 1; /* found the entry */
       if (count == 0) break;	/* we have scanned all the entries */
@@ -253,7 +241,7 @@ int irr_database_remove (irr_database_t *database, char *key, u_short p_or_s,
       memmove(cp - OBJINFO_SIZE, cp, count * OBJINFO_SIZE);
     }
     cp = hash_item->value;  /* point back to beginning of buffer */
-    UTIL_PUT_NETLONG (new_count, cp); /* store new count */
+    UTIL_PUT_NETSHORT (new_count, cp); /* store new count */
     buffer_new = realloc(hash_item->value, OBJCOUNT_SIZE + (new_count * OBJINFO_SIZE)); /* free unused space */
     hash_item->value = buffer_new;
   } else {

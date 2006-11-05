@@ -103,29 +103,26 @@ struct in6_addr {
 
 typedef struct _prefix_t {
     u_short family;		/* AF_INET | AF_INET6 */
-    u_short bitlen;		/* same as mask? */
+    u_short bitlen;		/* prefix length */
     int ref_count;		/* reference count */
     pthread_mutex_t mutex_lock; /* lock down structure */
     union {
-		struct in_addr sin;
-		struct in6_addr sin6;
+	struct in_addr sin;
+	struct in6_addr sin6;
     } add;
 } prefix_t;
 
-typedef struct _prefix_pair_t {
-    prefix_t *prefix1;
-    prefix_t *prefix2;
-} prefix_pair_t;
 
-typedef struct _gateway_t {
-    prefix_t *prefix;
-/* the following two are protocol (BGP) dependent ? */
-    int AS;
-    u_long routerid;
+/* use to save space */
+typedef struct _v4_prefix_t {
+    u_short family;		/* AF_INET only */
+    u_short bitlen;		/* prefix length */
     int ref_count;		/* reference count */
     pthread_mutex_t mutex_lock; /* lock down structure */
-    u_long flags;
-} gateway_t;
+    union {
+	struct in_addr sin;
+    } add;
+} v4_prefix_t;
 
 #include <alist.h>
 #include <hash.h>
@@ -140,7 +137,6 @@ typedef struct _mrt_t {
     pthread_mutex_t mutex_lock;		/* lock down structure */
     trace_t *trace;			/* default trace - go away future? */
     LINKED_LIST *ll_threads;		/* list of all thread_t */
-    LINKED_LIST *ll_signal_call_fn;	/* list of mrt_signal_t */
     LINKED_LIST *ll_trace;		/* list of trace_t */
     char *config_file_name;
     long start_time;			/* uptime of system (debugging) */
@@ -314,18 +310,12 @@ typedef struct _mrt_thread_t {
 /* public functions */
 
 prefix_t *New_Prefix (int family, void * dest, int bitlen);
-prefix_t *New_Prefix2 (int family, void * dest, int bitlen, prefix_t *prefix);
-prefix_t *Change_Prefix (int family, void * dest, int bitlen, prefix_t * prefix);
 prefix_t *Ref_Prefix (prefix_t * prefix);
 void Deref_Prefix (prefix_t * prefix);
-void Delete_Prefix (prefix_t * prefix);
-int prefix_check_prefix_in_list (LINKED_LIST * ll_prefix, prefix_t * prefix);
 void print_prefix_list (LINKED_LIST * ll_prefixes);
 void print_prefix_list_buffer (LINKED_LIST * ll_prefixes, buffer_t * buffer);
-void print_prefix (prefix_t * p_prefix);
 void print_pref_prefix_list_buffer (LINKED_LIST * ll_prefixes, 
 				    u_short *pref, buffer_t * buffer);
-prefix_t *copy_prefix (prefix_t * prefix);
 void print_pref_prefix_list (LINKED_LIST * ll_prefixes, u_short *pref);
 
 prefix_t *name_toprefix(char *, trace_t *);
@@ -425,7 +415,7 @@ void Delete_Buffer (buffer_t *buffer);
 int mrt_open (const char *path, int flags, mode_t mode, char *s, int l);
 int mrt_close (int d, char *s, int l);
 int mrt_socket (int domain, int type, int protocol, char *s, int l);
-int mrt_accept (int d, struct sockaddr *addr, int *addrlen, char *s, int l);
+int mrt_accept (int d, struct sockaddr *addr, socklen_t *addrlen, char *s, int l);
 
 #define socket_errno()	errno
 

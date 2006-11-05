@@ -116,7 +116,8 @@ void *start_irr_connection (irr_connection_t * irr_connection) {
 
 int irr_accept_connection (int fd) {
   int sockfd;
-  int len, family;
+  socklen_t len;
+  int family;
   prefix_t *prefix;
   struct SOCKADDR addr;
   irr_connection_t *irr_connection;
@@ -188,8 +189,6 @@ int irr_accept_connection (int fd) {
   trace (TRACE, default_trace, "accepting connection from %s\n",
 	 prefix_toa (prefix));
 
-  IRR.connections++;
-
   irr_connection = New (irr_connection_t);
 #ifndef HAVE_LIBPTHREAD    
   irr_connection->schedule = New_Schedule ("irr_connection", default_trace);
@@ -203,17 +202,6 @@ int irr_accept_connection (int fd) {
   irr_connection->full_obj = 1;
   irr_connection->end = irr_connection->buffer;
   irr_connection->start = time (NULL);
-  irr_connection->ENCODING = strdup("gzip"); /* be sure to free this */
-  
-  if (pthread_mutex_lock (&IRR.connections_mutex_lock) != 0)
-    trace (ERROR, default_trace, "locking -- connection_mutex_lock--: %s\n",
-	   strerror (errno));
-
-  LL_Add (IRR.ll_connections, irr_connection);
-
-  if (pthread_mutex_unlock (&IRR.connections_mutex_lock) != 0)
-    trace (ERROR, default_trace, "unlocking -- connection_mutex_lock--: %s\n",
-	   strerror (errno));
 
   /* by default, use all databases in order appear IRRd config file */
   LL_Iterate (IRR.ll_database, database) {
@@ -230,6 +218,17 @@ int irr_accept_connection (int fd) {
     }
   }
 
+  if (pthread_mutex_lock (&IRR.connections_mutex_lock) != 0)
+    trace (ERROR, default_trace, "locking -- connection_mutex_lock--: %s\n",
+	   strerror (errno));
+
+  LL_Add (IRR.ll_connections, irr_connection);
+  IRR.connections++;
+
+  if (pthread_mutex_unlock (&IRR.connections_mutex_lock) != 0)
+    trace (ERROR, default_trace, "unlocking -- connection_mutex_lock--: %s\n",
+	   strerror (errno));
+
   sprintf (tmp, "IRR %s", prefix_toa (prefix));
   mrt_thread_create (tmp, irr_connection->schedule,
 		     (thread_fn_t) start_irr_connection, irr_connection);
@@ -241,7 +240,8 @@ int irr_accept_connection (int fd) {
  */
 int 
 listen_telnet (u_short port) {
-  int len, optval;
+  socklen_t len;
+  int optval;
   int sockfd;
   struct sockaddr *sa;
   struct sockaddr_in serv_addr;
@@ -430,11 +430,16 @@ static int irr_read_command (irr_connection_t * irr) {
 
 int irr_destroy_connection (irr_connection_t * connection) {
 
-#ifndef HAVE_LIBPTHREAD
-   select_delete_fd (connection->sockfd);
-#else
-   close (connection->sockfd);
-#endif /* HAVE_LIBPTHREAD */
+   if (pthread_mutex_lock (&IRR.connections_mutex_lock) != 0)
+     trace (ERROR, default_trace, "connection_mutex_lock--: %s\n",
+	    strerror (errno));
+
+   LL_Remove (IRR.ll_connections, connection);
+   IRR.connections--;
+
+   if (pthread_mutex_unlock (&IRR.connections_mutex_lock) != 0)
+     trace (ERROR, default_trace, "connection_mutex_lock--: %s\n",
+	    strerror (errno));
 
    trace (NORM, default_trace, 
 	  "Closing connection from %s (fd %d, %d connections)\n", 
@@ -442,10 +447,14 @@ int irr_destroy_connection (irr_connection_t * connection) {
 	  connection->sockfd,
 	  IRR.connections);
 
+#ifndef HAVE_LIBPTHREAD
+   select_delete_fd (connection->sockfd);
+#else
+   close (connection->sockfd);
+#endif /* HAVE_LIBPTHREAD */
+
    /*LL_RemoveFn (IRR.ll_irr_connections, connection, 0);*/
    Deref_Prefix (connection->from);
-   if (connection->ENCODING != NULL)
-     free(connection->ENCODING);
 #ifndef HAVE_LIBPTHREAD    
    if(connection->schedule->is_running > 0)
      /* if we running as a scheduled event, can't destroy schedule yet */
@@ -456,21 +465,10 @@ int irr_destroy_connection (irr_connection_t * connection) {
 #endif
    LL_Destroy (connection->ll_database);
 
-   if (pthread_mutex_lock (&IRR.connections_mutex_lock) != 0)
-     trace (ERROR, default_trace, "connection_mutex_lock--: %s\n",
-	    strerror (errno));
-
-   LL_Remove (IRR.ll_connections, connection);
-
-   if (pthread_mutex_unlock (&IRR.connections_mutex_lock) != 0)
-     trace (ERROR, default_trace, "connection_mutex_lock--: %s\n",
-	    strerror (errno));
-
    if (connection->answer != NULL)
      Delete (connection->answer);
 
    Delete (connection);
-   IRR.connections--;
 
    mrt_thread_exit ();
    /* NOTREACHED */
@@ -491,7 +489,7 @@ int irr_add_answer (irr_connection_t *irr, char *format, ...) {
 
   if (irr->answer_len >= (IRR_OUTPUT_BUFFER_SIZE - BUFSIZE)) {
     /* buffer too big, add answer to linked list and malloc more space */
-    irr_build_answer(irr, NULL, NO_FIELD, 0, irr->answer_len, irr->answer);
+    irr_build_memory_answer(irr, irr->answer_len, irr->answer);
     irr->answer = malloc (IRR_OUTPUT_BUFFER_SIZE);
     irr->answer_len = 0;
   }
@@ -500,7 +498,7 @@ int irr_add_answer (irr_connection_t *irr, char *format, ...) {
   vsprintf (buffer, format, args);  
 
   len = strlen (buffer);
-  strcpy(irr->answer + irr->answer_len, buffer);
+  memcpy(irr->answer + irr->answer_len, buffer, len);
   irr->answer_len += len;
 
   return (1);
@@ -523,12 +521,11 @@ void irr_send_answer (irr_connection_t * irr) {
   /* add a terminating newline if not already present */
   cp = irr->answer + irr->answer_len - 1;
   if (*cp++ != '\n') {
-    *cp++ = '\n';
-    *cp = 0;
+    *cp = '\n';
     irr->answer_len++;
   }
   /* Add buffered data to the linked list */ 
-  irr_build_answer(irr, NULL, NO_FIELD, 0, irr->answer_len, irr->answer);
+  irr_build_memory_answer(irr, irr->answer_len, irr->answer);
 
   send_dbobjs_answer (irr, MEM_INDEX, RAWHOISD_MODE);
   LL_ContIterate (irr->ll_answer, irr_answer) {
@@ -877,7 +874,18 @@ void irr_write_answer (irr_answer_t *irr_answer, irr_connection_t *irr) {
   }
 }
 
-void irr_build_answer (irr_connection_t *irr, irr_database_t *database, enum IRR_OBJECTS type, u_long offset, u_long len, char *blob) {
+/* build an in-memory query answer */
+void irr_build_memory_answer (irr_connection_t *irr, u_long len, char *blob) {
+  irr_answer_t *irr_answer;
+
+  irr_answer = New (irr_answer_t);
+  irr_answer->len = len;
+  irr_answer->blob = blob;
+  LL_Add (irr->ll_answer, irr_answer);
+}
+
+/* build a query answer referencing on-disk objects */
+void irr_build_answer (irr_connection_t *irr, irr_database_t *database, enum IRR_OBJECTS type, u_long offset, u_long len) {
   irr_answer_t *irr_answer;
 
   irr_answer = New (irr_answer_t);
@@ -885,32 +893,8 @@ void irr_build_answer (irr_connection_t *irr, irr_database_t *database, enum IRR
   irr_answer->type = type;
   irr_answer->offset = offset;
   irr_answer->len = len;
-  irr_answer->blob = blob;
   LL_Add (irr->ll_answer, irr_answer);
 } /* end irr_build_answer() */
-
-void irr_build_key_answer (irr_connection_t *irr, FILE *fp, char *dbname,
-			   enum IRR_OBJECTS type, u_long offset, 
-			   u_short origin) {
-  char buffer[BUFSIZE], str_orig[10];
-
-  irr_answer_t *irr_answer;
-
-  strcpy (buffer, dbname);
-  strcat (buffer, " ");
-  if (get_prefix_from_disk (fp, offset, buffer) < 0)
-    return;
-  strcat (buffer, "-AS");
-  sprintf (str_orig, "%d", origin);
-  strcat (buffer, str_orig);
-  strcat (buffer, "\n");
-  irr_answer = New (irr_answer_t);
-  irr_answer->len = strlen (buffer);
-  irr_answer->blob = malloc (irr_answer->len);
-  strcpy (irr_answer->blob, buffer);
-  LL_Add (irr->ll_answer, irr_answer);
-} /* end irr_build_key_answer() */
-
 
 /* show_connections
  * List current RAWhoisd TCP connections to UII 
@@ -923,7 +907,7 @@ void show_connections (uii_connection_t *uii) {
 		       IRR.connections, IRR.max_connections);
 
   if (pthread_mutex_lock (&IRR.connections_mutex_lock) != 0)
-    trace (NORM, default_trace, "Error locking -- connection_mutex_lock--: %s\n",
+    trace (ERROR, default_trace, "Error locking -- connection_mutex_lock--: %s\n",
 	   strerror (errno));
 
   LL_Iterate (IRR.ll_connections, connection) {
@@ -934,7 +918,7 @@ void show_connections (uii_connection_t *uii) {
   }
 
   if (pthread_mutex_unlock (&IRR.connections_mutex_lock) != 0)
-    trace (NORM, default_trace, "Error locking -- connection_mutex_lock--: %s\n",
+    trace (ERROR, default_trace, "Error locking -- connection_mutex_lock--: %s\n",
 	   strerror (errno));
 
   uii_send_bulk_data (uii);

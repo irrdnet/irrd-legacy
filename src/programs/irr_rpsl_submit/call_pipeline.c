@@ -31,7 +31,7 @@ void call_pipeline (trace_t *tr, FILE *fin, char *web_origin_str,
 
   /**** Code to get IP address of sender ****/
   int sock_fd = fileno(fin);
-  int sock_length = sizeof(myaddr);
+  size_t sock_length = sizeof(myaddr);
 
   umask(0022);  /* set umask */
   

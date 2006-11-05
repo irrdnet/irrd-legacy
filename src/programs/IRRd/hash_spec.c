@@ -444,21 +444,21 @@ void make_spec_key (char *new_key, char *maint, char *set_name) {
  */
 void make_mntobj_key (char *new_key, char *maint) {
 
-  strcpy (new_key, "|");  /* key uniqueness */
-  strcat (new_key, maint);
+  *new_key++ = '|'; /* key uniqueness */
+  strcpy (new_key, maint);
   convert_toupper (new_key);
 }
 
 /* routine expects an origin without the "as", eg "231" */
 void make_gas_key (char *gas_key, char *origin) {
 
-  strcpy (gas_key, "@"); /* key uniqueness */
-  strcat (gas_key, origin);
+  *gas_key++ = '@'; /* key uniqueness */
+  strcpy (gas_key, origin);
 }
 
 void make_setobj_key (char *new_key, char *obj_name) {
 
-  strcpy (new_key, "@"); /* key uniqueness */
-  strcat (new_key, obj_name);
+  *new_key++ = '@'; /* key uniqueness */
+  strcpy (new_key, obj_name);
   convert_toupper (new_key);
 }

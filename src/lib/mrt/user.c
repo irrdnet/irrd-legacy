@@ -217,7 +217,8 @@ static void
 uii_accept_connection (void)
 {
     int sockfd;
-    int len, port, family;
+    socklen_t len;
+    int port, family;
     prefix_t *prefix;
 #ifndef HAVE_IPV6
     struct sockaddr_in addr;

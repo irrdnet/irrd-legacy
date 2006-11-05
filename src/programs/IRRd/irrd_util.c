@@ -70,7 +70,7 @@ irr_database_t *find_database (char *name) {
 }
 
 /* irr_lock_all
- * Lock down all IRR database used by this IRR connection
+ * Lock down all IRR databases used by this IRR connection
  */
 void irr_lock_all (irr_connection_t *irr) {
   irr_database_t *database;
@@ -141,35 +141,6 @@ void irr_unlock (irr_database_t *database) {
   /*if (rwl_writeunlock (&database->rwlock) != 0) */
     trace (ERROR, default_trace, "Error unlocking database %s : %s\n", 
 	   database->name, strerror (errno));
-}
-
-void Delete_RT_Object (irr_prefix_object_t *attr) {
-  Delete (attr);
-}
-
-int get_prefix_from_disk (FILE *fp, u_long offset, char *buffer) {
-  char *p, temp[BUFSIZE], *last; 
-
-  if (fseek (fp, offset, SEEK_SET) < 0) 
-    trace (NORM, default_trace, "** Error ** fseek failed in get_prefix");
-    
-  if (fgets (temp, sizeof (temp) - 1, fp) != NULL) {
-    if (strtok_r (temp, " ", &last) != NULL && 
-	(p = strtok_r (NULL, " ", &last)) != NULL) {
-      if (*(p + strlen (p) - 1) ==  '\n')
-        *(p + strlen (p) - 1) = '\0';
-      strcat (buffer, p);
-      return 1;
-    }
-    else 
-      trace (NORM, default_trace, 
-	     "ERROR -- get_prefix_from_disk(): bad route field (%s)\n", temp);
-  }
-  else
-    trace (NORM, default_trace, 
-	   "ERROR -- get_prefix_from_disk(): offset is bad %lu\n", offset);
-
-  return -1;
 }
 
 /* copy_irr_object
@@ -360,13 +331,12 @@ void lookup_prefix_exact (irr_connection_t *irr, char *key, enum IRR_OBJECTS typ
   }
 
   LL_Iterate (irr->ll_database, database) {
-    if (seek_prefix_object (database, type, prefix, origin, &offset, 
-			   &len, irr->withdrawn) > 0)
+    if (seek_prefix_object (database, type, prefix, origin, &offset, &len) > 0)
       break;
   }
 
   if (len > 0)
-    irr_build_answer (irr, database, type, offset, len, NULL);
+    irr_build_answer (irr, database, type, offset, len);
 }
 
 /* convert a string to an unsigned long
@@ -563,6 +533,7 @@ int parse_ripe_flags (irr_connection_t *irr, char **cp) {
 	break;
       }
       switch (**cp) {
+
       case 'k': irr->stay_open = 1;    break;
       case 'F': irr->ripe_flags |= FAST_OUT;    break;
       case 'r': irr->ripe_flags |= RECURS_OFF;  break;
@@ -573,6 +544,10 @@ int parse_ripe_flags (irr_connection_t *irr, char **cp) {
 /*    case 'm': irr->ripe_flags |= MORE_ONE;    break; */ /* unsupported */
       case 'M': irr->ripe_flags |= MORE_ALL;    break;
       case 'x': irr->ripe_flags |= EXACT_MATCH;    break;
+     /* special mirror request command, e.g. -g RADB:1:232-LAST */
+      case 'g': (*cp)++;
+		irr_service_mirror_request (irr, *cp);
+		return -1;	/* return error as we are all done */
       case 'i': (*cp)++;
                 if (ripe_inverse_attr (irr, cp) > 0)
                   irr->ripe_flags |= INVERSE_ATTR;  
@@ -640,53 +615,24 @@ int parse_ripe_flags (irr_connection_t *irr, char **cp) {
   return 1;
 }
 
-void IRRD_Delete_Node (radix_node_t *node) {
-  LINKED_LIST *ll_attr;
+void delete_prefix_objs (irr_prefix_object_t *prefix_obj) {
+  irr_prefix_object_t  *next;
 
-  ll_attr = (LINKED_LIST *) node->data;
-  if (ll_attr) LL_Destroy (ll_attr);
-
-  if (node->prefix)
-    Delete_Prefix (node->prefix);
-  Delete (node);
-}
-
-radix_str_t *new_radix_str (radix_node_t *node) {
-  radix_str_t *tmp;
-  tmp = New (radix_str_t);
-  tmp->ptr = node;
-  return (tmp);
-}
-
-void delete_radix_str (radix_str_t *str) {
-  IRRD_Delete_Node (str->ptr);
-  Delete (str);
+  /* follow the linked list of prefix objects and delete them */
+  while (prefix_obj) {
+    next = prefix_obj->next;
+    Delete(prefix_obj);
+    prefix_obj = next;
+  }
 }
 
 /* radix_flush
- * Delete a radix tree. Called by database_clear
+ * Delete a radix tree and all referenced prefix objects.
+   Called by database_clear.
  */
 void radix_flush (radix_tree_t *radix_tree) {
-  radix_node_t *node = NULL;
-  radix_str_t tmp;
-  LINKED_LIST *ll_nodes;
 
-  if (radix_tree == NULL)
-    return;
-
-  ll_nodes = LL_Create (LL_Intrusive, True,
-			LL_NextOffset, LL_Offset (&tmp, &tmp.next),
-			LL_PrevOffset, LL_Offset (&tmp, &tmp.prev),
-			LL_DestroyFunction, delete_radix_str,
-			0);
-
-  RADIX_WALK_ALL (radix_tree->head, node) {
-    LL_Add (ll_nodes, new_radix_str (node));
-  }
-  RADIX_WALK_END;
-
-  LL_Destroy (ll_nodes);
-  Delete (radix_tree);
+  Destroy_Radix (radix_tree, delete_prefix_objs);
 }
 
 void convert_toupper(char *_z) {
@@ -778,7 +724,6 @@ void interactive_io (char *msg) {
   trace (NORM, default_trace, "Continuing execution.\n");
   printf ("Continuing execution.\n");
 }
-
 
 /* Perform basic dir tests and return a textual
  * description of anything we find wrong such as

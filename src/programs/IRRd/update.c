@@ -17,11 +17,7 @@
 extern trace_t *default_trace;
 
 static int build_secondary_keys (irr_database_t *db, irr_object_t *object);
-#ifdef notdef
-static int ilogb(unsigned int n);
-static int imaxblock(unsigned int ibase, int tbit);
-static int inetnum2prefixes(irr_object_t *object);
-#endif
+static int inetnum2prefixes(irr_database_t *db, irr_object_t *object);
 
 void mark_deleted_irr_object (irr_database_t *database, u_long offset) {
   char *xx = "*xx";
@@ -78,7 +74,7 @@ irr_object_t *load_irr_object (irr_database_t *database, irr_object_t *irr_objec
 
   /* route, route6, and inet6num objects are in the radix tree */
   if (irr_object->type == ROUTE || irr_object->type == ROUTE6 || irr_object->type == INET6NUM) 
-    ret = seek_prefix_object (database, irr_object->type, irr_object->name, irr_object->origin, &offset, &len, 1);
+    ret = seek_prefix_object (database, irr_object->type, irr_object->name, irr_object->origin, &offset, &len);
   else /* fill in object->offset and object->len */
     ret = find_object_offset_len (database, irr_object->name, 
                                   irr_object->type, &offset, &len);
@@ -106,10 +102,11 @@ irr_object_t *load_irr_object (irr_database_t *database, irr_object_t *irr_objec
  *
  * return 1 is we still need to store this object in the hash
  */
-int irr_special_indexing_store (irr_database_t *database, 
-                                irr_object_t *irr_object) {
+int irr_special_indexing_store (irr_database_t *database, irr_object_t *irr_object) {
   char *key, key_buf[BUFSIZE], str_origin[16];
+  prefix_t *prefix;
   int store_hash = 1;
+  int family = AF_INET;	/* default family for ROUTE object */
 
   /* first add/delete object from hash associated with maintainers */
   if (irr_object->ll_mnt_by != NULL) {
@@ -123,18 +120,20 @@ int irr_special_indexing_store (irr_database_t *database,
   }
 
   switch (irr_object->type) {
-  case ROUTE:
   case ROUTE6:
+    family = AF_INET6;  /* change family to IPV6 and fall thru.. */
+  case ROUTE:
+    prefix = ascii2prefix(family, irr_object->name);
+    if (prefix == NULL) return 0;
     add_spec_keys (database, irr_object);
     sprintf (str_origin, "%d", irr_object->origin);
     make_gas_key (key_buf, str_origin);
     if (irr_object->mode == IRR_DELETE) {
       memory_hash_spec_remove (database, key_buf, GASX, irr_object);
-      delete_irr_prefix (database, irr_object->name, irr_object);
+      delete_irr_prefix (database, prefix, irr_object);
     } else {
-      if (!irr_object->withdrawn)
-         memory_hash_spec_store (database, key_buf, GASX, irr_object);
-      add_irr_prefix (database, irr_object->name, irr_object);
+      memory_hash_spec_store (database, key_buf, GASX, irr_object);
+      add_irr_prefix (database, prefix, irr_object);
     }
     store_hash = 0;
     break;
@@ -142,23 +141,26 @@ int irr_special_indexing_store (irr_database_t *database,
     add_spec_keys (database, irr_object);
     break;
   case INET6NUM:
+    prefix = ascii2prefix(AF_INET6, irr_object->name);
+    if (prefix == NULL) return 0;
     if (irr_object->mode == IRR_DELETE)
-      delete_irr_prefix (database, irr_object->name, irr_object);
+      delete_irr_prefix (database, prefix, irr_object);
     else
-      add_irr_prefix (database, irr_object->name, irr_object); 
+      add_irr_prefix (database, prefix, irr_object); 
     store_hash = 0;
     break;
-/* Not ready yet
   case INETNUM:
-    irr_object->ll_prefix = inetnum2prefixes(irr_object);  */
-    /* fall-thru */
+    inetnum2prefixes(database, irr_object);
+    break;
   case IPV6_SITE:
     if (irr_object->ll_prefix) {
       LL_Iterate (irr_object->ll_prefix, key) {
+        prefix = ascii2prefix(AF_INET6, key);
+        if (prefix == NULL) return 0;
         if (irr_object->mode == IRR_DELETE)
-	  delete_irr_prefix (database, key, irr_object);
+	  delete_irr_prefix (database, prefix, irr_object);
         else
-	  add_irr_prefix (database, key, irr_object); 
+	  add_irr_prefix (database, prefix, irr_object); 
       }
     }
     break;
@@ -180,60 +182,108 @@ void back_out_secondaries (irr_database_t *db, irr_object_t *object, char *buf) 
 
   for (q = buf; (p = strchr (q, ' ')) != NULL; q = p) {
     *p++ = '\0';
-    irr_database_remove (db, q, SECONDARY, object->type, 
-			 object->offset, object->len);
+    irr_database_remove (db, q, object->offset);
   }
 }
 
-/* integer binary log routine */
-#ifdef notdef
-int ilogb (unsigned int n) {
-    int i = -1;
+static int
+v4addr2num(char *src, uint32_t *val, char **endptr) {
+  static const char digits[] = "0123456789";
+  int saw_digit = 0, octets = 0, lastval = 0, ch;
+  uint32_t retval = 0;
 
-    while (n != 0) {
-        ++ i;
-        n >>= 1;
-    }
-    return i;
-}
+  while ((ch = *src) != '\0') {
+    const char *pch;
 
-int imaxblock (unsigned int ibase, int tbit) {
-  unsigned long int im = 0xfffffffe;
+    if ((pch = strchr(digits, ch)) != NULL) {
+      int new = lastval * 10 + (pch - digits);
 
-  while (tbit > 0) {
-     if ( (ibase & im) != ibase)
-         break;
-     tbit--;
-     im <<= 1;
+      if (new > 255)
+	return(0);
+      lastval = new;
+      if (!saw_digit) {
+	if (++octets > 4)
+	  return(0);
+	saw_digit = 1;
+      }
+    } else if (ch == '.' && saw_digit) {
+      if (octets == 4)
+	return(0);
+      retval = retval * 256 + lastval;
+      lastval = 0;
+      saw_digit = 0;
+    } else
+      break;
+    src++;
   }
-  return tbit;
+  *endptr = src;
+  if (octets < 4)
+    return(0);
+  *val = retval * 256 + lastval;
+  return(1);
 }
 
-int inetnum2prefixes(irr_object_t *object) {
-  char *inetstart = NULL, *inetend = NULL;
-  unsigned long int start, end, temp;
-  unsigned long int maxsize, maxdiff;
+/* Convert an inetnum block to a list of prefix/mask entries */
+int inetnum2prefixes(irr_database_t *database, irr_object_t *object) {
+  char *ptr;
+  prefix_t *prefix;
+  uint32_t start, end, temp, im, last_im; /* v4 addresses in host long format */
+  int tbit;
   struct in_addr address;
 
-  start = ntohl(inet_addr(inetstart));
-  end = ntohl(inet_addr(inetend));
+  /* convert first address to integer val */
+  if (!v4addr2num(object->name, &start, &ptr)) {
+    trace (ERROR, default_trace, "inetnum address: %s is invalid\n", object->name);
+    return 0;
+  }
 
+  /* skip spaces and '-' until we get to the end addr */
+  while ((*ptr < '0' || *ptr > '9') && *ptr != '\0') {
+    ptr++;
+  }
+  /* convert end address to integer val */
+  if (!v4addr2num(ptr, &end, &ptr)) {
+    trace (ERROR, default_trace, "inetnum address: %s is invalid\n", object->name);
+    return 0;
+  }
+
+  /* start is after ending, swap start and end */
   if (start > end) {
      temp = end;
      end = start;
      start = temp;
   }
   while (end >= start) {
-    maxsize = imaxblock(start, 32);
-    maxdiff = 32 - ilogb(end - start + 1);
-    if (maxsize < maxdiff)
-      maxsize = maxdiff;
+    im = 0xffffffff;
+    tbit = 32;
+   
+    while (1) {
+	last_im = im;
+	im <<= 1;
+	if ( (start & im ) != start )
+	  break;
+	if ( (start | ~im) > end)
+	  break;
+	tbit--;
+	/* check for roll-over */
+	if (tbit == 0) {
+	  last_im = start;
+	  break;
+	}
+    }
     address.s_addr = htonl(start);
-    printf ("prefix = %s/%u\n", inet_ntoa(address), maxsize);
-    start += 1<<(32-maxsize);
+    if (!(prefix = New_Prefix(AF_INET, &address.s_addr, tbit)))
+      return 0;
+    if (object->mode == IRR_DELETE)
+      delete_irr_prefix (database, prefix, object);
+    else
+      add_irr_prefix (database, prefix, object); 
+    start -= last_im;	/* start at next boundary */
+    if (start == 0)	/* if we rolled over, break */
+      break;
   }
+  return 1;
 }
-#endif
 
 /* JW It looks like the irr_database_store () routine allows 
  * duplicate PRIMARY keys.  Need to fix so it returns 
@@ -249,27 +299,23 @@ int inetnum2prefixes(irr_object_t *object) {
 int build_secondary_keys (irr_database_t *db, irr_object_t *object) {
   char buf[256], buf1[256], *cp, *last, *p;
   int n = 0, ret_code = 1;
-  int (*func)(irr_database_t *, char *, u_short, 
-	      enum IRR_OBJECTS, u_long,  u_long);
 
   switch (object->type) {
   case PERSON:
-    if (object->mode == IRR_DELETE)
-      func = &irr_database_remove;
-    else
-      func = &irr_database_store;
-
     p = buf;
-    strcpy (buf1, object->name);
+    strncpy (buf1, object->name, 255);
+    buf1[255] = '\0';
     cp = buf1;
     strtok_r (cp, " ", &last);
     while (cp != NULL) {
       whitespace_remove (cp);
 
-      if ((ret_code = (*func) (db, cp, SECONDARY, object->type, 
+      if (object->mode == IRR_DELETE)
+	ret_code = irr_database_remove(db, cp, object->offset);
+      else {
+        if ((ret_code = irr_database_store (db, cp, SECONDARY, object->type, 
 			       object->offset, object->len)) < 0) {
 	/* an error occured, remove any secondary key's we have added */
-	if (object->mode != IRR_DELETE) {
 	  if (p != buf) {
 	    *p++ = ' ';
 	    *p = '\0';
@@ -287,29 +333,34 @@ int build_secondary_keys (irr_database_t *db, irr_object_t *object) {
     }
     if (object->nic_hdl) {
       n = strlen (object->nic_hdl);
+      if ( (p - buf + n) >= 255 ) { /* check for overflow */
+	ret_code = -1;
+	break;
+      }
       *p++ = ' ';
       memcpy (p, object->nic_hdl, n);
       *(p + n) = '\0';
-      if ((ret_code = (*func) (db, buf, PRIMARY, object->type, 
+      if (object->mode == IRR_DELETE) {
+	ret_code = irr_database_remove(db, buf, object->offset);
+        ret_code = irr_database_remove(db, object->nic_hdl, object->offset);
+      } else {
+        if ((ret_code = irr_database_store (db, buf, PRIMARY, object->type, 
 			       object->offset, object->len)) < 0) {
-	if (object->mode != IRR_DELETE) {
 	  *p = '\0';
 	  back_out_secondaries (db, object, buf);
+	} else {
+          if (irr_database_store (db, object->nic_hdl, SECONDARY, object->type, 
+			object->offset, object->len) < 0)  {
+	    ret_code = -1;
+	    irr_database_remove (db, buf, object->offset);
+	  }
 	}
-      }
-      else if ((*func) (db, object->nic_hdl, SECONDARY, object->type, 
-			object->offset, object->len) < 0 &&
-	       object->mode != IRR_DELETE) {
-	  ret_code = -1;
-	  irr_database_remove (db, buf, PRIMARY, object->type,  
-			       object->offset, object->len);
       }
     }
     break;
   default:
     break;
   }
-
   return ret_code;
 }
 
@@ -346,8 +397,7 @@ int add_irr_object (irr_database_t *database, irr_object_t *irr_object) {
       /* Routine will build the PERSON secondary and 'person: hic-hdl:' primary key */
       if (irr_object->type == PERSON &&
 	  (ret_code = build_secondary_keys (database, irr_object)) < 0)
-	irr_database_remove (database, irr_object->name, PRIMARY, 
-			     irr_object->type, irr_object->offset, irr_object->len);
+	irr_database_remove (database, irr_object->name, irr_object->offset);
     }
   }
 
@@ -394,9 +444,8 @@ int delete_irr_object (irr_database_t *database, irr_object_t *irr_object,
   store_hash = irr_special_indexing_store (database, stored_irr_object); 
 
   if (store_hash) {
-    if ((ret_code = irr_database_remove (database, irr_object->name, PRIMARY, 
-					 stored_irr_object->type, stored_irr_object->offset, 
-					 stored_irr_object->len)) > 0)
+    if ((ret_code = irr_database_remove (database, irr_object->name, 
+					 stored_irr_object->offset)) > 0)
       if (stored_irr_object->type == PERSON &&
 	  (ret_code = build_secondary_keys (database, stored_irr_object)) < 0)
 	irr_database_store (database, irr_object->name, PRIMARY, 

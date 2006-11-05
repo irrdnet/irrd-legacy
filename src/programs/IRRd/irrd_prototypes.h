@@ -14,6 +14,7 @@ void mark_deleted_irr_object (irr_database_t *database, u_long offset);
 
 /* configuration */
 int config_irr_database_nodefault (uii_connection_t *uii, char *name);
+int config_irr_database_routing_table_dump (uii_connection_t *uii, char *name);
 int config_irr_database_clean (uii_connection_t *uii, char *name, int seconds);
 int config_irr_database_no_clean (uii_connection_t *uii, char *name);
 int config_tmp_directory (uii_connection_t *uii, char *dir);
@@ -97,13 +98,11 @@ void irr_write_error (irr_connection_t *irr);
 void irr_send_okay (irr_connection_t * irr);
 void irr_send_error (irr_connection_t * irr, char *);
 void irr_mode_send_error (irr_connection_t * irr, int mode, char *);
-void irr_build_answer (irr_connection_t *irr, irr_database_t *database, enum IRR_OBJECTS type, u_long offset, u_long len, char * blob);
+void irr_build_memory_answer (irr_connection_t *irr, u_long len, char * blob);
+void irr_build_answer (irr_connection_t *irr, irr_database_t *database, enum IRR_OBJECTS type, u_long offset, u_long len);
 void send_dbobjs_answer (irr_connection_t * irr, enum INDEX_T index, int mode);
 int listen_telnet (u_short port);
 int irr_destroy_connection (irr_connection_t * connection);
-void irr_build_key_answer (irr_connection_t *irr, FILE *fp, char *dbname,
-                           enum IRR_OBJECTS type, u_long offset,
-                           u_short origin);
 void show_connections (uii_connection_t *uii);
 
 /* database */
@@ -128,10 +127,8 @@ void make_journal_name (char * dbname, int journal_ext, char * journal_name);
 /* util */
 void irr_sort_database ();
 void nice_time (long seconds, char *buf);
-void IRRD_Delete_Node (radix_node_t *node);
 long copy_irr_object (FILE *src_fp, long offset, irr_database_t *database,
 		      u_long obj_length);
-void Delete_RT_Object (irr_prefix_object_t *attr);
 void irr_unlock_all (irr_connection_t *irr);
 void irr_lock_all (irr_connection_t *irr);
 void irr_update_unlock (irr_database_t *database);
@@ -147,15 +144,12 @@ void Delete_IRR_Object (irr_object_t *object);
 void Delete_Ref_keys (reference_key_t *ref_item);
 void lookup_object_references (irr_connection_t *irr);
 void lookup_prefix_exact (irr_connection_t *irr, char *key, enum IRR_OBJECTS type);
-int get_prefix_from_disk (FILE *fp, u_long offset, char *buffer);
 int convert_to_lu (char *strval, u_long *uval);
 irr_hash_string_t *new_irr_hash_string (char *str);
 void delete_irr_hash_string (irr_hash_string_t *str);
 int parse_ripe_flags (irr_connection_t *irr, char **cp);
 int ripe_set_source (irr_connection_t *irr, char **cp);
 int ripe_obj_type (irr_connection_t *irr, char **cp);
-radix_str_t *new_radix_str (radix_node_t *node);
-void delete_radix_str (radix_str_t *str);
 void radix_flush (radix_tree_t *radix_tree);
 void interactive_io (char *);
 void scrub_cryptpw (char *);
@@ -192,14 +186,13 @@ void irr_set_expand (irr_connection_t *irr, char *name);
 
 /* indicies */
 int irr_database_find_matches (irr_connection_t *irr, char *key, 
-				   int p_or_s,
+				   u_char p_or_s,
 				   int match_behavior,
 				   enum IRR_OBJECTS type,
                                    u_long *ret_offset, u_long *ret_len); 
-int irr_database_store (irr_database_t *database, char *key, u_short p_or_s,
+int irr_database_store (irr_database_t *database, char *key, u_char p_or_s,
 			enum IRR_OBJECTS type, u_long offset, u_long len);
-int irr_database_remove (irr_database_t *database, char *key, u_short p_or_s,
-			 enum IRR_OBJECTS type, u_long offset, u_long len);
+int irr_database_remove (irr_database_t *database, char *key, u_long offset);
 void make_spec_key (char *new_key, char *maint, char *set_name);
 void make_mntobj_key (char *new_key, char *maint);
 void make_gas_key (char *gas_key, char *origin);
@@ -218,10 +211,10 @@ int memory_hash_spec_store (irr_database_t *db, char *key, enum SPEC_KEYS id,
 				irr_object_t *object);
 
 /* routines handle prefixes */
-void add_irr_prefix (irr_database_t *database, char *prefix_key, irr_object_t *object);
-int delete_irr_prefix (irr_database_t *database, char *key, irr_object_t *object);
+void add_irr_prefix (irr_database_t *database, prefix_t *prefix, irr_object_t *object);
+int delete_irr_prefix (irr_database_t *database, prefix_t *prefix, irr_object_t *object);
 int seek_prefix_object (irr_database_t *database, enum IRR_OBJECTS type, char *key, 
-		       u_short origin, u_long *offset, u_long *len, int ignore_wd);
+		       u_short origin, u_long *offset, u_long *len);
 radix_node_t *prefix_search_exact (irr_database_t *database, prefix_t *prefix);
 radix_node_t *prefix_search_best (irr_database_t *database, prefix_t *prefix);
 

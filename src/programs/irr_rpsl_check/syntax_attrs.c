@@ -19,7 +19,6 @@
 extern char *attr_name[];
 extern regex_t re[];
 extern char *countries[];
-static const char tmpfntmpl[] = "/var/tmp/irrsyntax.XXXXXX";
 
 int xx_set_syntax (char *target, char *s) {
   char *p;
@@ -48,6 +47,18 @@ int country_syntax (char *country, parse_info_t *obj) {
 
   error_msg_queue (obj, "Unknown country", ERROR_MSG);  
   return 0;
+}
+
+/* check AS number for maximum value; regex already checks for basic correctness */
+
+int origin_syntax (char *origin, parse_info_t *obj) {
+
+  if (strlen (origin + 2) > 5 || atoi(origin + 2) > 65534) {
+    error_msg_queue (obj, "AS number exceeds maximum value of 65534", ERROR_MSG);  
+    return 0;
+  }
+
+  return 1;
 }
 
 /* Given an inetnum address range (ie, inetnum: a1 - a2 or a1 > a2)
@@ -85,7 +96,6 @@ int inetnum_syntax (parse_info_t *obj, char *prefix1, char *prefix2) {
 
   return 1;
 }
-
 
 /* ud - delete
  *
@@ -131,7 +141,6 @@ int password_syntax (char *del, parse_info_t *obj) {
   
   return 2;
 }
-
 
 /*
  * so - source
@@ -713,7 +722,7 @@ char *hexid_check (parse_info_t *o) {
   }
 
   /* create a file and put the key certificate into it */
-  strcpy (pgpinfn, tmpfntmpl);
+  strcpy (pgpinfn, "/var/tmp/irrsyntax.XXXXXX");
   fd = mkstemp (pgpinfn);
   if ((pgpin = fdopen (fd, "w")) == NULL) {
     error_msg_queue (o, 

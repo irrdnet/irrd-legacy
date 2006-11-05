@@ -114,7 +114,7 @@ v command
 	version -- For people who like to type
 	
 
-IRRd treats each database (i.e. radb, cw, ripe) as a
+IRRd treats each database (i.e. radb, ripe) as a
 separate object. As a general algorithm, IRRd will scan each
 database and return an answer from each.
 

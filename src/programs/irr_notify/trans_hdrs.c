@@ -34,6 +34,9 @@ const char MAIL_HEADERS[] =
 const char WEB_UPDATE[] =
 "\nThe Web submission originated from IP address:\n-   %s\n";
 
+const char REPLACE_FAIL_NOTE[] =
+"\nThe existing object has not been replaced.  Please verify that you\nare the authorized maintainer for the existing object as indicated by\nthe mnt-by attribute.  It is common for service provides to \"proxy\"\nregister their customer routes.  If the mnt-by attributes differ and\nyou consider yourself to be the rightful maintainer for this object,\nplease contact %s in order to replace the existing object.\n";
+
 /*
  * <OPERATION> FAILED: [<obj type>] <obj key>
  * 
@@ -87,6 +90,7 @@ const char DEL_MNT_ERROR_MSG_2[] = "Maintainers may only be deleted by a DB admi
 const char BAD_OVERRIDE_MSG[] = "Incorrect override password \"%s\"\n";
 const char UNKNOWN_USER_MSG[] = "Could not determine submitter\n";
 const char MSG_SEPERATOR[] = "\n---\n";
+const char EXIST_OBJ_MSG[] = "EXISTING OBJECT:\n\n";
 const char PREV_OBJ_MSG[] = "PREVIOUS OBJECT:\n\n";
 const char NOTIFY_REPL_MSG[] = "\nREPLACED BY:\n\n";
 const char NOTIFY_DEL_MSG[] = "OBJECT DELETED:\n\n";

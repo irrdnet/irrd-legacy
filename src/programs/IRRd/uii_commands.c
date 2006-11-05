@@ -501,8 +501,7 @@ void uii_fetch_irr_object (uii_connection_t *uii,
 
 void uii_show_ip_exact (uii_connection_t *uii, prefix_t *prefix) {
   radix_node_t *node;
-  LINKED_LIST *ll_attr;
-  irr_prefix_object_t *attr;
+  irr_prefix_object_t *prefix_object;
   irr_database_t *database;
   int first = 1;
 
@@ -512,11 +511,12 @@ void uii_show_ip_exact (uii_connection_t *uii, prefix_t *prefix) {
     node = prefix_search_exact (database, prefix);
 
     if (node != NULL) { 
-      ll_attr = (LINKED_LIST *) node->data;
-      LL_Iterate (ll_attr, attr) {
+      prefix_object = (irr_prefix_object_t *) node->data;
+      while (prefix_object != NULL) {
 	if (first != 1) uii_add_bulk_output (uii, "\r\n");
 	first = 0;
-	uii_fetch_irr_object (uii, database, attr->offset);
+	uii_fetch_irr_object (uii, database, prefix_object->offset);
+	prefix_object = prefix_object->next;
       }
     }
     irr_unlock (database);
@@ -526,8 +526,7 @@ void uii_show_ip_exact (uii_connection_t *uii, prefix_t *prefix) {
 
 void uii_show_ip_less (uii_connection_t *uii, prefix_t *prefix, int flag) {
   radix_node_t *node;
-  LINKED_LIST *ll_attr;
-  irr_prefix_object_t *attr;
+  irr_prefix_object_t *prefix_object;
   irr_database_t *database;
   prefix_t *tmp_prefix;
   int first = 1;
@@ -539,11 +538,12 @@ void uii_show_ip_less (uii_connection_t *uii, prefix_t *prefix, int flag) {
 
     /* first check if this node exists */
     if ((node = prefix_search_exact (database, prefix)) != NULL) {
-      ll_attr = (LINKED_LIST *) node->data;
-      LL_Iterate (ll_attr, attr) {
+      prefix_object = (irr_prefix_object_t *) node->data;
+      while (prefix_object != NULL) {
 	if (first != 1) uii_add_bulk_output (uii, "\r\n");
 	first = 0;
-	uii_fetch_irr_object (uii, database, attr->offset);
+	uii_fetch_irr_object (uii, database, prefix_object->offset);
+	prefix_object = prefix_object->next;
       }
     }
     /* now check all less specific */
@@ -551,11 +551,12 @@ void uii_show_ip_less (uii_connection_t *uii, prefix_t *prefix, int flag) {
 	   (node = prefix_search_best (database, tmp_prefix)) != NULL) {
       if (node != NULL) { 
 	tmp_prefix = node->prefix;
-	ll_attr = (LINKED_LIST *) node->data;
-	LL_Iterate (ll_attr, attr) {
+	prefix_object = (irr_prefix_object_t *) node->data;
+	while (prefix_object != NULL) {
 	  if (first != 1) uii_add_bulk_output (uii, "\r\n");
 	  first = 0;
-	  uii_fetch_irr_object (uii, database, attr->offset);
+	  uii_fetch_irr_object (uii, database, prefix_object->offset);
+	  prefix_object = prefix_object->next;
 	}
       }
       /* break out after one loop for "l" case */
@@ -569,9 +570,8 @@ void uii_show_ip_less (uii_connection_t *uii, prefix_t *prefix, int flag) {
 /* More specific route search */ 
 void uii_show_ip_more (uii_connection_t *uii, prefix_t *prefix) {
   radix_node_t *node, *start_node, *last_node;
-  LINKED_LIST *ll_attr;
-  irr_prefix_object_t *attr;
   radix_tree_t *radix;
+  irr_prefix_object_t *prefix_object;
   irr_database_t *database;
   int first = 1;
 
@@ -596,13 +596,14 @@ void uii_show_ip_more (uii_connection_t *uii, prefix_t *prefix) {
 	    (node->prefix->bitlen >= prefix->bitlen) &&
 	    (comp_with_mask ((void *) prefix_tochar (node->prefix), 
 			     (void *) prefix_tochar (prefix),  prefix->bitlen))) {
-	  ll_attr = (LINKED_LIST *) node->data;
-	  LL_Iterate (ll_attr, attr) {
+	  prefix_object = (irr_prefix_object_t *) node->data;
+	  while (prefix_object != NULL) {
 	    if (first != 1) {
 	      uii_add_bulk_output (uii, "\r\n");
 	    }
 	    first = 0;
-	    uii_fetch_irr_object (uii, database, attr->offset);
+	    uii_fetch_irr_object (uii, database, prefix_object->offset);
+	    prefix_object = prefix_object->next;
 	  }
 	}
       }
@@ -625,6 +626,7 @@ int uii_delete_route (uii_connection_t *uii, char *name, prefix_t *prefix, int a
 
   if (db == NULL) {   
     uii_send_data (uii, "Could not find %s database...\r\n", name);
+    Deref_Prefix(prefix);
     Delete (name);
     return (-1);
   }
@@ -639,10 +641,11 @@ int uii_delete_route (uii_connection_t *uii, char *name, prefix_t *prefix, int a
   if ((irr_object = load_irr_object (db, irr_object)) == NULL) {
     irr_update_unlock (db);
     uii_send_data (uii, "Could not find find %s...\r\n", prefix_toax (prefix));
+    Deref_Prefix(prefix);
     return (-1);
   }
 
-  ret = delete_irr_prefix (db, irr_object->name, irr_object);
+  ret = delete_irr_prefix (db, prefix, irr_object);
   irr_update_unlock (db);
   if (ret) 
     uii_send_data (uii, "Deleted\r\n");

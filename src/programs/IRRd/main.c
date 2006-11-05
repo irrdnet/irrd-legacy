@@ -263,7 +263,7 @@ int main (int argc, char *argv[])
 	printf ("WARNING: This means you have no data and all queries will return NULL\n");
 	interactive_io ("Do you want to continue?");
     }
-      
+
     /* DB cache checks.
      *
      * if the DB cache does not exist or there are system problems write
@@ -570,6 +570,11 @@ void init_irrd_commands (int UNPRIV_FLAG) {
 		    "irr_database %s no-default",
 		    (int (*)()) config_irr_database_nodefault,
 		    "Do not include this database by default when responding to queries");
+
+  uii_add_command2 (UII_CONFIG, COMMAND_NORM,
+		    "irr_database %s routing-table-dump",
+		    (int (*)()) config_irr_database_routing_table_dump,
+		    "This DB file contains a routing table dump");
 
   uii_add_command2 (UII_CONFIG, COMMAND_NORM, "irr_path %s", 
 		    (int (*)()) config_irr_path,

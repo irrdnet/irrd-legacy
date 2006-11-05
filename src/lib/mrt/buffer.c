@@ -234,7 +234,6 @@ buffer_vprintf (buffer_t *buffer, char *fmt, va_list ap)
     u_long ulongarg;
     char *strarg;
     prefix_t *prefix;
-    gateway_t *gateway;
     buffer_t *temp_buffer = NULL;
     int fieldsize, realsize;
     struct utsname utsname;
@@ -422,17 +421,6 @@ buffer_vprintf (buffer_t *buffer, char *fmt, va_list ap)
 		       strbuf, sizeof (strbuf));
 	    if (*fmt == 'p')
 	        sprintf (strbuf + strlen (strbuf), "/%d", prefix->bitlen);
-	    strarg = strbuf;
-	    break;
-
-	case 'g':
-	    gateway = va_arg (ap, gateway_t *);
-	    if (gateway == NULL)
-		continue;
-	    inet_ntop (gateway->prefix->family, 
-		       prefix_tochar (gateway->prefix), 
-		       strbuf, sizeof (strbuf));
-	    sprintf (strbuf + strlen (strbuf), " AS%d", gateway->AS);
 	    strarg = strbuf;
 	    break;
 

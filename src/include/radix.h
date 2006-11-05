@@ -11,7 +11,6 @@ typedef struct _radix_node_t {
    struct _radix_node_t *l, *r;	/* left and right children */
    struct _radix_node_t *parent;/* may be used */
    void *data;			/* pointer to data */
-   void	*user1;			/* pointer to usr data (ex. route flap info) */
 } radix_node_t;
 
 typedef struct _radix_tree_t {
@@ -19,7 +18,6 @@ typedef struct _radix_tree_t {
    u_int		maxbits; /* for 32 for IPv4, 128 for IPv6 */
    int num_active_node;		/* for debug purpose */
 } radix_tree_t;
-
 
 radix_node_t *radix_search_exact (radix_tree_t *radix, prefix_t *prefix);
 radix_node_t *radix_search_exact_raw (radix_tree_t *radix, prefix_t *prefix);
@@ -32,7 +30,6 @@ radix_tree_t *New_Radix (int maxbits);
 void Clear_Radix (radix_tree_t *radix, void_fn_t func);
 void Destroy_Radix (radix_tree_t *radix, void_fn_t func);
 void radix_process (radix_tree_t *radix, void_fn_t func);
-
 
 #define RADIX_MAXBITS 128   /* upto 128 bits (for IPv6) */
 #define RADIX_NBIT(x)        (0x80 >> ((x) & 0x7f))

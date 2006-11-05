@@ -71,10 +71,9 @@ enum REMOTE_MIRROR_STATUS_T {
 };
 
 typedef struct _irr_prefix_object_t {
-  struct _irr_attr_t	*next, *prev;	/* linked_list -- multiple prefixes for a node */
-  enum IRR_OBJECTS type;	/* type of object -- route, route6, inet6num */
-  u_char	withdrawn;
-  u_short	origin;
+  struct _irr_prefix_object_t *next;	/* linked_list -- multiple prefixes for a node */
+  enum IRR_OBJECTS type; /* type of object: route, inetnum, route6, inet6num */
+  u_short	origin;	/* origin AS for route and route6 objects */
   u_long	offset;
   u_long        len;
 } irr_prefix_object_t;
@@ -115,6 +114,7 @@ typedef struct _irr_database_t {
 #define IRR_AUTHORITATIVE	1	/* we are the master copy -- this can be updated */
 #define IRR_READ_ONLY		2
 #define IRR_NODEFAULT		4       /* Do not include by default in queries */
+#define IRR_ROUTING_TABLE_DUMP  8       /* Routing Table Dump flag */
 
   u_long		access_list;		/* restrict access */
   u_long		write_access_list;	/* restrict writes -- refines access */
@@ -178,7 +178,6 @@ typedef struct _irr_object_t {
   u_int         filter_val;     /* used in filtering out certain object types */
 
   /* convenience stuff */
-  int		withdrawn;
   u_short	 origin;	/* use in route object */
   char          *nic_hdl;       /* secondary key */
   LINKED_LIST	*ll_mbrs;	/* members list for as-set/route-set */
@@ -276,7 +275,6 @@ typedef struct _irr_connection_t {
   char			ue_test[8];	/* buffer to check for !ue command */
   u_short		begin_line;	/* lines spanning multiple buffers */
   u_short		line_cont;
-  u_short		withdrawn;      /* include withdrawn routes? */
   u_short		stay_open;	/* default to one-shot, !! to stay open */
   u_short               full_obj;       /* show/display full object? default yes */
   u_int			ripe_flags;     /* list of flags for ripe commands */
@@ -290,9 +288,8 @@ typedef struct _irr_connection_t {
   u_long		timeout;	/* seconds before idle connection times out */	
 
   char tmp[BUFSIZE];            
-  char *cp;			        /* pointer to cursor in line */
-  char *end;			       /* pointer to end of line */
-  char                  *ENCODING;    /* the type of ENCODING: plain, gzip */
+  char *cp;		/* pointer to cursor in line */
+  char *end;		/* pointer to end of line */
 } irr_connection_t;
 
 /* for scan.c quick matching of *rt, *am, etc */
@@ -327,11 +324,6 @@ typedef struct _find_filter_t {
   char *name;
   enum OBJECT_FILTERS filter_f;
 } find_filter_t;
-
-typedef struct _radix_str_t {
-  struct _radix_str_t *next, *prev;
-  radix_node_t *ptr;
-} radix_str_t;
 
 typedef struct _irr_hash_string_t {
   struct _irr_hash_string_t *next, *prev; /* linked_list -- multiple strings */

@@ -7,7 +7,7 @@ include ../../Make.include
 
 GOAL   = irrd
 
-OBJS   = main.o telnet.o scan.o config.o  commands.o database.o update.o mirror.o uii_commands.o journal.o indicies.o rpsl_commands.o route.o hash_spec.o templates.o irrd_util.o mirrorstatus.o statusfile.o atomic_trans.o $(MRTLIB) $(CFGLIB)
+OBJS   = main.o telnet.o scan.o config.o commands.o database.o update.o mirror.o uii_commands.o journal.o indicies.o rpsl_commands.o route.o hash_spec.o templates.o irrd_util.o mirrorstatus.o statusfile.o atomic_trans.o $(MRTLIB) $(CFGLIB)
 
 IRRD_LIBS = -L../atomic_ops -latomic_ops -L../compat -lcompat
 

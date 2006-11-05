@@ -21,62 +21,44 @@ extern trace_t *default_trace;
 /* add_irr_prefix
  * Add a prefix to the radix tree
  */
-void add_irr_prefix (irr_database_t *database, char *prefix_key, 
+void add_irr_prefix (irr_database_t *database, prefix_t *prefix, 
 		    irr_object_t *object) {
-  prefix_t *prefix;
   radix_tree_t *radix;
   radix_node_t *node;
-  LINKED_LIST *ll_attr;
-  irr_prefix_object_t tmp, *prefix_object;
-
-  prefix = ascii2prefix (0, prefix_key);
-  if (prefix == NULL)
-    return;
+  irr_prefix_object_t *prefix_object;
 
   /* 
-   * Store in memory
+   * Store in radix tree
    */
 
-  /* trace (NORM, default_trace, "radix_lookup(%s)\n", prefix_key); */
   if (prefix->family == AF_INET6)
     radix = database->radix_v6;
   else
     radix = database->radix_v4;
-  node = radix_lookup (radix, prefix);
 
-  if (node->data == NULL) {
-    node->data = (void *) LL_Create (LL_Intrusive, True, 
-				     LL_NextOffset, LL_Offset (&tmp, &tmp.next),
-				     LL_PrevOffset, LL_Offset (&tmp, &tmp.prev),
-				     LL_DestroyFunction, Delete_RT_Object, 
-				     0);
-  }
+  /* see if node already exists, and if not, create it */
+  node = radix_lookup (radix, prefix);
   Deref_Prefix (prefix);
 
-  ll_attr = (LINKED_LIST *) node->data;
-
   prefix_object = New (irr_prefix_object_t);
-  prefix_object->offset    = object->offset;
-  prefix_object->len       = object->len;
-  prefix_object->origin    = object->origin;
-  prefix_object->type      = object->type;
-  prefix_object->withdrawn = object->withdrawn;
-  LL_Add (ll_attr, prefix_object);
+  prefix_object->next    = NULL;
+  prefix_object->offset  = object->offset;
+  prefix_object->len     = object->len;
+  prefix_object->origin  = object->origin;
+  prefix_object->type    = object->type;
+  if (node->data != NULL) {
+    prefix_object->next = (irr_prefix_object_t *) node->data;
+  }
+  node->data = prefix_object;
 }
 
 /* delete_irr_prefix
  */
-int delete_irr_prefix (irr_database_t *database, char *key, irr_object_t *object) {
-  prefix_t *prefix = NULL;
+int delete_irr_prefix (irr_database_t *database, prefix_t *prefix, irr_object_t *object) {
   radix_tree_t *radix;
   radix_node_t *node = NULL;
-  LINKED_LIST *ll_attr = NULL;
-  irr_prefix_object_t *tmp_attr = NULL;
+  irr_prefix_object_t *prefix_object, *last_prefix_obj = NULL;
   int found = 0;
-
-  prefix = ascii2prefix (0, key);
-  if (prefix == NULL)
-    return(found);
 
   if (prefix->family == AF_INET6)
     radix = database->radix_v6;
@@ -84,53 +66,59 @@ int delete_irr_prefix (irr_database_t *database, char *key, irr_object_t *object
     radix = database->radix_v4;
 
   node = prefix_search_exact (database, prefix);
+  Deref_Prefix (prefix);
 
   if (node != NULL) {
-    ll_attr = (LINKED_LIST *) node->data;
-    LL_Iterate (ll_attr, tmp_attr) {
-      if (object->type == tmp_attr->type && object->origin == tmp_attr->origin) {
+    prefix_object = node->data;
+    while (prefix_object != NULL) {
+      if (object->type == prefix_object->type && object->origin == prefix_object->origin && object->offset == prefix_object->offset) {
 	found = 1;
-	LL_Remove (ll_attr, tmp_attr); /* this is probably dangerous */
+	if (last_prefix_obj != NULL)
+	  last_prefix_obj->next = prefix_object->next;
+	else
+	  node->data = prefix_object->next;
+	free(prefix_object);
 	break;
       }
+      last_prefix_obj = prefix_object;
+      prefix_object = prefix_object->next;
     }
-    if (LL_GetCount(ll_attr) == 0) {
-      LL_Destroy (ll_attr);
-      node->data = NULL;
+    if (node->data == NULL) {
       radix_remove (radix, node);
     }
   }
-  Delete_Prefix (prefix);
   return (found);
 }
 
 /* seek_prefix_object
  * We need to find an object before we can delete it */
 int seek_prefix_object (irr_database_t *database, enum IRR_OBJECTS type,
-	 char *key, u_short origin, u_long *offset, u_long *len, int ignore_wd) {
+	 char *key, u_short origin, u_long *offset, u_long *len) {
   radix_node_t *node = NULL;
-  LINKED_LIST *ll_attr;
   irr_prefix_object_t *prefix_object;
   prefix_t *prefix;
+  int family = AF_INET;
 
-  if ((prefix = ascii2prefix (0, key)) == NULL)
+  if (type != ROUTE)
+    family = AF_INET6;
+
+  if ((prefix = ascii2prefix (family, key)) == NULL)
      return -1;
   
   node = prefix_search_exact (database, prefix);
-  Delete_Prefix (prefix);
+  Deref_Prefix (prefix);
 
   if (node == NULL) return (-1);
 
-  ll_attr = (LINKED_LIST *) node->data;
-  LL_Iterate (ll_attr, prefix_object) {
+  prefix_object = (irr_prefix_object_t *) node->data;
+  while (prefix_object != NULL) {
     if ( prefix_object->type   == type &&
-         prefix_object->origin == origin &&
-	(ignore_wd                  ||
-	 prefix_object->withdrawn == 0)) {
+         prefix_object->origin == origin ) {
       *offset = prefix_object->offset;
       *len = prefix_object->len;
       return (1);
     }
+    prefix_object = prefix_object->next;
   }
   
   return (-1);

@@ -12,7 +12,8 @@ int nonblock_connect (trace_t *default_trace, prefix_t *prefix, int port, int so
   struct  sockaddr_in	serv_addr;
   fd_set		fdvar_write; 
   struct timeval	tv;
-  int			n, optval, size;
+  int			n, optval;
+  size_t		size;
 
   tv.tv_sec = 3; /* XXX */
   tv.tv_usec = 0;

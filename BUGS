@@ -1,6 +1,4 @@
 
- Oct 06, 2003
-
   The parser does not currently allow embedded comments in multi-line
 non-freetext attributes.   Comments are allowed at the end
 of attributes which do not contain multiple lines.

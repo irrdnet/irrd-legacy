@@ -465,9 +465,6 @@ void pick_off_secondary_fields (char *buffer, int curr_f,
     whitespace_newline_remove(cp);
     irr_object->nic_hdl = strdup (cp);
     break;
-  case WITHDRAWN:
-    irr_object->withdrawn = 1;
-    break;
   case PREFIX:	/* for IPv6 site objects */
     if (irr_object->ll_prefix == NULL) /* create list if it does not exist */
       irr_object->ll_prefix = LL_Create (LL_DestroyFunction, free, 0);

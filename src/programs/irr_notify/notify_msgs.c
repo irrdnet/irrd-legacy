@@ -173,7 +173,7 @@ void maint_request (trace_t *tr, FILE *fin, long obj_pos, trans_info_t *ti,
       trace (NORM, tr, "mail %s\n", to_addr);
       chmod (email, 00666);
       if ((pid = fork ()) == 0) {
-	execlp ("sh", "sh", "-c", email, 0);
+	execlp ("sh", "sh", "-c", email, NULL);
 	exit (127);
       }
       while ((w = wait (&status)) != pid && w != -1);
@@ -499,6 +499,17 @@ void sender_response (trace_t *tr, FILE *fin, long obj_pos, trans_info_t *ti,
   if (ti->authfail) {
     fprintf (msg_fp, "%s%s", ERROR_TAG, AUTHFAIL_MSG);
     fprintf (msg_fp, "\n");
+    if (!strcmp (ti->op, REPLACE_OP)) {
+      char *notify_str;
+
+      fprintf (msg_fp, EXIST_OBJ_MSG);
+      dump_old_obj (tr, msg_fp, fin, ti->old_obj_fname, max_obj_line_size);
+      if (db_admin == NULL)
+	notify_str = "the existing maintainer";
+      else
+	notify_str = db_admin;
+      fprintf (msg_fp, REPLACE_FAIL_NOTE, db_admin);
+    }
     trace (NORM, tr, "%s%s", ERROR_TAG, AUTHFAIL_MSG);
     return;
   }

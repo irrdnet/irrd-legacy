@@ -265,6 +265,12 @@ void get_config_irr_database (irr_database_t *database) {
 		       database->name);
     atts = 1;
   }
+
+  if (database->flags & IRR_ROUTING_TABLE_DUMP) {
+    config_add_output ("irr_database %s routing-table-dump\r\n",
+			database->name);
+    atts = 1;
+  }
   
   if (atts == 0) 
     config_add_output ("irr_database %s\r\n", database->name);
@@ -282,6 +288,21 @@ int config_irr_database_nodefault (uii_connection_t *uii, char *name) {
 
   Delete (name);
   database->flags |= IRR_NODEFAULT;
+
+  return (1);
+}
+
+int config_irr_database_routing_table_dump (uii_connection_t *uii, char *name) {
+  irr_database_t *database = NULL;
+
+  if ((database = find_database (name)) == NULL) {
+    config_notice (ERROR, uii, "Database %s not found!\r\n", name);
+    Delete (name);
+    return (-1);
+  }
+
+  Delete (name);
+  database->flags |= IRR_ROUTING_TABLE_DUMP;
 
   return (1);
 }

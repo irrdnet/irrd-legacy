@@ -301,8 +301,8 @@ typedef struct _typedef_t {
 } typedef_t;
 
 typedef struct _irange_t {
-  long upper;
-  long lower;
+  unsigned long upper;
+  unsigned long lower;
 } irange_t;
 
 typedef struct _drange_t {
@@ -453,98 +453,96 @@ void hdl_syntax (parse_info_t *obj, char *hdl);
 
 /* field sytnax checker's */
 
-int  email_syntax          (char *, parse_info_t *);
-void regex_syntax          (char *, parse_info_t *);
-char *date_syntax          (char *, parse_info_t *, int);
+int  email_syntax	(char *, parse_info_t *);
+void regex_syntax	(char *, parse_info_t *);
+char *date_syntax	(char *, parse_info_t *, int);
 char *time_interval_syntax (parse_info_t *, char *, char *, char *, char *);
-void cryptpw_syntax        (char *, parse_info_t *);
-void source_syntax         (char *, parse_info_t *);
-int  is_nichdl             (char *);
-void nichdl_syntax         (char *, parse_info_t *);
-int  delete_syntax         (char *, parse_info_t *);
-int  password_syntax       (char *, parse_info_t *);
-int  inetnum_syntax        (parse_info_t *, char *, char *);
-int  country_syntax        (char *, parse_info_t *);
-void mb_check              (parse_info_t *, char *);
-char *hexid_check          (parse_info_t *);
-int  get_fingerprint       (parse_info_t *,  char *, pgp_data_t *);
-
+void cryptpw_syntax	(char *, parse_info_t *);
+void source_syntax	(char *, parse_info_t *);
+int  is_nichdl		(char *);
+void nichdl_syntax	(char *, parse_info_t *);
+int  delete_syntax	(char *, parse_info_t *);
+int  password_syntax	(char *, parse_info_t *);
+int  inetnum_syntax	(parse_info_t *, char *, char *);
+int  country_syntax	(char *, parse_info_t *);
+int  origin_syntax	(char *, parse_info_t *);
+void mb_check		(parse_info_t *, char *);
+char *hexid_check	(parse_info_t *);
+int  get_fingerprint	(parse_info_t *,  char *, pgp_data_t *);
 
 /* util.c */
 
-void      check_object_end    (parse_info_t *, canon_info_t *);
-void      start_new_object    (parse_info_t *, canon_info_t *);
-void      error_msg_queue     (parse_info_t *, char *, int);
-void      report_errors       (parse_info_t *);
-void      init_regexes        ();
-void      regex_compile       (regex_t [], int, char *);
-int       is_nichdl           (char *);
-int       is_country          (char *, char *[]);
-int       is_special_suffix   (char *);
-source_t  *is_sourcedb        (char *, source_t *);
-char      *my_strcat          (parse_info_t *, int, u_int, ...);
-void      wrap_up             (canon_info_t *);
-int       irrorder_syntax     (parse_info_t *, char *, char *);
-void      convert_toupper     (char *);
-void      convert_tolower     (char *);
-int       is_reserved_word    (char *);
-int       has_reserved_prefix (char *);
-rp_attr_t *is_RPattr          (rp_attr_t_ll *, char *);
-method_t  *find_method        (method_t *, char *);
+void check_object_end	(parse_info_t *, canon_info_t *);
+void start_new_object	(parse_info_t *, canon_info_t *);
+void error_msg_queue	(parse_info_t *, char *, int);
+void report_errors	(parse_info_t *);
+void init_regexes	();
+void regex_compile	(regex_t [], int, char *);
+int  is_nichdl		(char *);
+int  is_country		(char *, char *[]);
+int  is_special_suffix	(char *);
+source_t *is_sourcedb	(char *, source_t *);
+char *my_strcat		(parse_info_t *, int, u_int, ...);
+void wrap_up		(canon_info_t *);
+int  irrorder_syntax	(parse_info_t *, char *, char *);
+void convert_toupper	(char *);
+void convert_tolower	(char *);
+int  is_reserved_word	(char *);
+int  has_reserved_prefix (char *);
+rp_attr_t *is_RPattr	(rp_attr_t_ll *, char *);
+method_t  *find_method	(method_t *, char *);
 method_t  *find_proto_method  (proto_t *, char *);
-void      rpsl_lncont         (parse_info_t *, canon_info_t *, int);
-void      save_cookie_info    (parse_info_t *, char *);
-void      rm_tmpdir           (char *);
-void      add_machine_gen_attrs (parse_info_t *, canon_info_t *);
-char      *todays_strdate     ();
+void rpsl_lncont	(parse_info_t *, canon_info_t *, int);
+void save_cookie_info	(parse_info_t *, char *);
+void rm_tmpdir		(char *);
+void add_machine_gen_attrs (parse_info_t *, canon_info_t *);
+char *todays_strdate     ();
 
 /* canonical.c */
 
-void parse_buf_add                (canon_info_t *, char *, ...);
-void canonicalize_key_attr        (parse_info_t *, canon_info_t *, int);
+void parse_buf_add	(canon_info_t *, char *, ...);
+void canonicalize_key_attr	(parse_info_t *, canon_info_t *, int);
 void display_canonicalized_object (parse_info_t *, canon_info_t *);
-void add_canonical_error_line     (parse_info_t *, canon_info_t *, int);
-void start_new_canonical_line     (canon_info_t *, parse_info_t *);
-int  irrcheck_find_token          (char **, char **);
-void set_skip_attr                (canon_info_t *, parse_info_t *);
+void add_canonical_error_line	(parse_info_t *, canon_info_t *, int);
+void start_new_canonical_line	(canon_info_t *, parse_info_t *);
+int  irrcheck_find_token	(char **, char **);
+void set_skip_attr	(canon_info_t *, parse_info_t *);
 
 /* hdr_build.c */
 
-void build_header_info (parse_info_t *, char *);
+void build_header_info	(parse_info_t *, char *);
 void display_header_info (parse_info_t *);
-char *my_concat (char *, char *, int);
+char *my_concat		(char *, char *, int);
 
 /* data dictionary */
 
-int       valid_args         (parse_info_t *, method_t *, int, char *, 
-                              int, char **);
-char      *append_enum       (char *, char *);
-param_t   *create_parm       (type_t *);
-param_t   *add_parm_obj      (param_t *, param_t *);
-type_t    *create_type       (parse_info_t *, enum RPSL_DATA_TYPE, ...);
-type_t    *create_union      (param_t *);
-type_t    *create_predef     (enum PREDEF_TYPE, int, irange_t *i, 
-			      drange_t *, char *);
-type_t    *create_typedef    (char *, type_t *);
-method_t  *create_method     (char *, param_t *, enum ARG_CONTEXT, int);
-method_t  *add_method        (method_t *, method_t *);
-rp_attr_t *create_rp_attr    (char *, method_t *);
-void      add_rp_attr        (rp_attr_t_ll *, rp_attr_t *);
-proto_t   *create_proto_attr (char *, method_t *);
-void      add_new_proto      (proto_t_ll *, proto_t *);
-proto_t   *find_protocol     (proto_t_ll *, char *);
-afi_t     *create_afi_attr   (char *);
-void      add_new_afi        (afi_t_ll *, afi_t *);
-afi_t     *find_afi          (afi_t_ll *, char *);
-void      print_typedef_list (type_t_ll *);
-void      print_parm_list    (param_t *);
-void      print_predef       (type_t *);
-void      print_union        (type_t *);
-void      print_typedef      (type_t *);
-void      print_method_list  (method_t *);
-void      print_rp_list      (rp_attr_t_ll *);
-void      print_proto_list   (proto_t_ll *);
-void      print_afi_list     (afi_t_ll *);
+int  valid_args		(parse_info_t *, method_t *, int, char *, int, char **);
+char *append_enum	(char *, char *);
+param_t *create_parm	(type_t *);
+param_t *add_parm_obj	(param_t *, param_t *);
+type_t *create_type	(parse_info_t *, enum RPSL_DATA_TYPE, ...);
+type_t *create_union	(param_t *);
+type_t *create_predef	(enum PREDEF_TYPE, int, irange_t *i, drange_t *, char *);
+type_t *create_typedef	(char *, type_t *);
+method_t *create_method	(char *, param_t *, enum ARG_CONTEXT, int);
+method_t *add_method	(method_t *, method_t *);
+rp_attr_t *create_rp_attr	(char *, method_t *);
+void add_rp_attr	(rp_attr_t_ll *, rp_attr_t *);
+proto_t *create_proto_attr	(char *, method_t *);
+void add_new_proto		(proto_t_ll *, proto_t *);
+proto_t *find_protocol		(proto_t_ll *, char *);
+afi_t *create_afi_attr	(char *);
+void add_new_afi	(afi_t_ll *, afi_t *);
+afi_t *find_afi	(afi_t_ll *, char *);
+void print_typedef_list (type_t_ll *);
+void print_parm_list    (param_t *);
+void print_predef       (type_t *);
+void print_union	(type_t *);
+void print_typedef	(type_t *);
+void print_method_list	(method_t *);
+void print_rp_list	(rp_attr_t_ll *);
+void print_proto_list	(proto_t_ll *);
+void print_afi_list	(afi_t_ll *);
 enum ARG_CONTEXT find_arg_context (param_t *, int);
 
 /* rpsl.fl */

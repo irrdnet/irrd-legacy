@@ -16,17 +16,6 @@
 #define gethostbyaddr_r(a,b,c,d,e,f,g) gethostbyaddr(a,b,c)
 #endif
 
-/* Prototypes for netdb functions that aren't in the 
- * gcc include files (argh!) */
-/* The reason they're not there is because SOMEBODY installed the
-   FREAKING BIND-4 INCLUDES, which you AIN'T SUPPOSED TO DO WITH
-   SOLARIS! GRRRR!
-   In addition, it seems somewhat bad that the functions don't
-   exist in the bind include files... if the regular equivs are,
-   in fact, threadsafe, the #ifdef __osf__ may have to be expanded.
-   -- dogcow
- */
-
 struct hostent  *gethostbyname_r 
 	(const char *, struct hostent *, char *, int, int *h_errnop);
 struct hostent  *gethostbyaddr_r
@@ -89,47 +78,29 @@ int num_active_prefixes = 0;
 */
 
 prefix_t *
-New_Prefix2 (int family, void *dest, int bitlen, prefix_t *prefix)
-{
-    int dynamic_allocated = 0;
-    int default_bitlen = 32;
-
-    if (family == AF_INET6) {
-        default_bitlen = 128;
-	if (prefix == NULL) {
-            prefix = (prefix_t *) New (prefix_t);
-	    dynamic_allocated++;
-	}
-	memcpy (&prefix->add.sin6, dest, 16);
-    }
-    else
-    if (family == AF_INET) {
-		if (prefix == NULL) {
-            prefix = (prefix_t *) New (prefix_t);
-			dynamic_allocated++;
-		}
-		memcpy (&prefix->add.sin, dest, 4);
-    }
-    else {
-        return (NULL);
-    }
-
-    prefix->bitlen = (bitlen >= 0)? bitlen: default_bitlen;
-    prefix->family = family;
-    prefix->ref_count = 0;
-    if (dynamic_allocated) {
-        pthread_mutex_init (&prefix->mutex_lock, NULL);
-        prefix->ref_count++;
-        num_active_prefixes++;
-   }
-/* fprintf(stderr, "[C %s, %d]\n", prefix_toa (prefix), prefix->ref_count); */
-    return (prefix);
-}
-
-prefix_t *
 New_Prefix (int family, void *dest, int bitlen)
 {
-    return (New_Prefix2 (family, dest, bitlen, NULL));
+    prefix_t *prefix;
+
+    if (family == AF_INET) {
+      prefix = (prefix_t *) New (v4_prefix_t);
+      pthread_mutex_init (&prefix->mutex_lock, NULL);
+      memcpy (&prefix->add.sin, dest, 4);
+    }
+    else
+    if (family == AF_INET6) {
+      prefix = (prefix_t *) New (prefix_t);
+      pthread_mutex_init (&prefix->mutex_lock, NULL);
+      memcpy (&prefix->add.sin6, dest, 16);
+    }
+    else
+      return (NULL);
+
+    prefix->ref_count = 1;
+    num_active_prefixes++;
+    prefix->bitlen = bitlen;
+    prefix->family = family;
+    return (prefix);
 }
 
 /* name_toprefix() takes a hostname and returns a prefix with the 
@@ -266,11 +237,10 @@ Ref_Prefix (prefix_t * prefix)
 	return (NULL);
     if (prefix->ref_count == 0) {
 	/* make a copy in case of a static prefix */
-        return (New_Prefix2 (prefix->family, &prefix->add, prefix->bitlen, NULL));
+        return (New_Prefix (prefix->family, &prefix->add, prefix->bitlen));
     }
     pthread_mutex_lock (&prefix->mutex_lock);
     prefix->ref_count++;
-/* fprintf(stderr, "[A %s, %d]\n", prefix_toa (prefix), prefix->ref_count); */
     pthread_mutex_unlock (&prefix->mutex_lock);
     return (prefix);
 }
@@ -284,15 +254,7 @@ Deref_Prefix (prefix_t * prefix)
     assert (prefix->ref_count > 0);
     pthread_mutex_lock (&prefix->mutex_lock);
 
-/*
-if (1) {
-int c = prefix->ref_count;
-prefix->ref_count = 1;
-fprintf(stderr, "[D %s, %d]\n", prefix_toa (prefix), c-1);
-prefix->ref_count = c;
-} */
     prefix->ref_count--;
-    assert (prefix->ref_count >= 0);
     if (prefix->ref_count <= 0) {
         pthread_mutex_destroy (&prefix->mutex_lock);
 	Delete (prefix);
@@ -302,34 +264,16 @@ prefix->ref_count = c;
     pthread_mutex_unlock (&prefix->mutex_lock);
 }
 
-/* copy_prefix
- */
-prefix_t *
-copy_prefix (prefix_t * prefix)
-{
-    if (prefix == NULL)
-	return (NULL);
-    return (New_Prefix (prefix->family, &prefix->add, prefix->bitlen));
-}
-
 /* ascii2prefix
  */
-#define MAXPREFIXSTRLEN 47
 prefix_t *
 ascii2prefix (int family, char *string)
 {
-    u_long bitlen, maxbitlen = 0;
+    u_long bitlen, maxbitlen;
     char *cp;
     struct in_addr sin;
     struct in6_addr sin6;
-    int result;
-    char save[MAXPREFIXSTRLEN + 1];
-
-    if (string == NULL)
-	return (NULL);
-
-    if (strlen(string) >= MAXPREFIXSTRLEN)
-	return (NULL);
+    prefix_t *return_prefix = NULL;
 
     /* easy way to handle both families */
     if (family == 0) {
@@ -342,38 +286,27 @@ ascii2prefix (int family, char *string)
     }
     else if (family == AF_INET6) {
 	maxbitlen = 128;
-    }
+    } else
+	return NULL;  /* unrecognized family */
 
     if ((cp = strchr (string, '/')) != NULL) {
+	*cp = '\0';	/* terminate string at "/" char */
 	bitlen = atol (cp + 1);
-	/* copy the string to save. Avoid destroying the string */
-	memcpy (save, string, cp - string);
-	save[cp - string] = '\0';
-	string = save;
 	if (bitlen < 0 || bitlen > maxbitlen)
 	    bitlen = maxbitlen;
     } else
 	bitlen = maxbitlen;
 
     if (family == AF_INET) {
-	if ((result = my_inet_pton (AF_INET, string, &sin)) <= 0)
-	     return (NULL);
-	return (New_Prefix (AF_INET, &sin, bitlen));
-    } else if (family == AF_INET6) {
-	if ((result = inet_pton (AF_INET6, string, &sin6)) <= 0)
-	    return (NULL);
-	return (New_Prefix (AF_INET6, &sin6, bitlen));
-    } else
-	return (NULL);
-}
-
-void 
-Delete_Prefix (prefix_t * prefix)
-{
-    if (prefix == NULL)
-	return;
-    assert (prefix->ref_count >= 0);
-    Delete (prefix);
+	if (my_inet_pton (AF_INET, string, &sin) > 0)
+	  return_prefix = New_Prefix (AF_INET, &sin, bitlen);
+    } else {
+	if (inet_pton (AF_INET6, string, &sin6) > 0)
+	  return_prefix = New_Prefix (AF_INET6, &sin6, bitlen);
+    }
+    if (cp)
+      *cp = '/';   /* Restore "/" in string */
+    return return_prefix;
 }
 
 /* 
@@ -449,10 +382,6 @@ print_pref_prefix_list_buffer (LINKED_LIST * ll_prefixes, u_short *pref,
 int 
 prefix_equal (prefix_t * p1, prefix_t * p2)
 {
-    assert (p1);
-    assert (p2);
-    assert (p1->ref_count >= 0);
-    assert (p2->ref_count >= 0);
     if (p1->family != p2->family) {
 	/* we can not compare in this case */
 	return (FALSE);
@@ -516,7 +445,6 @@ prefix_compare_wlen (prefix_t *p, prefix_t *q)
     return (0);
 }
 
-
 int
 prefix_compare2 (prefix_t *p, prefix_t *q)
 {
@@ -528,7 +456,16 @@ prefix_compare2 (prefix_t *p, prefix_t *q)
 char *
 prefix_toa (prefix_t * prefix)
 {
-    return (prefix_toa2 (prefix, (char *) NULL));
+    return (prefix_toa2x (prefix, (char *) NULL, 0));
+}
+
+/*
+ * prefix_toa with /length
+ */
+char *
+prefix_toax (prefix_t *prefix)
+{
+    return (prefix_toa2x (prefix, (char *) NULL, 1));
 }
 
 /* prefix_toa2
@@ -549,7 +486,6 @@ prefix_toa2x (prefix_t *prefix, char *buff, int with_len)
 {
     if (prefix == NULL)
 	return ("(Null)");
-    assert (prefix->ref_count >= 0);
     if (buff == NULL) {
 
         struct buffer {
@@ -567,7 +503,6 @@ prefix_toa2x (prefix_t *prefix, char *buff, int with_len)
     }
     if (prefix->family == AF_INET) {
 	u_char *a;
-	assert (prefix->bitlen <= 32);
 	a = prefix_touchar (prefix);
 	if (with_len) {
 	    sprintf (buff, "%d.%d.%d.%d/%d", a[0], a[1], a[2], a[3],
@@ -583,23 +518,12 @@ prefix_toa2x (prefix_t *prefix, char *buff, int with_len)
 	r = (char *) inet_ntop (AF_INET6, &prefix->add.sin6, buff,
 				48 /* a guess value */ );
 	if (r && with_len) {
-	    assert (prefix->bitlen <= 128);
 	    sprintf (buff + strlen (buff), "/%d", prefix->bitlen);
 	}
 	return (buff);
     }
     else
 	return (NULL);
-}
-
-
-/*
- * prefix_toa with /length
- */
-char *
-prefix_toax (prefix_t *prefix)
-{
-    return (prefix_toa2x (prefix, (char *) NULL, 1));
 }
 
 void 

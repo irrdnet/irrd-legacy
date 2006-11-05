@@ -23,6 +23,8 @@ program:
 
 clean:
 	@$(RM) config.cache
+	@$(RM) config.log
+	@$(RM) config.status
 	@echo "Cleaning up lib"; \
 	test $(.CURDIR) && cd $(.CURDIR); cd lib; $(MAKE) $@
 	@echo "Cleaning up programs"; \

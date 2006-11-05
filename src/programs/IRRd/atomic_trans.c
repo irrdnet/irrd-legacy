@@ -185,7 +185,7 @@ trace (NORM, default_trace, "JW: route processing line (%s)\n", buf);
       sscanf (buf + rm[1].rm_so, "%hu", &as);
 trace (NORM, default_trace, "JW: route processing (%s, %hu)...\n", pkey, as);
       len = 0;
-      seek_prefix_object (db, ROUTE, pkey, as, &offset, &len, 1);
+      seek_prefix_object (db, ROUTE, pkey, as, &offset, &len);
       /* save the offset and first 2 attribute letters for rollback */
       if (len > 0)
 	fprintf (fout, "%-10ld %.*s\n", (long) offset, 3, attr);

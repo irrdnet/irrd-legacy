@@ -442,7 +442,6 @@ int init_mrt (trace_t *tr) {
    MRT->start_time = time (NULL);
    MRT->ll_threads = LL_Create (0);
    MRT->ll_trace = LL_Create (0);
-   MRT->ll_signal_call_fn = LL_Create (0);
    MRT->trace = tr;
    MRT->config_file_name = NULL;
    MRT->pid = getpid ();
@@ -509,7 +508,7 @@ mrt_socket (int domain, int type, int protocol, char *s, int l)
 }
 
 int 
-mrt_accept (int d, struct sockaddr *addr, int *addrlen, char *s, int l)
+mrt_accept (int d, struct sockaddr *addr, socklen_t *addrlen, char *s, int l)
 {
     int r = accept (d, addr, addrlen);
     trace (TR_TRACE, MRT->trace, "accept (%d) -> %d in %s at %d\n", 
