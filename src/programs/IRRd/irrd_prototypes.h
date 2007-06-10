@@ -153,6 +153,7 @@ int ripe_obj_type (irr_connection_t *irr, char **cp);
 void radix_flush (radix_tree_t *radix_tree);
 void interactive_io (char *);
 void scrub_cryptpw (char *);
+char *print_as (char *, u_long);
 char *dir_chks (char *, int);
 
 /* mirroring */
@@ -214,7 +215,7 @@ int memory_hash_spec_store (irr_database_t *db, char *key, enum SPEC_KEYS id,
 void add_irr_prefix (irr_database_t *database, prefix_t *prefix, irr_object_t *object);
 int delete_irr_prefix (irr_database_t *database, prefix_t *prefix, irr_object_t *object);
 int seek_prefix_object (irr_database_t *database, enum IRR_OBJECTS type, char *key, 
-		       u_short origin, u_long *offset, u_long *len);
+		       u_long origin, u_long *offset, u_long *len);
 radix_node_t *prefix_search_exact (irr_database_t *database, prefix_t *prefix);
 radix_node_t *prefix_search_best (irr_database_t *database, prefix_t *prefix);
 

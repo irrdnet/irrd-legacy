@@ -876,6 +876,7 @@ void irr_less_all (irr_connection_t *irr, prefix_t *prefix,
   irr_database_t *database;
   prefix_t *tmp_prefix = NULL;
   int prefix_found = 0;
+  char tmpstr[16];
 
   if (mode == RAWHOISD_MODE) {
      irr->ll_answer = LL_Create (LL_DestroyFunction, free, 0);
@@ -894,7 +895,7 @@ void irr_less_all (irr_connection_t *irr, prefix_t *prefix,
       while (prefix_object != NULL) {
 	if (mode != RAWHOISD_MODE || prefix_object->type == ROUTE || prefix_object->type == ROUTE6) {
 	  if (irr->full_obj == 0 && mode == RAWHOISD_MODE) {
-	    irr_add_answer(irr, "%s %s-AS%d\n",database->name, prefix_toax(node->prefix), prefix_object->origin);
+	    irr_add_answer(irr, "%s %s-AS%s\n",database->name, prefix_toax(node->prefix), print_as(tmpstr, prefix_object->origin));
 	  } else
 	    irr_build_answer (irr, database, prefix_object->type, prefix_object->offset, prefix_object->len);
 	  if (prefix_object->type == ROUTE || prefix_object->type == ROUTE6)
@@ -917,7 +918,7 @@ void irr_less_all (irr_connection_t *irr, prefix_t *prefix,
       while (prefix_object != NULL) {
 	if (mode != RAWHOISD_MODE || prefix_object->type == ROUTE || prefix_object->type == ROUTE6) {
 	  if (irr->full_obj == 0 && mode == RAWHOISD_MODE) {
-	    irr_add_answer(irr, "%s %s-AS%d\n",database->name, prefix_toax(tmp_prefix), prefix_object->origin);
+	    irr_add_answer(irr, "%s %s-AS%s\n",database->name, prefix_toax(tmp_prefix), print_as(tmpstr,prefix_object->origin));
 	  } else
 	    irr_build_answer (irr, database, prefix_object->type, prefix_object->offset, prefix_object->len);
 	  if (prefix_object->type == ROUTE || prefix_object->type == ROUTE6)
@@ -951,6 +952,7 @@ void irr_more_all (irr_connection_t *irr, prefix_t *prefix, int mode) {
   irr_prefix_object_t *prefix_object;
   radix_tree_t *radix;
   irr_database_t *database;
+  char tmpstr[16];
   
   if (prefix->bitlen < 8) {
     irr_mode_send_error (irr, mode, "only allow more specific searches >= /8");
@@ -985,7 +987,7 @@ void irr_more_all (irr_connection_t *irr, prefix_t *prefix, int mode) {
 	  while (prefix_object != NULL) {
 	    if (mode != RAWHOISD_MODE || prefix_object->type == ROUTE || prefix_object->type == ROUTE6) {
 	      if (irr->full_obj == 0 && mode == RAWHOISD_MODE) {
-	        irr_add_answer(irr, "%s %s-AS%d\n",database->name, prefix_toax(node->prefix), prefix_object->origin);
+	        irr_add_answer(irr, "%s %s-AS%s\n",database->name, prefix_toax(node->prefix), print_as(tmpstr,prefix_object->origin));
 	      } else
 	        irr_build_answer (irr, database, prefix_object->type, prefix_object->offset, prefix_object->len);
 	    }
@@ -1019,6 +1021,7 @@ void irr_exact (irr_connection_t *irr, prefix_t *prefix, int flag, int mode) {
   irr_prefix_object_t *prefix_object;
   irr_database_t *database;
   int first = 1;
+  char tmpstr[16];
 
   if (mode == RAWHOISD_MODE) {
     if (flag == SHOW_FULL_OBJECT)
@@ -1042,16 +1045,16 @@ void irr_exact (irr_connection_t *irr, prefix_t *prefix, int flag, int mode) {
 	    if (irr->full_obj == 0) {
 	      if (first != 1) irr_add_answer (irr, "\n");
 	      first = 0;
-	      irr_add_answer (irr, "%s AS%d", database->name, prefix_object->origin);
+	      irr_add_answer (irr, "%s AS%s", database->name, print_as(tmpstr, prefix_object->origin));
 	    } else {
-	      irr_add_answer (irr, "AS%d ", prefix_object->origin);
+	      irr_add_answer (irr, "AS%s ", print_as(tmpstr, prefix_object->origin));
 	    }
 	    prefix_object = prefix_object->next;	/* skip if not a route object */
 	    continue;
 	  }
 	}
 	if (irr->full_obj == 0 && mode == RAWHOISD_MODE) {
-	  irr_add_answer(irr, "%s %s-AS%d\n",database->name, prefix_toax(node->prefix), prefix_object->origin);
+	  irr_add_answer(irr, "%s %s-AS%s\n",database->name, prefix_toax(node->prefix), print_as(tmpstr, prefix_object->origin));
 	} else
 	  irr_build_answer (irr, database, prefix_object->type, prefix_object->offset, prefix_object->len);
 	prefix_object = prefix_object->next;

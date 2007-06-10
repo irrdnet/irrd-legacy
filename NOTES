@@ -1,3 +1,6 @@
+ Jan 27, 2007      IRRd 2.3.4   Release notes
+   Added support in IRRd daemon for 32-bit AS'es.  No parser support yet.
+
  Nov 6, 2006	   IRRd 2.3.3   Release notes
    Increased error logging broke union dictionary type
 

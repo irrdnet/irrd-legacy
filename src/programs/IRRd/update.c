@@ -126,8 +126,7 @@ int irr_special_indexing_store (irr_database_t *database, irr_object_t *irr_obje
     prefix = ascii2prefix(family, irr_object->name);
     if (prefix == NULL) return 0;
     add_spec_keys (database, irr_object);
-    sprintf (str_origin, "%d", irr_object->origin);
-    make_gas_key (key_buf, str_origin);
+    make_gas_key (key_buf, print_as(str_origin, irr_object->origin));
     if (irr_object->mode == IRR_DELETE) {
       memory_hash_spec_remove (database, key_buf, GASX, irr_object);
       delete_irr_prefix (database, prefix, irr_object);

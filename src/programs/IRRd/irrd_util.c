@@ -302,8 +302,8 @@ printf("JW: indirect key lookup-(%s,%d)\n",ref->key,ref->type);
 void lookup_prefix_exact (irr_connection_t *irr, char *key, enum IRR_OBJECTS type) {
   irr_database_t *database;
   u_long offset, len = 0;
-  char *last, *prefix, *str_orig;
-  u_short origin;
+  char *last, *prefix, *str_orig, *tmpptr;
+  u_long origin;
 
   while (*key != '\0' && isspace ((int) *key)) key++;
   if (*key == '\0')
@@ -327,7 +327,12 @@ void lookup_prefix_exact (irr_connection_t *irr, char *key, enum IRR_OBJECTS typ
     while (*str_orig != '\0' && !isdigit ((int) *str_orig)) str_orig++;
     if (*str_orig == '\0')
       return;
-    origin = (u_short) atoi (str_orig);
+    if ((tmpptr = index(str_orig,'.')) != NULL) {
+      *tmpptr = 0;
+      origin = atoi (str_orig)*65536 + atoi(tmpptr + 1);
+      *tmpptr = '.';
+    } else
+      origin = atoi (str_orig);
   }
 
   LL_Iterate (irr->ll_database, database) {
@@ -799,5 +804,16 @@ void scrub_cryptpw(char *buf) {
     memcpy(ptr, "HIDDENCRYPTPW", 13);  /* overwrite with our magic string */
   }
   return;
+}
+
+/* print an AS number, either 16-bit or 32-bit as numbers */
+char *print_as(char *buf, u_long asnumber) {
+
+  if (asnumber < 65536)
+    sprintf (buf, "%lu", asnumber);
+  else
+    sprintf (buf, "%lu.%lu", asnumber/65536, asnumber%65536);
+  return buf;
+
 }
 

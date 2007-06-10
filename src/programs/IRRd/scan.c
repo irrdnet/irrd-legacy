@@ -454,12 +454,18 @@ void *scan_irr_file_main (FILE *fp, irr_database_t *database,
 void pick_off_secondary_fields (char *buffer, int curr_f, 
 				irr_object_t *irr_object) {
   char *cp = buffer;
+  char *tmpptr;
  
   switch (curr_f) {
   case ORIGIN:
     whitespace_newline_remove(cp);
     cp += 2;
-    irr_object->origin = (u_short) atoi (cp);
+    if ( (tmpptr = strchr(cp,'.')) != NULL) {
+      *tmpptr = 0;
+      irr_object->origin = atoi(cp)*65536 + atoi(tmpptr + 1);
+      *tmpptr = '.';
+    } else
+      irr_object->origin = atoi (cp);
     break;
   case NIC_HDL:
     whitespace_newline_remove(cp);

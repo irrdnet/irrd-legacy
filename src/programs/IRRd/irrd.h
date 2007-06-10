@@ -73,7 +73,7 @@ enum REMOTE_MIRROR_STATUS_T {
 typedef struct _irr_prefix_object_t {
   struct _irr_prefix_object_t *next;	/* linked_list -- multiple prefixes for a node */
   enum IRR_OBJECTS type; /* type of object: route, inetnum, route6, inet6num */
-  u_short	origin;	/* origin AS for route and route6 objects */
+  u_long	origin;	/* origin AS for route and route6 objects */
   u_long	offset;
   u_long        len;
 } irr_prefix_object_t;
@@ -178,7 +178,7 @@ typedef struct _irr_object_t {
   u_int         filter_val;     /* used in filtering out certain object types */
 
   /* convenience stuff */
-  u_short	 origin;	/* use in route object */
+  u_long	 origin;	/* use in route object */
   char          *nic_hdl;       /* secondary key */
   LINKED_LIST	*ll_mbrs;	/* members list for as-set/route-set */
   LINKED_LIST	*ll_prefix;	/* prefix (as ascii string) for IPv6 site objects */
