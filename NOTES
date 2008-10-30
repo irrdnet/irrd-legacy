@@ -1,3 +1,8 @@
+ Oct 31, 2008      IRRd 2.3.5   Release notes
+   Added !6 command for route6 inverse query on origin AS.
+   Added KEY_F flags for person, role, and nic-hdl attributes
+   so that they are returned with -K flag.
+
  Jan 27, 2007      IRRd 2.3.4   Release notes
    Added support in IRRd daemon for 32-bit AS'es.  No parser support yet.
 

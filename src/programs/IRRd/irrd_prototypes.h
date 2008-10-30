@@ -196,6 +196,7 @@ int irr_database_store (irr_database_t *database, char *key, u_char p_or_s,
 int irr_database_remove (irr_database_t *database, char *key, u_long offset);
 void make_spec_key (char *new_key, char *maint, char *set_name);
 void make_mntobj_key (char *new_key, char *maint);
+void make_6as_key (char *gas_key, char *origin);
 void make_gas_key (char *gas_key, char *origin);
 void make_setobj_key (char *new_key, char *obj_name);
 int irr_hash_destroy (hash_item_t *hash_item);

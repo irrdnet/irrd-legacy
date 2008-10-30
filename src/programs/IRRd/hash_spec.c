@@ -132,7 +132,8 @@ void store_hash_spec (irr_database_t *database, hash_spec_t *hash_sval) {
     str_size = NETSHORT_SIZE + NETLONG_SIZE + hash_sval->len1 + 1;
     if (_id == SET_OBJX)
       str_size += NETLONG_SIZE + hash_sval->len2 + 1;
-    else if (_id == GASX || _id == SET_MBRSX)
+/* XXX right for GASX6? */
+    else if (_id == GASX || _id == GASX6 || _id == SET_MBRSX)
       str_size += NETLONG_SIZE + hash_sval->items2 * (2 * NETLONG_SIZE + NETSHORT_SIZE);
   }
 
@@ -150,7 +151,8 @@ void store_hash_spec (irr_database_t *database, hash_spec_t *hash_sval) {
       UTIL_PUT_NETLONG  (hash_sval->items2, cp);
       if (hash_sval->items2 > 0)
         util_put_ll_string(hash_sval->ll_2, &cp);
-    } else if (_id == GASX || _id == SET_MBRSX) {
+/* XXX right for GASX6? */
+    } else if (_id == GASX || _id == GASX6 || _id == SET_MBRSX) {
       UTIL_PUT_NETLONG  (hash_sval->items2, cp);
       if (hash_sval->items2 > 0)
         util_put_ll_objs(hash_sval->ll_2, &cp);
@@ -194,7 +196,8 @@ hash_spec_t *fetch_hash_spec (irr_database_t *database, char *key,
           UTIL_GET_NETLONG (hash_sval->items2, cp);
           hash_sval->len2 = util_get_ll_string (&hash_sval->ll_2,
                    hash_sval->items2, &cp);
-        } else if (_id == GASX || _id == SET_MBRSX) {
+/* XXX right for GASX6? */
+        } else if (_id == GASX || _id == GASX6 || _id == SET_MBRSX) {
           UTIL_GET_NETLONG (hash_sval->items2, cp);
           util_get_ll_objs (&hash_sval->ll_2, hash_sval->items2, &cp);
         }
@@ -227,10 +230,12 @@ void memory_hash_spec_del (hash_spec_t *hash_value, enum SPEC_KEYS id,
       LL_Clear (hash_value->ll_2);
       break;
     case GASX:
+    case GASX6:
     case SET_MBRSX:
       if (irr_object->name == NULL)
         return;
       if ( (irr_object->type == ROUTE && id == GASX) ||
+    	   (irr_object->type == ROUTE6 && id == GASX6) ||
 	   (irr_object->type != ROUTE6 && id == SET_MBRSX) ) {
         LL_Iterate (hash_value->ll_1, irr_hash_str) {
           if (!strcmp (irr_object->name, irr_hash_str->string)) {
@@ -279,7 +284,7 @@ hash_spec_t *memory_hash_spec_create (char *key, enum SPEC_KEYS id) {
 			LL_NextOffset, LL_Offset (&hash_str, &hash_str.next),
 			LL_PrevOffset, LL_Offset (&hash_str, &hash_str.prev),
 			LL_DestroyFunction, delete_irr_hash_string, 0);
-    } else if (id == GASX || id == SET_MBRSX) {
+    } else if (id == GASX || id == GASX6 || id == SET_MBRSX) {
       hash_value->ll_2 = LL_Create (LL_DestroyFunction, free, 0);
     }
   }
@@ -326,6 +331,7 @@ int memory_hash_spec_store (irr_database_t *db, char *key, enum SPEC_KEYS id,
     HASH_Insert (db->hash_spec_tmp, hash_sval);
   }
 
+if (id == GASX6)
   /* if the hash lookup found something and the id's don't match
    * something is really wrong!
    */
@@ -370,10 +376,12 @@ int memory_hash_spec_store (irr_database_t *db, char *key, enum SPEC_KEYS id,
       }
       break;
     case GASX:
+    case GASX6:
     case SET_MBRSX:
       if ( (tmpstr = irr_object->name) == NULL )
  	return(retval);
       if ( (irr_object->type == ROUTE && id == GASX) ||
+	   (irr_object->type == ROUTE6 && id == GASX6) ||
 	   (irr_object->type != ROUTE6 && id == SET_MBRSX) ) {
         LL_Add (hash_sval->ll_1, new_irr_hash_string (tmpstr));
         hash_sval->len1 += strlen (tmpstr) + 1;
@@ -453,6 +461,13 @@ void make_mntobj_key (char *new_key, char *maint) {
 void make_gas_key (char *gas_key, char *origin) {
 
   *gas_key++ = '@'; /* key uniqueness */
+  strcpy (gas_key, origin);
+}
+
+/* routine expects an origin without the "as", eg "231" */
+void make_6as_key (char *gas_key, char *origin) {
+
+  *gas_key++ = '%'; /* key uniqueness */
   strcpy (gas_key, origin);
 }
 

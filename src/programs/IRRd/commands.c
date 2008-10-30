@@ -86,7 +86,8 @@ void irr_more_all (irr_connection_t *irr, prefix_t *prefix, int mode);
 void irr_ripewhois(irr_connection_t *irr);
 void irr_m_command (irr_connection_t *irr);
 void irr_d_command (irr_connection_t *irr);
-void irr_inversequery (irr_connection_t *irr, enum IRR_OBJECTS type, int mode, char *key);
+void irr_inversequery (irr_connection_t *irr, enum IRR_OBJECTS type, char *key);
+void show_6as_answer (irr_connection_t *irr, char *key); 
 void show_gas_answer (irr_connection_t *irr, char *key); 
 void irr_journal_range (irr_connection_t *irr, char *db);
 void irr_journal_add_answer (irr_connection_t *irr);
@@ -270,7 +271,21 @@ void irr_process_command (irr_connection_t * irr) {
     irr->ll_answer = LL_Create (LL_DestroyFunction, free, 0);
     irr_lock_all (irr);
     make_mntobj_key (maint_key, com_ptr);
-    irr_inversequery (irr, NO_FIELD, RAWHOISD_MODE, maint_key);
+    irr_inversequery (irr, NO_FIELD, maint_key);
+    send_dbobjs_answer (irr, DISK_INDEX, RAWHOISD_MODE);
+    irr_unlock_all (irr);
+    irr_write_buffer_flush (irr);
+    LL_Destroy (irr->ll_answer);
+    return;
+  }
+
+  /* Get IPv6 prefixes with specified origin. !6as237 */
+  if (!strncasecmp (com_ptr, "6as", 3)) {
+    char gas_key[BUFSIZE];
+
+    com_ptr += 3;
+    make_6as_key (gas_key, com_ptr);
+    show_6as_answer (irr, gas_key);
     return;
   }
 
@@ -604,7 +619,7 @@ void irr_process_command (irr_connection_t * irr) {
 }
 
 /* do an inverse lookup and return objects  */
-void irr_inversequery (irr_connection_t *irr, enum IRR_OBJECTS obj_type, int mode,  char *key) {
+void irr_inversequery (irr_connection_t *irr, enum IRR_OBJECTS obj_type, char *key) {
   irr_database_t *db;
   hash_spec_t *hash_sval;
   objlist_t *obj_p;
@@ -621,11 +636,6 @@ void irr_inversequery (irr_connection_t *irr, enum IRR_OBJECTS obj_type, int mod
       LL_Add (ll, hash_sval);
     }
   }
-
-  send_dbobjs_answer (irr, DISK_INDEX, mode);
-  irr_unlock_all (irr);
-  irr_write_buffer_flush (irr);
-  LL_Destroy (irr->ll_answer);
   LL_Destroy (ll);
 }
 
@@ -804,19 +814,17 @@ void irr_ripewhois (irr_connection_t *irr) {
   if ( irr->ripe_flags & INVERSE_ATTR ) {
     if (irr->inverse_type == MNT_BY) {  /* check for inverse mnt-by lookup */
       make_mntobj_key (lookupkey, key);
-      irr_inversequery(irr, lookup_type, RIPEWHOIS_MODE, lookupkey); 
+      irr_inversequery(irr, lookup_type, lookupkey); 
     } else if (irr->inverse_type == ORIGIN) { /* check for inverse origin lookup */
       if (!strncasecmp (key, "as", 2)) /* skip initial AS in string */
         key += 2;
-      make_gas_key (lookupkey, key);
-      irr_inversequery(irr, lookup_type, RIPEWHOIS_MODE, lookupkey); 
+      make_gas_key (lookupkey, key); /* look up route objects first */
+      irr_inversequery(irr, lookup_type, lookupkey); 
+      make_6as_key (lookupkey, key); /* now route6 objects */
+      irr_inversequery(irr, lookup_type, lookupkey); 
     } else if (irr->inverse_type == MEMBER_OF) { /* check for set membership */
       make_spec_key (lookupkey, NULL, key);
-      irr_inversequery(irr, lookup_type, RIPEWHOIS_MODE, lookupkey); 
-    } else {
-      irr_unlock_all (irr);
-      irr_write_buffer_flush (irr);
-      LL_Destroy (irr->ll_answer);
+      irr_inversequery(irr, lookup_type, lookupkey); 
     }
   } else {
     irr_database_find_matches (irr, key, PRIMARY, lookup_mode, lookup_type, NULL, NULL);
@@ -824,12 +832,44 @@ void irr_ripewhois (irr_connection_t *irr) {
     if ((irr->ripe_flags & (FAST_OUT | RECURS_OFF | OBJ_TYPE | INVERSE_ATTR)) == 0)
       lookup_object_references (irr);  /* dupe ripe whois behavior */
 
-    send_dbobjs_answer (irr, DISK_INDEX, RIPEWHOIS_MODE);
-    irr_unlock_all (irr);
-    irr_write_buffer_flush (irr);
-    LL_Destroy (irr->ll_answer);
   }
+  send_dbobjs_answer (irr, DISK_INDEX, RIPEWHOIS_MODE);
+  irr_unlock_all (irr);
+  irr_write_buffer_flush (irr);
+  LL_Destroy (irr->ll_answer);
 }
+
+void show_6as_answer (irr_connection_t *irr, char *key) {
+  irr_database_t *db;
+  int empty_answer = 1;
+  hash_spec_t *hash_item;
+  LINKED_LIST *ll;
+  
+  irr->ll_answer = LL_Create (LL_DestroyFunction, free, 0);
+  ll = LL_Create (LL_DestroyFunction, Delete_hash_spec, 0);
+
+  irr_lock_all (irr);
+  LL_ContIterate (irr->ll_database, db) {
+    if ((hash_item = fetch_hash_spec (db, key, FAST)) != NULL) {
+      if (hash_item->len1 > 0) {
+        if (!empty_answer) /* need to add a space between prefixes */
+          irr_build_memory_answer (irr, 1, " ");
+        irr_build_memory_answer (irr, hash_item->len1 - 1, hash_item->gas_answer);
+        empty_answer = 0;
+      }
+      LL_Add (ll, hash_item);
+    }
+  }
+
+  /* tack on a carriage return */
+  if (!empty_answer)
+    irr_build_memory_answer (irr, 1, "\n");
+  send_dbobjs_answer (irr, MEM_INDEX, RAWHOISD_MODE);
+  irr_unlock_all (irr);
+  irr_write_buffer_flush (irr);
+  LL_Destroy (irr->ll_answer);
+  LL_Destroy (ll);
+} 
 
 void show_gas_answer (irr_connection_t *irr, char *key) {
   irr_database_t *db;

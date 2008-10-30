@@ -5,7 +5,7 @@
 User/Configuration Guide</title>
 <bookinfo>
 <edition>IRRd User/Configuration Guide</edition>
-<pubdate>November 2004</pubdate>
+<pubdate>October 2008</pubdate>
 <corpauthor>Merit Network, Inc.</corpauthor>
 <revhistory>
    <revision>
@@ -73,6 +73,14 @@ User/Configuration Guide</title>
           !i and !g commands are IPv4-only.
        </revremark>
    </revision>
+   <revision>
+     <revnumber>2.3.5</revnumber>
+       <date>2008-10-31</date>
+       <authorinitials>ljb</authorinitials>
+       <revremark>
+	  Document the new !6 command
+       </revremark>
+   </revision>
 </revhistory>
 <copyright>
 <year>1999</year>
@@ -81,6 +89,7 @@ User/Configuration Guide</title>
 <year>2002</year>
 <year>2003</year>
 <year>2004</year>
+<year>2008</year>
 <holder>
 The Regents of the University of Michigan ("The Regents") and
 Merit Network, Inc.  All rights reserved.</holder>
@@ -1376,9 +1385,19 @@ For multi-source non-indexed queries, &lt;optional messages> is of the form  &lt
 <entry>
 <synopsis>
 Get routes with specified origin. e.g., !gas1234.  This command
-is currently only supported for IPv4 prefixes.  The '-i origin'
+only lists IPv4 prefixes for route objects.  Please see the '!6'
+command for IPv6 prefix queries from route6 objects.  Also, the '-i origin'
 RIPE inverse query may be used to obtain both IPv4 and and IPv6
 prefixes.
+</synopsis>
+</entry>
+</row>
+<row>
+<entry><command>!6</command></entry>
+<entry>
+<synopsis>
+Get IPv6 routes with specified origin. e.g., !6as1234.  This is the
+IPv6 equivalent of the '!g' command.
 </synopsis>
 </entry>
 </row>

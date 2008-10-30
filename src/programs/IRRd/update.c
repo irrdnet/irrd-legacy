@@ -105,6 +105,7 @@ irr_object_t *load_irr_object (irr_database_t *database, irr_object_t *irr_objec
 int irr_special_indexing_store (irr_database_t *database, irr_object_t *irr_object) {
   char *key, key_buf[BUFSIZE], str_origin[16];
   prefix_t *prefix;
+  enum SPEC_KEYS speckey = GASX;
   int store_hash = 1;
   int family = AF_INET;	/* default family for ROUTE object */
 
@@ -122,16 +123,19 @@ int irr_special_indexing_store (irr_database_t *database, irr_object_t *irr_obje
   switch (irr_object->type) {
   case ROUTE6:
     family = AF_INET6;  /* change family to IPV6 and fall thru.. */
+    speckey = GASX6;
+    make_6as_key (key_buf, print_as(str_origin, irr_object->origin));
   case ROUTE:
     prefix = ascii2prefix(family, irr_object->name);
     if (prefix == NULL) return 0;
     add_spec_keys (database, irr_object);
-    make_gas_key (key_buf, print_as(str_origin, irr_object->origin));
+    if (family == AF_INET)
+	make_gas_key (key_buf, print_as(str_origin, irr_object->origin));
     if (irr_object->mode == IRR_DELETE) {
-      memory_hash_spec_remove (database, key_buf, GASX, irr_object);
+      memory_hash_spec_remove (database, key_buf, speckey, irr_object);
       delete_irr_prefix (database, prefix, irr_object);
     } else {
-      memory_hash_spec_store (database, key_buf, GASX, irr_object);
+      memory_hash_spec_store (database, key_buf, speckey, irr_object);
       add_irr_prefix (database, prefix, irr_object);
     }
     store_hash = 0;

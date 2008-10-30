@@ -15,6 +15,11 @@ g command
 	Get routes with specified origin.
 	eg, !gas1234
 
+6 command
+        Like the !g command, but return route6 objects
+        with the matching origin AS instead
+        eg, !6as237
+
 i command with option 1
 	Return members of an as-set/route-set.  Recursive
 	lookup available.
