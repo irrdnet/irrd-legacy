@@ -161,7 +161,7 @@ int uii_add_command_schedule (int state, int flag, char *string,
 int uii_add_command_schedule_arg (int state, int flag, char *string,
       uii_call_fn_t call_fn, void *arg, char *explanation,
       schedule_t *schedule);
-int uii_proccess_command (uii_connection_t * uii);
+int uii_process_command (uii_connection_t * uii);
 uii_t *New_UII (trace_t * ltrace);
 int uii_send_data (uii_connection_t * uii, char *format, ...);
 int uii_send_buffer (uii_connection_t * uii, buffer_t *buffer);

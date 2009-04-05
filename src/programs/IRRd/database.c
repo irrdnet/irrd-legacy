@@ -544,7 +544,7 @@ int irr_copy_file (char *infile, char *outfile, int add_eof_flag) {
  */
 
 int irr_check_serial_vs_journal (irr_database_t *database) {
-  u_long last_journal_sn = 0;
+  uint32_t last_journal_sn = 0;
 
   /* If we are authoritative, or mirror, then check the last number
      of the journal files and verify that our CURRENTSERIAL is <= to it. */

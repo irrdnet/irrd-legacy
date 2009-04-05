@@ -145,7 +145,7 @@ CRYPTPW 	"CRYPT-PW"
 NONE 		"NONE"
 ANY      	"ANY"
 AT       	"AT"
-AS      	"AS"[1-9][0-9]*
+AS      	"AS"[1-9][0-9]{0,9}
 NAME           	[[:alpha:]]([[:alnum:]_-]*[[:alnum:]])?
 ASNAME         	AS-[[:alnum:]_-]*[[:alnum:]]
 RSNAME         	RS-[[:alnum:]_-]*[[:alnum:]]
@@ -988,9 +988,12 @@ void init_scanner () {
 
   /* error line template */
   strcpy (canon_obj.eflushfn, canon_obj.flushfntmpl);
-  mkstemp (canon_obj.eflushfn);
+  if (mkstemp (canon_obj.eflushfn) == -1) {
+    fprintf (stderr, "Cannot create error line buffer file.  Abort!\n");
+    exit (0);
+  }
   if ((canon_obj.efd = fopen (canon_obj.eflushfn, "w+")) == NULL) {
-    fprintf (stderr, "Cannot open error line  buffer (%s).  Abort!\n", 
+    fprintf (stderr, "Cannot open error line buffer (%s).  Abort!\n", 
 	     canon_obj.eflushfn);
     exit (0);
   }

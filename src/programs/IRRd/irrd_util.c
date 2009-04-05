@@ -209,6 +209,7 @@ irr_object_t *New_IRR_Object (char *buffer, u_long position, u_long mode) {
 
   irr_object = New (irr_object_t);
   irr_object->offset = position;
+  irr_object->origin_found = 0;
   irr_object->mode = mode;
   irr_object->type = NO_FIELD;
   irr_object->filter_val = XXX_F;
@@ -303,7 +304,7 @@ void lookup_prefix_exact (irr_connection_t *irr, char *key, enum IRR_OBJECTS typ
   irr_database_t *database;
   u_long offset, len = 0;
   char *last, *prefix, *str_orig, *tmpptr;
-  u_long origin;
+  uint32_t origin;
 
   while (*key != '\0' && isspace ((int) *key)) key++;
   if (*key == '\0')
@@ -327,12 +328,16 @@ void lookup_prefix_exact (irr_connection_t *irr, char *key, enum IRR_OBJECTS typ
     while (*str_orig != '\0' && !isdigit ((int) *str_orig)) str_orig++;
     if (*str_orig == '\0')
       return;
+    /* check for dots for now, should remove as asplain becomes standard */
     if ((tmpptr = index(str_orig,'.')) != NULL) {
       *tmpptr = 0;
       origin = atoi (str_orig)*65536 + atoi(tmpptr + 1);
       *tmpptr = '.';
-    } else
-      origin = atoi (str_orig);
+    } else {
+      if (convert_to_32 (str_orig, &origin) != 1) {
+	return;  /* return if conversion fails */
+      }
+    }
   }
 
   LL_Iterate (irr->ll_database, database) {
@@ -344,11 +349,11 @@ void lookup_prefix_exact (irr_connection_t *irr, char *key, enum IRR_OBJECTS typ
     irr_build_answer (irr, database, type, offset, len);
 }
 
-/* convert a string to an unsigned long
+/* convert a string to an unsigned 32 bit int
  * return 1 if no errors found
  * otherwise return -1
  */
-int convert_to_lu (char *strval, u_long *uval) {
+int convert_to_32 (char *strval, uint32_t *uval) {
   char *p;
   u_long d;
   
@@ -357,11 +362,31 @@ int convert_to_lu (char *strval, u_long *uval) {
     return (-1);
 
   /* make sure the value is in range and has non-zero digits */
-  d = strtoul (strval, &p, 10);  
-  if (d == ULONG_MAX || p == strval)
-    return (-1);
+  errno = 0;    /* To distinguish success/failure after call */
+  d = strtoul(strval, &p, 10);
 
-  *uval = d;
+  /* Check for various possible errors */
+
+  if (p == strval) {  /* no digits found */
+    trace (ERROR, default_trace, "convert_to_32 : no digits %s\n", strval);
+    return(-1);
+  }
+
+  if ((errno == ERANGE && d == ULONG_MAX)
+      || (errno != 0 && d == 0)) {
+    trace (ERROR, default_trace, "convert_to_32 : out-of-range %s\n", strval);
+    return(-1);
+  }
+
+  /* check for 64 bit architectures */
+  if (sizeof (uint32_t) != sizeof (u_long)) {
+    if (d > UINT_MAX) {
+      trace (ERROR, default_trace, "convert_to_32 : out-of-range %s\n", strval);
+      return(-1);	/* exceeds max 32-bit uint */
+    }
+  }
+
+  *uval = (uint32_t) d;
   return (1);
 }
 
@@ -806,14 +831,10 @@ void scrub_cryptpw(char *buf) {
   return;
 }
 
-/* print an AS number, either 16-bit or 32-bit as numbers */
-char *print_as(char *buf, u_long asnumber) {
+/* print an AS number, in asplain format */
+char *print_as(char *buf, uint32_t asnumber) {
 
-  if (asnumber < 65536)
-    sprintf (buf, "%lu", asnumber);
-  else
-    sprintf (buf, "%lu.%lu", asnumber/65536, asnumber%65536);
+  sprintf (buf, "%u", asnumber);
   return buf;
-
 }
 

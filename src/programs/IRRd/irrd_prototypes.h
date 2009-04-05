@@ -75,11 +75,11 @@ int uii_delete_route (uii_connection_t *uii, char *database, prefix_t *prefix, i
 void config_irr_mirror_interval (uii_connection_t *uii, int interval);
 void uii_irr_reload (uii_connection_t *uii, char *name);
 int  uii_irr_irrdcacher (uii_connection_t *, char *);
-void uii_irr_mirror (uii_connection_t *uii, char *name, int serial);
+void uii_irr_mirror (uii_connection_t *uii, char *name, uint32_t serial);
 void uii_irr_mirror_last (uii_connection_t *uii, char *name);
-void uii_irr_mirror_serial (uii_connection_t *uii, char *name, int serial);
+void uii_irr_mirror_serial (uii_connection_t *uii, char *name, uint32_t serial);
 void uii_mirrorstatus_db (uii_connection_t *uii, char *db_name);
-void uii_set_serial (uii_connection_t *uii, char *name, int serial);
+void uii_set_serial (uii_connection_t *uii, char *name, uint32_t serial);
 void show_database (uii_connection_t *uii);
 void uii_show_ip (uii_connection_t *uii, prefix_t *prefix, int num, char *lessmore);
 void uii_irr_clean (uii_connection_t *uii, char *name);
@@ -119,9 +119,9 @@ void journal_maybe_rollover (irr_database_t *database);
 void journal_log_serial_number (irr_database_t *database);
 void journal_irr_update (irr_database_t *db, irr_object_t *object,
                          int mode, int skip_obj);
-int find_oldest_serial (char *dbname, int journal_ext, u_long *oldestserial);
-int find_last_serial (char *dbname, int journal_ext, u_long *last_serial);
-int get_current_serial (char *dbname, u_long *currserial);
+int find_oldest_serial (char *dbname, int journal_ext, uint32_t *oldestserial);
+int find_last_serial (char *dbname, int journal_ext, uint32_t *last_serial);
+int get_current_serial (char *dbname, uint32_t *currserial);
 void make_journal_name (char * dbname, int journal_ext, char * journal_name);
 
 /* util */
@@ -144,7 +144,7 @@ void Delete_IRR_Object (irr_object_t *object);
 void Delete_Ref_keys (reference_key_t *ref_item);
 void lookup_object_references (irr_connection_t *irr);
 void lookup_prefix_exact (irr_connection_t *irr, char *key, enum IRR_OBJECTS type);
-int convert_to_lu (char *strval, u_long *uval);
+int convert_to_32 (char *strval, uint32_t *uval);
 irr_hash_string_t *new_irr_hash_string (char *str);
 void delete_irr_hash_string (irr_hash_string_t *str);
 int parse_ripe_flags (irr_connection_t *irr, char **cp);
@@ -153,15 +153,15 @@ int ripe_obj_type (irr_connection_t *irr, char **cp);
 void radix_flush (radix_tree_t *radix_tree);
 void interactive_io (char *);
 void scrub_cryptpw (char *);
-char *print_as (char *, u_long);
+char *print_as (char *, uint32_t);
 char *dir_chks (char *, int);
 
 /* mirroring */
 void irr_mirror_timer (mtimer_t *timer, irr_database_t *db);
 void irr_clean_timer (mtimer_t *timer, irr_database_t *db);
 int irr_service_mirror_request (irr_connection_t *irr, char *command);
-int request_mirror (irr_database_t *db, uii_connection_t *uii, int last);
-int valid_start_line (irr_database_t *database, FILE *fp, u_long *serial_num);
+int request_mirror (irr_database_t *db, uii_connection_t *uii, uint32_t last);
+int valid_start_line (irr_database_t *database, FILE *fp, uint32_t *serial_num);
 int get_remote_mirrorstatus (prefix_t *mirror_prefix, int mirror_port);
 
 /* commands.c */
@@ -173,7 +173,7 @@ char *scan_irr_file (irr_database_t *database, char *extension,
 void *scan_irr_file_main (FILE *fp, irr_database_t *database,
                                   int update_flag, enum SCAN_T scan_scope);
 int write_irr_serial (irr_database_t *database);
-void write_irr_serial_export (u_long serial, irr_database_t *database);
+void write_irr_serial_export (uint32_t serial, irr_database_t *database);
 int scan_irr_serial (irr_database_t *database);
 int get_state (char *buf, u_long len, enum STATES state, enum STATES *p_save_state);
 int pick_off_mirror_hdr (FILE *fp, char *buf, int buf_size, 
@@ -216,7 +216,7 @@ int memory_hash_spec_store (irr_database_t *db, char *key, enum SPEC_KEYS id,
 void add_irr_prefix (irr_database_t *database, prefix_t *prefix, irr_object_t *object);
 int delete_irr_prefix (irr_database_t *database, prefix_t *prefix, irr_object_t *object);
 int seek_prefix_object (irr_database_t *database, enum IRR_OBJECTS type, char *key, 
-		       u_long origin, u_long *offset, u_long *len);
+		       uint32_t origin, u_long *offset, u_long *len);
 radix_node_t *prefix_search_exact (irr_database_t *database, prefix_t *prefix);
 radix_node_t *prefix_search_best (irr_database_t *database, prefix_t *prefix);
 

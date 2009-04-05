@@ -817,7 +817,7 @@ uii_read_command (uii_connection_t * uii)
 		uii->data_ready = 1;
 	    }
 	    else if (uii->end > 0) {
-	        uii_proccess_command (uii);
+	        uii_process_command (uii);
 	        if (uii->state == UII_EXIT) {
 		    /* user has quit or we've unexpetdly terminated */
 		    /* delete uii memory here */
@@ -912,10 +912,10 @@ uii_yes_no (uii_connection_t *uii)
 }
 
 /*
- * read command from socket and call appropraiet handling function.
+ * read command from socket and call appropriate handling function.
  */
 int 
-uii_proccess_command (uii_connection_t * uii)
+uii_process_command (uii_connection_t * uii)
 {
     char *line, *token, *bp;
     uii_command_t *candidate = NULL;

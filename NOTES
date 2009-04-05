@@ -1,3 +1,13 @@
+
+ Apr 03, 2009      IRRd 2.3.7   Release notes
+   Add backward compatibility for asdot format queries
+ 
+ Mar 23, 2009      IRRd 2.3.6   Release notes
+   Include support for asplain syntax in rpsl_check.  Support
+   both asplain and asdot (for now) for mirrored registries.
+   asdot will be phased out eventually.  Fix convert_to_lu
+   routine (and change name to convert_to_32).
+ 
  Oct 31, 2008      IRRd 2.3.5   Release notes
    Added !6 command for route6 inverse query on origin AS.
    Added KEY_F flags for person, role, and nic-hdl attributes

@@ -683,7 +683,7 @@ void init_regexes () {
   regex_compile (re, (int) RE_REAL, "^[+-]?([[:digit:]]+)?.[[:digit:]]+(E[+-]?[[:digit:]]+)?$");
   regex_compile (re, (int) RE_ASNAME, "^[A-Z][A-Z0-9-]+$");
   /* needed by lc_lex () */
-  regex_compile (re, (int) RE_ASNUM, "^AS[1-9][0-9]*$");
+  regex_compile (re, (int) RE_ASNUM, "^AS[1-9][0-9]{0,9}$");
   regex_compile (re, (int) RE_ARIN_HDL, "^[A-Z]{2,4}([1-9][[:digit:]]{0,5})?-ARIN$");
   regex_compile (re, (int) RE_SANITY_HDL, "^[[:alpha:]][[:alnum:]-]{1,}[[:alnum:]]+$");
 }

@@ -74,7 +74,7 @@ enum REMOTE_MIRROR_STATUS_T {
 typedef struct _irr_prefix_object_t {
   struct _irr_prefix_object_t *next;	/* linked_list -- multiple prefixes for a node */
   enum IRR_OBJECTS type; /* type of object: route, inetnum, route6, inet6num */
-  u_long	origin;	/* origin AS for route and route6 objects */
+  uint32_t	origin;	/* origin AS for route and route6 objects */
   u_long	offset;
   u_long        len;
 } irr_prefix_object_t;
@@ -93,8 +93,8 @@ typedef struct _irr_database_t {
   FILE			*mirror_disk_fp; 
   int			mirror_update_size;
   long			time_last_successful_mirror;
-  u_long		serial_number;	/* serial number for mirroring */
-  u_long		new_serial_number;	/* serial number for mirroring */
+  uint32_t		serial_number;	/* serial number for mirroring */
+  uint32_t		new_serial_number; /* serial number for mirroring */
   prefix_t		*mirror_prefix; /* prefix of host to connect for mirroring */
   char			*remote_ftp_url; /* for irrdcacher to fetch database */
   int                   rpsdist_flag;    /* if set, this DB was created with
@@ -107,9 +107,9 @@ typedef struct _irr_database_t {
   char                  *repos_hexid;    /* used by rps-dist to verify floods */
   char                  *pgppass;        /* password used for signing floods */
 
-  u_long		remote_oldestjournal; /* What is their !j? */
-  u_long		remote_currentserial; /* What is their !j? */
-  u_long                remote_lastexport;    /* !j last export */
+  uint32_t		remote_oldestjournal; /* What is their !j? */
+  uint32_t		remote_currentserial; /* What is their !j? */
+  uint32_t		remote_lastexport;    /* !j last export */
 
   u_long		flags;		/* IRR_READ_ONLY, etc */
 #define IRR_AUTHORITATIVE	1	/* we are the master copy -- this can be updated */
@@ -179,7 +179,8 @@ typedef struct _irr_object_t {
   u_int         filter_val;     /* used in filtering out certain object types */
 
   /* convenience stuff */
-  u_long	 origin;	/* use in route object */
+  char		 origin_found;	/* flag if origin attribute found */
+  uint32_t	 origin;	/* use in route object */
   char          *nic_hdl;       /* secondary key */
   LINKED_LIST	*ll_mbrs;	/* members list for as-set/route-set */
   LINKED_LIST	*ll_prefix;	/* prefix (as ascii string) for IPv6 site objects */

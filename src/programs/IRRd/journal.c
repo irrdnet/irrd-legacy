@@ -75,7 +75,7 @@ void journal_irr_update (irr_database_t *db, irr_object_t *object,
  */
 void journal_log_serial_number (irr_database_t *database) {
   char buffer[512];
-  sprintf (buffer, "%s SERIAL %ld\n", "%", database->serial_number);
+  sprintf (buffer, "%s SERIAL %u\n", "%", database->serial_number);
   write (database->journal_fd, buffer, strlen (buffer));
   return;
 }
@@ -112,7 +112,7 @@ void journal_maybe_rollover (irr_database_t *database) {
  * otherwise return 0
  * return value of first good serial found if possible
  */
-int find_oldest_serial (char *dbname, int journal_ext, u_long *oldestserial) {
+int find_oldest_serial (char *dbname, int journal_ext, uint32_t *oldestserial) {
   char file[256], buf[BUFSIZE];
   FILE *fp;
 
@@ -122,7 +122,7 @@ int find_oldest_serial (char *dbname, int journal_ext, u_long *oldestserial) {
     while (fgets (buf, BUFSIZE, fp) != NULL) { 
       if (!strncmp (buf, "% SERIAL", 8)) {
 	fclose (fp);
-        if (convert_to_lu (buf+9, oldestserial) < 0)
+        if (convert_to_32 (buf+9, oldestserial) < 0)
           return (0);
 	return (1);
       }
@@ -139,7 +139,7 @@ int find_oldest_serial (char *dbname, int journal_ext, u_long *oldestserial) {
  * return 1 if *.CURRENTSERIAL is read without error
  * else return -1
  */
-int get_current_serial (char *dbname, u_long *currserial) {
+int get_current_serial (char *dbname, uint32_t *currserial) {
   char tmp[BUFSIZE], file[256];
   int ret_val = -1;
   FILE *fp;
@@ -152,7 +152,7 @@ int get_current_serial (char *dbname, u_long *currserial) {
   if ((fp = fopen (file, "r")) != NULL) {
     memset (tmp, 0, sizeof (tmp));
     if (fgets (tmp, sizeof (tmp) - 1, fp) != NULL && 
-        convert_to_lu (tmp, currserial) > 0)
+        convert_to_32 (tmp, currserial) > 0)
       ret_val = 1;
     fclose (fp);
   }
@@ -178,7 +178,7 @@ void make_journal_name (char * dbname, int journal_ext, char * journal_name) {
  * return 1 if found
  */
 
-int find_last_serial (char *dbname, int journal_ext, u_long *last_serial) {
+int find_last_serial (char *dbname, int journal_ext, uint32_t *last_serial) {
   char file[256];
   char buf [FLS_BUFSIZE + FLS_OVERFLOW + 1]; 
   off_t offset;
@@ -221,7 +221,7 @@ int find_last_serial (char *dbname, int journal_ext, u_long *last_serial) {
         if ((i == 0) || (buf[i-1] == '\n')) {
 	  if (strncmp(buf+i, "% SERIAL",8) != 0)
 	    goto FAIL;
-	  if (convert_to_lu (buf+i+9, last_serial) < 0)
+	  if (convert_to_32 (buf+i+9, last_serial) < 0)
 	    goto FAIL;
           else {
 	    fclose (fp); 

@@ -97,7 +97,7 @@ key_label_t key_info [] = {
 int scan_irr_serial (irr_database_t *database) {
   char tmp[BUFSIZE], file[BUFSIZE];
   FILE *fp;
-  u_long serial = 0;
+  uint32_t serial = 0;
   int ret_code = 0;
 
   strcpy (tmp, database->name);
@@ -109,7 +109,7 @@ int scan_irr_serial (irr_database_t *database) {
   if (fp != NULL) {
     memset (tmp, 0, sizeof (tmp));
     if (fgets (tmp, sizeof (tmp), fp) != NULL) {
-      if (convert_to_lu (tmp, &serial) == 1) {
+      if (convert_to_32 (tmp, &serial) == 1) {
 	database->serial_number = serial;
 	ret_code = 1;
       }
@@ -153,7 +153,7 @@ int write_irr_serial (irr_database_t *db) {
 
   /* now write the current serial to file */
   if ((fd = open (file, O_WRONLY|O_TRUNC|O_CREAT, 0644)) >= 0) {
-    sprintf (serial, "%ld", db->serial_number);
+    sprintf (serial, "%u", db->serial_number);
     if (write (fd, serial, strlen (serial)) > 0)  {
       SetStatusString (IRR.statusfile, dbname, "currentserial", serial);
       ret_code = 1;
@@ -170,7 +170,7 @@ int write_irr_serial (irr_database_t *db) {
   return ret_code;
 }
 
-void write_irr_serial_export (u_long serial, irr_database_t *database) {
+void write_irr_serial_export (uint32_t serial, irr_database_t *database) {
   char db[BUFSIZE], file[BUFSIZE], serial_out[20];
   FILE *fp;
 
@@ -182,7 +182,7 @@ void write_irr_serial_export (u_long serial, irr_database_t *database) {
 
   sprintf (file, "%s/%s.CURRENTSERIAL", IRR.ftp_dir, db);
   if ((fp = fopen (file, "w")) != NULL) {
-    sprintf (serial_out, "%ld", serial);
+    sprintf (serial_out, "%u", serial);
     fwrite (serial_out, 1, strlen (serial_out), fp);
     fclose (fp);
   }
@@ -450,6 +450,7 @@ void *scan_irr_file_main (FILE *fp, irr_database_t *database,
 /* pick_off_secondary_fields
  * store some information like as_origin, communities,
  * and secondary indicie keys
+ * Need some error checking added --ljb XXX
  */
 void pick_off_secondary_fields (char *buffer, int curr_f, 
 				irr_object_t *irr_object) {
@@ -458,14 +459,23 @@ void pick_off_secondary_fields (char *buffer, int curr_f,
  
   switch (curr_f) {
   case ORIGIN:
+    /* if origin already found, ignore continuation lines */
+    if (irr_object->origin_found)
+      break;
     whitespace_newline_remove(cp);
     cp += 2;
+    /* Check for dots for now, can remove as asplain is standardized */
     if ( (tmpptr = strchr(cp,'.')) != NULL) {
       *tmpptr = 0;
       irr_object->origin = atoi(cp)*65536 + atoi(tmpptr + 1);
       *tmpptr = '.';
-    } else
-      irr_object->origin = atoi (cp);
+      irr_object->origin_found = 1;
+    } else {
+      if (convert_to_32(cp, &irr_object->origin) != 1) {
+        irr_object->origin = 0; /* bogus value, need better handling */
+      } else
+        irr_object->origin_found = 1;
+    }
     break;
   case NIC_HDL:
     whitespace_newline_remove(cp);

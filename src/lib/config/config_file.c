@@ -981,7 +981,7 @@ config_from_file2 (trace_t * tr, char *filename)
     uii->buffer = New_Buffer_Stream (fd);
     while (buffer_gets (uii->buffer) > 0) {
 	CONFIG.line++;
-	if (uii_proccess_command (uii) < 0) {
+	if (uii_process_command (uii) < 0) {
 	    errors++;
 	    trace (ERROR, CONFIG.trace, 
 		"CONFIG ERROR at line %d\n", CONFIG.line);

@@ -465,7 +465,7 @@ int  delete_syntax	(char *, parse_info_t *);
 int  password_syntax	(char *, parse_info_t *);
 int  inetnum_syntax	(parse_info_t *, char *, char *);
 int  country_syntax	(char *, parse_info_t *);
-int  origin_syntax	(char *, parse_info_t *);
+int  asnum_syntax	(char *, parse_info_t *);
 void mb_check		(parse_info_t *, char *);
 char *hexid_check	(parse_info_t *);
 int  get_fingerprint	(parse_info_t *,  char *, pgp_data_t *);

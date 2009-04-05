@@ -392,7 +392,7 @@ FAIL:
  */
 void uii_mirrorstatus_db (uii_connection_t *uii, char *db_name) {
   irr_database_t *database;
-  u_long oldest_journal = 0;
+  uint32_t oldest_journal = 0;
   int ret;
   enum { UNDETERMINED, READONLY, AUTHORITATIVE, MIRROR } status = UNDETERMINED;
 

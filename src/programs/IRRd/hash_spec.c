@@ -459,16 +459,37 @@ void make_mntobj_key (char *new_key, char *maint) {
 
 /* routine expects an origin without the "as", eg "231" */
 void make_gas_key (char *gas_key, char *origin) {
+  char *tmpptr;
 
   *gas_key++ = '@'; /* key uniqueness */
-  strcpy (gas_key, origin);
+  if ((tmpptr = index(origin,'.')) != NULL) {
+    char  asplain[BUFSIZE];
+
+    *tmpptr = 0;
+    sprintf(asplain,"%u", atoi(origin)*65536 + atoi(tmpptr + 1));
+    *tmpptr = '.';
+    strcpy (gas_key, asplain);
+  } else {
+    strcpy (gas_key, origin);
+  }
 }
 
 /* routine expects an origin without the "as", eg "231" */
 void make_6as_key (char *gas_key, char *origin) {
+  char *tmpptr;
 
   *gas_key++ = '%'; /* key uniqueness */
-  strcpy (gas_key, origin);
+
+  if ((tmpptr = index(origin,'.')) != NULL) {
+    char  asplain[BUFSIZE];
+  
+    *tmpptr = 0;
+    sprintf(asplain,"%u", atoi(origin)*65536 + atoi(tmpptr + 1));
+    *tmpptr = '.';
+    strcpy (gas_key, asplain);
+  } else {
+    strcpy (gas_key, origin);
+  }
 }
 
 void make_setobj_key (char *new_key, char *obj_name) {

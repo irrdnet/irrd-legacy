@@ -19,10 +19,10 @@ extern trace_t *default_trace;
 
 static int mirror_read_data ();
 int dump_serial_updates (irr_connection_t *irr, irr_database_t *database, int journal_ext, 
-			 u_long from, u_long to);
-int valid_start_line (irr_database_t *db, FILE *fp, u_long *serial_num);
+			 uint32_t from, uint32_t to);
+int valid_start_line (irr_database_t *db, FILE *fp, uint32_t *serial_num);
 
-int request_mirror (irr_database_t *db, uii_connection_t *uii, int last) {
+int request_mirror (irr_database_t *db, uii_connection_t *uii, uint32_t last) {
   char tmp[BUFSIZE], name[BUFSIZE], logfile[BUFSIZE];
   struct timeval	tv;
   fd_set		write_fds;
@@ -38,7 +38,7 @@ int request_mirror (irr_database_t *db, uii_connection_t *uii, int last) {
   if (last > 0 &&
      (db->serial_number + 1) > last) {
     trace (ERROR, default_trace,
-	   "user supplied serial # last (%d) is <= current serial (%d)\n", 
+	   "user supplied serial # last (%u) is <= current serial (%u)\n", 
 	   last, db->serial_number);
     return (-1);
   }
@@ -90,9 +90,9 @@ int request_mirror (irr_database_t *db, uii_connection_t *uii, int last) {
   strcpy (name, db->name);
   convert_toupper(name);
   if (last == 0)
-    sprintf (tmp, "-g %s:1:%ld-LAST\n", name, db->serial_number+1);
+    sprintf (tmp, "-g %s:1:%u-LAST\n", name, db->serial_number+1);
   else
-    sprintf (tmp, "-g %s:1:%ld-%d\n", name, db->serial_number+1, last);
+    sprintf (tmp, "-g %s:1:%u-%u\n", name, db->serial_number+1, last);
 
   trace (NORM, default_trace, "(%s) Requesting mirror: %s", 
 	 db->name, tmp);
@@ -245,7 +245,7 @@ static int mirror_read_data (irr_database_t *database) {
  *
  */
 
-int valid_start_line (irr_database_t *database, FILE *fp, u_long *serial_num) {
+int valid_start_line (irr_database_t *database, FILE *fp, uint32_t *serial_num) {
   char buffer[BUFSIZE], *cp, *last;
   enum STATES state = BLANK_LINE, save_state;
   u_long len;
@@ -366,8 +366,8 @@ void irr_mirror_timer (mtimer_t *timer, irr_database_t *db) {
 int irr_service_mirror_request (irr_connection_t *irr, char *command) {
   char buffer[BUFSIZE];
   irr_database_t *database;
-  u_long oldestserial, currentserial, first_in_new;
-  u_long from, to;
+  uint32_t oldestserial, currentserial, first_in_new;
+  uint32_t from, to;
   int old_journal_exists, new_journal_exists;
   int ret_code = 1;
   char name[BUFSIZE], buffer1[BUFSIZE];
@@ -379,13 +379,13 @@ int irr_service_mirror_request (irr_connection_t *irr, char *command) {
     return (-1);
   }
   else {
-    if (convert_to_lu (buffer1, &from) < 0) {
+    if (convert_to_32 (buffer1, &from) < 0) {
       sprintf (buffer, "\n\n\n%% ERROR: syntax error in 'from' value (%s)\n", buffer1);
       irr_write_nobuffer (irr, buffer);
       return (-1);
     }
     if (strncasecmp (buffer, "LAST", 4) != 0 && 
-        convert_to_lu (buffer, &to) < 0) {
+        convert_to_32 (buffer, &to) < 0) {
       sprintf (buffer1, "\n\n\n%% ERROR: syntax error in 'to' value (%s)\n", buffer);
       irr_write_nobuffer (irr, buffer1);
       return (-1);
@@ -463,21 +463,21 @@ int irr_service_mirror_request (irr_connection_t *irr, char *command) {
   /* check and see if there are any "from-to" range errors in the request */
   if (from > to) {
     irr_unlock (database);
-    sprintf (buffer, "\n\n%% ERROR: range error 'from > to' (%lu > %lu)\n", from, to);
+    sprintf (buffer, "\n\n%% ERROR: range error 'from > to' (%u > %u)\n", from, to);
     irr_write_nobuffer (irr, buffer);
     return (-1);
   }
   
   if (from < oldestserial) {
     irr_unlock (database);
-    sprintf (buffer, "\n\n%% ERROR: serials (%lu - %lu) don't exist!\n", from, oldestserial - 1);
+    sprintf (buffer, "\n\n%% ERROR: serials (%u - %u) don't exist!\n", from, oldestserial - 1);
     irr_write_nobuffer (irr, buffer);
     return (-1);
   }
   
   if (to > currentserial) {
     irr_unlock (database);
-    sprintf (buffer, "\n\n%% ERROR: serials (%lu - %lu) don't exist!\n", currentserial + 1, to);
+    sprintf (buffer, "\n\n%% ERROR: serials (%u - %u) don't exist!\n", currentserial + 1, to);
     irr_write_nobuffer (irr, buffer);
     return (-1);
   }
@@ -502,7 +502,7 @@ int irr_service_mirror_request (irr_connection_t *irr, char *command) {
 
   irr_unlock (database);
 
-  sprintf (buffer, "%%START Version: 1 %s %lu-%lu\n\n", database->name, from, to);
+  sprintf (buffer, "%%START Version: 1 %s %u-%u\n\n", database->name, from, to);
 
   irr_write_nobuffer(irr, buffer);
 
@@ -535,9 +535,9 @@ int irr_service_mirror_request (irr_connection_t *irr, char *command) {
 }
 
 int dump_serial_updates (irr_connection_t *irr, irr_database_t *database, int journal_ext, 
-			 u_long from, u_long to) {
+			 uint32_t from, uint32_t to) {
   char buf[BUFSIZE], file[256];
-  u_long serial = 0, chk_serial = 0;
+  uint32_t serial = 0, chk_serial = 0;
   int overflownow, overflowlast = 0;
   FILE *journal_fp;
 
@@ -564,7 +564,7 @@ int dump_serial_updates (irr_connection_t *irr, irr_database_t *database, int jo
       if (chk_serial == 0)
         chk_serial = serial;
       if (chk_serial++ != serial) {
-        trace (ERROR, default_trace, "Skipped sequence mirror update, should be (%lu) (%s) says (%lu)\n", chk_serial - 1, file, serial);
+        trace (ERROR, default_trace, "Skipped sequence mirror update, should be (%u) (%s) says (%u)\n", chk_serial - 1, file, serial);
   	fclose (journal_fp);
         return (-1);
       }

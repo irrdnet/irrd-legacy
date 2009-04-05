@@ -1196,7 +1196,7 @@ int update_journal (FILE *fin, irr_database_t *db, int n_updates) {
     if (!memcmp (buf, "ADD", 3) ||
 	!memcmp (buf, "DEL", 3)) {
       n++;
-      sprintf (tag, "%% SERIAL %ld\n", ++db->serial_number);
+      sprintf (tag, "%% SERIAL %u\n", ++db->serial_number);
       if (write (db->journal_fd, tag, strlen (tag)) < 0) {
 	trace (ERROR, default_trace, "update_journal (): file I/O write tag "
 	       "error: (%s)\n", strerror (errno));

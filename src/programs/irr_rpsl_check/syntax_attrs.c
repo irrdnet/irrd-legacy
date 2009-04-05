@@ -5,6 +5,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
+#include <limits.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <regex.h>
@@ -51,11 +53,30 @@ int country_syntax (char *country, parse_info_t *obj) {
 
 /* check AS number for maximum value; regex already checks for basic correctness */
 
-int origin_syntax (char *origin, parse_info_t *obj) {
+int asnum_syntax (char *asstr, parse_info_t *obj) {
 
-  if (strlen (origin + 2) > 5 || atoi(origin + 2) > 65534) {
-    error_msg_queue (obj, "AS number exceeds maximum value of 65534", ERROR_MSG);  
+  u_long val;
+  char *endptr = NULL;
+  char *asval;
+
+  errno = 0;    /* To distinguish success/failure after call */
+  asval = asstr + 2; /* skip AS part of string */
+  val = strtoul(asval, &endptr, 10);
+
+  /* Check for various possible errors */
+
+  if ((errno == ERANGE && val == ULONG_MAX)
+        || (errno != 0 && val == 0)) {
+    error_msg_queue (obj, "AS number contains out-of-range value\n", ERROR_MSG);  
     return 0;
+  }
+
+  /* check for 64 bit architectures */
+  if (sizeof (uint) != sizeof (u_long)) {
+    if (val > UINT_MAX) {
+      error_msg_queue (obj, "AS number contains out-of-range value\n", ERROR_MSG);  
+      return 0;       /* exceeds max 32-bit uint */
+    }
   }
 
   return 1;

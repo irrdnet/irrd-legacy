@@ -71,7 +71,7 @@ void show_database (uii_connection_t *uii) {
     convert_toupper (tmp);
     p_last_export = GetStatusString (IRR.statusfile, tmp, "lastexport");
 
-    uii_add_bulk_output (uii, "    %6d    %10d    %8d    %13s\r\n", 
+    uii_add_bulk_output (uii, "    %6d    %10d    %8u    %13s\r\n", 
 			 database->num_objects[ROUTE],
 			 database->num_objects[AUT_NUM],
 			 database->serial_number,
@@ -409,11 +409,11 @@ void uii_irr_mirror_last (uii_connection_t *uii, char *name) {
   uii_irr_mirror (uii, name, 0);
 }
 
-void uii_irr_mirror_serial (uii_connection_t *uii, char *name, int serial) {
+void uii_irr_mirror_serial (uii_connection_t *uii, char *name, uint32_t serial) {
   uii_irr_mirror (uii, name, serial);
 }
 
-void uii_irr_mirror (uii_connection_t *uii, char *name, int serial) {
+void uii_irr_mirror (uii_connection_t *uii, char *name, uint32_t serial) {
   irr_database_t *database;
 
   database = find_database (name);
@@ -430,9 +430,9 @@ void uii_irr_mirror (uii_connection_t *uii, char *name, int serial) {
   }
   
   uii_send_data (uii, "Mirroring %s database...\r\n", name);
-  uii_send_data (uii, "Current serial number %d\r\n", database->serial_number);
+  uii_send_data (uii, "Current serial number %u\r\n", database->serial_number);
   if (serial > 0)
-    uii_send_data (uii, "serial to: %d\n", serial);
+    uii_send_data (uii, "serial to: %u\n", serial);
   else
     uii_send_data (uii, "serial to: LAST\n");
   uii_send_data (uii, "Starting mirror in the background......\r\n", 
@@ -453,7 +453,7 @@ void uii_irr_mirror (uii_connection_t *uii, char *name, int serial) {
 }
 
 /* mainly for debugging, but would be nice to be able to set the serial number */
-void uii_set_serial (uii_connection_t *uii, char *name, int serial) {
+void uii_set_serial (uii_connection_t *uii, char *name, uint32_t serial) {
   irr_database_t *database;
 
   if ((database = find_database (name)) != NULL) {
@@ -657,7 +657,7 @@ int uii_delete_route (uii_connection_t *uii, char *name, prefix_t *prefix, int a
 
 int uii_read_update_file (uii_connection_t *uii, char *file, char *name) {
   irr_database_t *db;
-  u_long new;
+  uint32_t new;
   FILE *fp;
   
   db = find_database (name);
@@ -680,7 +680,7 @@ int uii_read_update_file (uii_connection_t *uii, char *file, char *name) {
   irr_update_lock (db);
   if (scan_irr_file (db, "load", 2, fp) != NULL) {
     trace (NORM, default_trace, 
-	   "Read of updates failed: serial number unchanged: %d\n",
+	   "Read of updates failed: serial number unchanged: %u\n",
 	   db->serial_number);
   }
   irr_update_unlock (db);

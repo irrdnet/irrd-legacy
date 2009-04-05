@@ -1075,7 +1075,7 @@ ri_unit: T_WORD
 
 /*  aut-num class */
 
-attr_autnum: T_AN_KEY T_AS { $$ = $2; };
+attr_autnum: T_AN_KEY T_AS { asnum_syntax ($2, &curr_obj); $$ = $2; };
 
 attr_asname: T_AA_KEY T_WORD { $$ = $2; };
 
@@ -1379,7 +1379,7 @@ proto_option: T_MANDATORY method
 
 /* common to both route and route6 classes */
 
-attr_origin:       T_OR_KEY T_AS { origin_syntax ($2, &curr_obj); $$ = $2; };
+attr_origin:       T_OR_KEY T_AS { asnum_syntax ($2, &curr_obj); $$ = $2; };
 attr_aggr_bndry:   T_AB_KEY as_expression { $$ = $2; };
 attr_aggr_mtd:     T_AG_KEY aggr_mtd_attr { $$ = $2; };
 attr_member_of:    T_MO_KEY rt_member_of { $$ = $2; };

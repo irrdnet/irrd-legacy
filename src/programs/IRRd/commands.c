@@ -281,11 +281,11 @@ void irr_process_command (irr_connection_t * irr) {
 
   /* Get IPv6 prefixes with specified origin. !6as237 */
   if (!strncasecmp (com_ptr, "6as", 3)) {
-    char gas_key[BUFSIZE];
+    char sixas_key[BUFSIZE];
 
     com_ptr += 3;
-    make_6as_key (gas_key, com_ptr);
-    show_6as_answer (irr, gas_key);
+    make_6as_key (sixas_key, com_ptr);
+    show_6as_answer (irr, sixas_key);
     return;
   }
 
@@ -1323,7 +1323,8 @@ void irr_journal_range (irr_connection_t *irr, char *db) {
 void irr_journal_add_answer (irr_connection_t *irr) {
   enum { UNDETERMINED, DENIED, READONLY, MIRRORABLE } status = UNDETERMINED;
   char db_canon[MAX_DB_NAME], *p_last_export;
-  u_long oldest_serial, current_serial, last_export = 0L;
+  uint32_t oldest_serial, current_serial;
+  u_long last_export = 0L;
 
   strncpy (db_canon, irr->database->name, MAX_DB_NAME - 1);
   db_canon[MAX_DB_NAME - 1] = '\0';

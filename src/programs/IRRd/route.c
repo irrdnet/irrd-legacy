@@ -93,7 +93,7 @@ int delete_irr_prefix (irr_database_t *database, prefix_t *prefix, irr_object_t 
 /* seek_prefix_object
  * We need to find an object before we can delete it */
 int seek_prefix_object (irr_database_t *database, enum IRR_OBJECTS type,
-	 char *key, u_long origin, u_long *offset, u_long *len) {
+	 char *key, uint32_t origin, u_long *offset, u_long *len) {
   radix_node_t *node = NULL;
   irr_prefix_object_t *prefix_object;
   prefix_t *prefix;
