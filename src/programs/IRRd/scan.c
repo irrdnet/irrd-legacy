@@ -317,7 +317,7 @@ void *scan_irr_file_main (FILE *fp, irr_database_t *database,
 
     state = get_state (cp, len, state, &save_state);
     
-    /* dump comment lines and lines that exceed the buffer size */
+    /* skip comment lines and lines that exceed the buffer size */
     if (state & (OVRFLW | OVRFLW_END | COMMENT ))
       continue;
 

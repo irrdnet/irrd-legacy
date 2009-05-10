@@ -378,8 +378,7 @@ int add_irr_object (irr_database_t *database, irr_object_t *irr_object) {
   /* if update (e.g. mirror or user update), save to end of main database */
   /* append the new object to the end of the db file */
   if (irr_object->mode == IRR_UPDATE) {
-    offset = copy_irr_object (irr_object->fp, (long) irr_object->offset, 
-			      database, irr_object->len);
+    offset = copy_irr_object (database, irr_object);
     if (offset < 0) {
       trace (ERROR, default_trace, 
 	     "DB (%s) file error, could not add object (%s) to EOF\n",

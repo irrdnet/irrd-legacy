@@ -15,6 +15,10 @@
 #include <hdr_comm.h>
 #include <pgp.h>
 
+#ifndef INADDR_NONE
+#define	INADDR_NONE	((in_addr_t) 0xffffffff)
+#endif
+
 static char *start_irrd_session (trace_t *tr, int sockfd);
 static int read_socket_obj (trace_t *tr, int sockfd, FILE *fobj, int obj_size, 
 			    int len, int max_line_size);
@@ -30,7 +34,7 @@ int open_connection (trace_t *tr, char *IRRd_HOST, int IRRd_PORT) {
   int sockfd;
   struct sockaddr_in servaddr;
   struct hostent *hoste;
-  unsigned long addr;
+  in_addr_t addr;
 
   trace (TR_TRACE, tr, "open_connection %s:%d\n", IRRd_HOST, IRRd_PORT);
 
@@ -43,7 +47,7 @@ int open_connection (trace_t *tr, char *IRRd_HOST, int IRRd_PORT) {
      addresses? grrrr. */
 
   addr = inet_addr(IRRd_HOST);
-  if ((signed long) addr == -1) {
+  if (addr == INADDR_NONE) {
     if ((hoste = gethostbyname(IRRd_HOST)) == NULL) {
       trace (NORM, tr, 
 	     "open_connection () ERROR resolving %s: (%s)\n", 

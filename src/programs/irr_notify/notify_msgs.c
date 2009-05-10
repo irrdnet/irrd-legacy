@@ -23,9 +23,9 @@ extern config_info_t ci;
  * in the file.
  */
 void read_past_obj (FILE *fp) {
-  char buf[10*MAXLINE];
+  char buf[MAXLINE];
 
-  while (fgets (buf, MAXLINE - 1, fp) != NULL) {
+  while (fgets (buf, MAXLINE, fp) != NULL) {
     if (buf[0] == '\n')
       break;
   }
@@ -40,14 +40,14 @@ void read_past_obj (FILE *fp) {
  */
 int dump_object_to_file (trace_t *tr, FILE *fp, FILE *fin, long obj_pos,
 			 int max_line_size) {
-  char buf[10*MAXLINE];
+  char buf[MAXLINE];
   char *cp;
   int count = 0, print_snip = 1;
   
   strcpy (buf, "\n");
   trace (TR_TRACE, tr, "dump_object_to_file () dumping object to file...\n");
   fseek (fin, obj_pos, SEEK_SET);
-  while ((cp = fgets (buf, MAXLINE - 1, fin)) != NULL) {
+  while ((cp = fgets (buf, MAXLINE, fin)) != NULL) {
     count++;
     if (buf[0] == '\n')
       break;
@@ -590,7 +590,7 @@ void build_notify_responses (trace_t *tr, char *tmpfname, FILE *fin,
 void send_email (trace_t *tr,  char *addrs, char *last, int ndx[], 
 		 FILE *log_fp, int null_notification, int dump_stdout) {
 
-  char buf[10*MAXLINE], *p;
+  char buf[MAXLINE], *p;
   int i = 0;
  
   for (p = addrs; p < last; p += strlen (p) + 1, i++) {
@@ -610,7 +610,7 @@ void send_email (trace_t *tr,  char *addrs, char *last, int ndx[],
       }
       
       /* write the sender response to the ack log */
-      while (fgets (buf, MAXLINE - 1, msg_hdl[ndx[i]].fp) != NULL) {
+      while (fgets (buf, MAXLINE, msg_hdl[ndx[i]].fp) != NULL) {
 	if (log_fp != NULL)
 	  fputs (buf, log_fp);
 
@@ -624,7 +624,7 @@ void send_email (trace_t *tr,  char *addrs, char *last, int ndx[],
     if (!null_notification && !dump_stdout && strcmp (p, UNKNOWN_USER_NAME)) { /* notify's to email */
       fflush (msg_hdl[ndx[i]].fp);
       
-      chmod (msg_hdl[ndx[i]].fname, S_IRWXO|S_IRGRP|S_IRWXU);
+/*    chmod (msg_hdl[ndx[i]].fname, S_IRWXO|S_IRGRP|S_IRWXU); */
 #ifdef HAVE_SENDMAIL
       sprintf (buf, "%s < %s", SENDMAIL_CMD, msg_hdl[ndx[i]].fname);
 #elif HAVE_MAIL

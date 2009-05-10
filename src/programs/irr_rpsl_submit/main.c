@@ -1,4 +1,4 @@
-/* 
+/*
  * $Id: main.c,v 1.9 2002/10/17 20:16:14 ljb Exp $
  */
 
@@ -15,14 +15,14 @@
 #include <irr_notify.h>
 #include <hdr_comm.h>
 
-/* Global config file information struct
- * (See read_conf.c)
- */
+/* Global config file information struct (See read_conf.c) */
 config_info_t ci;
 trace_t *default_trace;
 FILE *fin;
 
-int main(int argc, char *argv[]) {
+int
+main(int argc, char *argv[])
+{
   char *name = argv[0], *config_fname = "/etc/irrd.conf";
   char *file_name = NULL;
   char *web_origin_str = NULL;
@@ -35,96 +35,85 @@ int main(int argc, char *argv[]) {
 
   /* Initialization */
   /* need to set real uid/gid in case this is a setuid program */
-  setreuid(geteuid(), -1); setregid(getegid(), -1);
-  default_trace = New_Trace2 ("irr_rpsl_submit");
+  setreuid(geteuid(), -1);
+  setregid(getegid(), -1);
+  default_trace = New_Trace2("irr_rpsl_submit");
   errors = NULL_NOTIFICATIONS = DAEMON_FLAG = RPS_DIST_FLAG = 0;
   sstart.first = sstart.last = NULL;
-  memset (&ci, 0, sizeof (config_info_t));
+  memset(&ci, 0, sizeof (config_info_t));
 
   /* Loop and process the command line flags */
   while ((optval = getopt (argc, argv, "vc:NRDxtf:p:h:l:r:s:E:F:O:")) != -1)
     switch (optval) {
     case 'c':
       if (*optarg == '-') {
-	fprintf (stderr, 
-		 "\"%s\" missing encrypted password for -c option\n", optarg);
+	fprintf(stderr, "\"%s\" missing encrypted password for -c option\n",
+		optarg);
 	errors++;
-      }
-      else 
+      } else 
 	 ci.super_passwd = optarg;
       break;
     case 'E':
       if (*optarg == '-') {
-	fprintf (stderr, 
-		 "\"%s\" missing email address for -E option\n", optarg);
+	fprintf(stderr, "\"%s\" missing email address for -E option\n", optarg);
 	errors++;
-      }
-      else 
+      } else 
 	 ci.db_admin = optarg;
       break;
     case 'F':
       if (*optarg == '-') {
-	fprintf (stderr, 
-		 "\"%s\" missing value for -F option\n", optarg);
+	fprintf(stderr, "\"%s\" missing value for -F option\n", optarg);
 	errors++;
-      }
-      else 
+      } else 
 	 ci.footer_msg = strdup (optarg);
       break;
     case 'h':
       if (*optarg == '-') {
-	fprintf (stderr, 
-		 "\"%s\" missing IRRd host name for -h option\n", optarg);
+	fprintf(stderr, "\"%s\" missing IRRd host name for -h option\n",
+		optarg);
 	errors++;
-      }
-      else
+      } else
 	 ci.irrd_host = optarg;
       break;
     case 'l':
       if (*optarg == '-') {
-	fprintf (stderr, 
-		 "\"%s\" missing directory name for -l option\n", optarg);
+	fprintf(stderr, "\"%s\" missing directory name for -l option\n",
+		optarg);
 	errors++;
-      }
-      else
+      } else
 	 ci.log_dir = optarg;
       break;
     case 'O':
       if (*optarg == '-') {
-	fprintf (stderr, 
-		 "\"%s\" missing web origin value for -O option\n", optarg);
+	fprintf(stderr, "\"%s\" missing web origin value for -O option\n",
+		optarg);
 	errors++;
-      }
-      else 
+      } else 
 	 web_origin_str = strdup (optarg);
       break;
     case 'p':
       if (*optarg == '-') {
-	fprintf (stderr, 
-		 "\"%s\" missing port number for -p option\n", optarg);
+	fprintf(stderr, "\"%s\" missing port number for -p option\n", optarg);
 	errors++;
-      }
-      else
+      } else
 	 ci.irrd_port = atoi (optarg);
       break;
     case 'r':
       if (*optarg == '-') {
-	fprintf (stderr, 
-		 "\"%s\" missing directory name for -r option\n", optarg);
+	fprintf(stderr, "\"%s\" missing directory name for -r option\n",
+		optarg);
 	errors++;
-      }
-      else
+      } else
 	 ci.pgp_dir = optarg;
       break;
     case 's':
       if (*optarg == '-') {
-	fprintf (stderr, 
-		 "\"%s\" missing source database name for -s option\n", optarg);
+	fprintf(stderr, "\"%s\" missing source database name for -s option\n",
+		optarg);
 	errors++;
-      }
-      else {
-	obj = create_source_obj (optarg, 1);
-	add_src_obj (&sstart, obj);    
+      } else {
+	obj = create_source_obj(optarg, 1);
+	add_src_obj(&sstart, obj);    
       }
       break;
     case 'N':
@@ -137,14 +126,14 @@ int main(int argc, char *argv[]) {
       NULL_NOTIFICATIONS = 1;
       break;
     case 'f':
-      if (!strcasecmp (optarg, "stderr") ||
+      if (!strcasecmp(optarg, "stderr") ||
 	  !strcasecmp (optarg, "stdout")) {
-	fprintf (stderr, "Invalid IRRd configuration file!\n");
+	fprintf(stderr, "Invalid IRRd configuration file!\n");
 	errors++;
-      }
-      else if (*optarg == '-') {
-	fprintf (stderr, 
-		 "\"%s\" missing IRRd configuration file for -f option\n", optarg);
+      } else if (*optarg == '-') {
+	fprintf(stderr,
+		"\"%s\" missing IRRd configuration file for -f option\n",
+		optarg);
 	errors++;
       }
       else 
@@ -155,9 +144,8 @@ int main(int argc, char *argv[]) {
       DAEMON_FLAG = 1;
       break;
     case 'v':	/* turn on debugging */
-      set_trace (default_trace, TRACE_FLAGS, TR_ALL,
-		 TRACE_LOGFILE, "stdout",
-		 NULL);
+      set_trace(default_trace, TRACE_FLAGS, TR_ALL, TRACE_LOGFILE, "stdout",
+		NULL);
       break;
     default:
       errors++;
@@ -176,55 +164,55 @@ int main(int argc, char *argv[]) {
     }
 
   if (DAEMON_FLAG && file_name != NULL) {
-    fprintf (stderr, 
-	     "Two input sources specified: '-d/D' option and %s!\n", file_name);
+    fprintf(stderr, "Two input sources specified: '-d/D' option and %s!\n",
+	    file_name);
     errors++;
-  }    
-  
+  }
+
   if (errors) {
-    fprintf (stderr, usage, name);
-    fprintf (stderr,"\nirr_submit compiled on %s\n",__DATE__);
+    fprintf(stderr, usage, name);
+    fprintf(stderr,"\nirr_submit compiled on %s\n",__DATE__);
     exit (0);
   }
 
   if (DAEMON_FLAG || file_name == NULL)
     fin = stdin;
-  else if ((fin = fopen (file_name, "r")) == NULL) {
-    fprintf (stderr, "Error opening input file \"%s\": %s\n", 
-	     file_name, strerror(errno));
+  else if ((fin = fopen(file_name, "r")) == NULL) {
+    fprintf(stderr, "Error opening input file \"%s\": %s\n", file_name,
+	    strerror(errno));
     exit (0);
   }
 
   /* Parse the irrd.conf file */
   ci.srcs = sstart.first;
-  if (parse_irrd_conf_file (config_fname, default_trace) < 0) 
+  if (parse_irrd_conf_file(config_fname, default_trace) < 0) 
     fprintf (stderr, "Warning: could not open the IRRd conf file!\n");
 
   /* JW debug
   {
     source_t *obj;
 
-    printf ("JW: source list...\n");
+    printf("JW: source list...\n");
     for (obj = ci.srcs; obj != NULL; obj = obj->next) {
-      printf ("\n---------\nname (%s)\n", obj->source);
-      printf ("  authoritative (%d)\n", obj->authoritative);
-      printf ("  rpsdist flag (%d)\n", obj->rpsdist_flag);
-      printf ("  rpsdist trusted (%d)\n", obj->rpsdist_trusted);
-      printf ("  rpsdist auth (%d)\n", obj->rpsdist_auth);
-      printf ("  rpsdist host (%s)\n", ((obj->rpsdist_host == NULL) ? "NULL" : obj->rpsdist_host));
-     printf ("  rpsdist port (%s)\n", ((obj->rpsdist_port == NULL) ? "NULL" : obj->rpsdist_port)); 
-     printf ("  rpsdist hexid (%s)\n", ((obj->rpsdist_hexid == NULL) ? "NULL" : obj->rpsdist_hexid)); 
-     printf ("  rpsdist accept host (%s)\n", ((obj->rpsdist_accept_host == NULL) ? "NULL" : obj->rpsdist_accept_host)); 
-     printf ("  rpsdist pgppass (%s)\n", ((obj->rpsdist_pgppass == NULL) ? "NULL" : obj->rpsdist_pgppass)); 
+      printf("\n---------\nname (%s)\n", obj->source);
+      printf("  authoritative (%d)\n", obj->authoritative);
+      printf("  rpsdist flag (%d)\n", obj->rpsdist_flag);
+      printf("  rpsdist trusted (%d)\n", obj->rpsdist_trusted);
+      printf("  rpsdist auth (%d)\n", obj->rpsdist_auth);
+      printf("  rpsdist host (%s)\n", ((obj->rpsdist_host == NULL) ? "NULL" : obj->rpsdist_host));
+      printf("  rpsdist port (%s)\n", ((obj->rpsdist_port == NULL) ? "NULL" : obj->rpsdist_port)); 
+      printf("  rpsdist hexid (%s)\n", ((obj->rpsdist_hexid == NULL) ? "NULL" : obj->rpsdist_hexid)); 
+      printf("  rpsdist accept host (%s)\n", ((obj->rpsdist_accept_host == NULL) ? "NULL" : obj->rpsdist_accept_host)); 
+      printf("  rpsdist pgppass (%s)\n", ((obj->rpsdist_pgppass == NULL) ? "NULL" : obj->rpsdist_pgppass)); 
     }
 
     } */
 
   /* Successful invokation and good irrd.conf file.
    * Now we can process DB submission */
-  call_pipeline (default_trace, fin, web_origin_str, NULL_NOTIFICATIONS, 
+  call_pipeline(default_trace, fin, web_origin_str, NULL_NOTIFICATIONS, 
 		 DAEMON_FLAG, RPS_DIST_FLAG);
 
-  trace (NORM, default_trace, "\n\n");
+  trace(NORM, default_trace, "\n\n");
   exit(0);
 }

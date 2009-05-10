@@ -5,4 +5,4 @@
 #undef IRRD_VERSION
 
 /* define the IRRD version number */
-#define IRRD_VERSION "2.3.7 [03Apr2009]"
+#define IRRD_VERSION "2.3.9 [01May2009]"

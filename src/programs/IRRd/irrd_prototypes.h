@@ -127,8 +127,7 @@ void make_journal_name (char * dbname, int journal_ext, char * journal_name);
 /* util */
 void irr_sort_database ();
 void nice_time (long seconds, char *buf);
-long copy_irr_object (FILE *src_fp, long offset, irr_database_t *database,
-		      u_long obj_length);
+long copy_irr_object ( irr_database_t *database, irr_object_t *object);
 void irr_unlock_all (irr_connection_t *irr);
 void irr_lock_all (irr_connection_t *irr);
 void irr_update_unlock (irr_database_t *database);

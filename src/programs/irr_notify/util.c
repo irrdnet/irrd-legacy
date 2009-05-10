@@ -198,7 +198,7 @@ int put_transaction_code_old (trace_t *tr, FILE *fin, char code, long fpos) {
 void skip_transaction (FILE *fin, long *offset) {
   char buf[MAXLINE];
 
-  while (fgets (buf, MAXLINE - 1, fin) != NULL) {
+  while (fgets (buf, MAXLINE, fin) != NULL) {
     *offset += strlen (buf);
     if (buf[0] == '\n')
       break;
@@ -419,7 +419,7 @@ int pick_off_header_info (trace_t *tr, FILE *fin, int submission_count_lines,
    * calling function */
   *all_noop = 0;
 
-  while (fgets (buf, MAXLINE - 1, fin) != NULL) {
+  while (fgets (buf, MAXLINE, fin) != NULL) {
     if (strncmp (HDR_START, buf, strlen (HDR_START) - 1))
       continue;
 

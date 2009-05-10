@@ -23,14 +23,12 @@ void make_journal_name (char * dbname, int journal_ext, char * journal_name);
  * Record what we're doing to the database in the <DB>.journal file
  * if mode == IRR_UPDATE then an add
 */
-/* JW this routine can be speeded up.  We know the offset and length
-   of the object, lets read it and write it with two sys calls
-*/
 void journal_irr_update (irr_database_t *db, irr_object_t *object, 
                          int mode, int skip_obj) {
   char buffer[BUFSIZE+1];
   char *sadd = "ADD\n\n";
   char *sdelete = "DEL\n\n";
+  int len_to_read, read_bytes, fread_len;
 
   db->serial_number++;
 
@@ -54,16 +52,25 @@ void journal_irr_update (irr_database_t *db, irr_object_t *object,
     }
 
     fseek (object->fp, object->offset, SEEK_SET);
-    
-    while (fgets (buffer, BUFSIZE, object->fp) != NULL) {
-      if (strlen (buffer) < 2) break;
-      write (db->journal_fd, buffer, strlen (buffer));
+
+    len_to_read = object->len;    
+    while (len_to_read > 0) {
+      if  (len_to_read > BUFSIZE)
+	read_bytes = BUFSIZE;
+      else
+	read_bytes = len_to_read;
+      fread_len = fread (buffer, 1, read_bytes, object->fp);
+      len_to_read -= fread_len;
+      write (db->journal_fd, buffer, fread_len);
     }
-    strcpy (buffer, "\n");
-    write (db->journal_fd, buffer, strlen (buffer));
+    fread_len = fread (buffer, 1, 1, object->fp); /* read terminal newline */
+    if (fread_len !=1)
+      trace (ERROR, default_trace,"journal_irr_update(): Error reading final terminating newline\n");
+    if (buffer[0] != '\n') 
+      trace (ERROR, default_trace,"journal_irr_update(): Terminating newline characacter incorrect, value = %d\n",buffer[0]);
+    write (db->journal_fd, "\n", 1); /* write the final newline */
   }
 
-  /* whew! The change is on disk, so we can save the new serial number */
   write_irr_serial (db);
   return;
 }

@@ -33,7 +33,7 @@ void call_pipeline (trace_t *tr, FILE *fin, char *web_origin_str,
   int sock_fd = fileno(fin);
   size_t sock_length = sizeof(myaddr);
 
-  umask(0022);  /* set umask */
+  umask(022);  /* set umask */
   
   if(!getpeername(sock_fd, (struct sockaddr *)&myaddr, &sock_length)) {
     trace(NORM, tr, "irr_submit connection from %s\n",

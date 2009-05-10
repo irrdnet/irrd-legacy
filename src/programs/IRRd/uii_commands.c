@@ -489,13 +489,22 @@ void uii_show_ip (uii_connection_t *uii, prefix_t *prefix, int num, char *lessmo
 void uii_fetch_irr_object (uii_connection_t *uii, 
 			   irr_database_t *database, u_long offset) {
   char buffer[BUFSIZE];
+  size_t len;
+  int continue_line = 0;
   
   fseek (database->db_fp, offset, SEEK_SET);
     
   while (fgets (buffer, BUFSIZE, database->db_fp) != NULL) {
-    buffer[strlen(buffer) -1] = '\0'; /* lose newline */
-    if (strlen (buffer) < 2) break;
-    uii_add_bulk_output (uii, "%s\r\n", buffer);
+    len = strlen(buffer);
+    if (len == 1 && !continue_line) break; /* single newline is end of obj */
+    if (buffer[len - 1] != '\n') { /* line length exceeds buffer */
+      continue_line = 1;
+      uii_add_bulk_output (uii, "%s", buffer);
+    } else {
+      continue_line = 0;
+      buffer[len - 1] = '\0'; /* lose newline */
+      uii_add_bulk_output (uii, "%s\r\n", buffer);
+    }
   }
 }
 

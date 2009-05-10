@@ -147,34 +147,43 @@ void irr_unlock (irr_database_t *database) {
  * Copy an object from one <DB>.db file to another
  * this is used in updates and in resyching database
  */
-long copy_irr_object (FILE *src_fp, long offset, irr_database_t *database,
-                     u_long obj_length) {
+long copy_irr_object (irr_database_t *database, irr_object_t *object) {
   char buffer[BUFSIZE];
   long start_offset = 0;
-  int bytes_read   = 0;
-  int i;
+  int len_to_read = object->len;
+  int i, fread_len;
 
-  if ( database->db_fp == NULL )
-    return -1L;
-  
-  if ((fseek (src_fp, offset, SEEK_SET) < 0) ||
-      (fseek (database->db_fp, 0, SEEK_END) < 0)) 
-    trace (NORM, default_trace, "** Error ** fseek failed in copy_irr_object");
+  if ( database->db_fp == NULL ) {
+    trace (ERROR, default_trace, "copy_irr_object(): database not open\n");
+    exit (1);
+  }
+  if (fseek (object->fp, object->offset, SEEK_SET) < 0) {
+    trace (ERROR, default_trace, "copy_irr_object(): irr_object fseek failed\n");
+    exit (1);
+  }
+  if (fseek (database->db_fp, 0, SEEK_END) < 0) {
+    trace (ERROR, default_trace, "copy_irr_object(): database fseek failed\n");
+    exit (1);
+  }
   start_offset = ftell (database->db_fp);
 
-  bytes_read = 0;
-  while (fgets (buffer, sizeof (buffer)-1, src_fp) != NULL) {
-    if ((i = strlen (buffer)) < 2) break;
-
-    if (bytes_read < obj_length) {
-      fwrite (buffer, 1, (size_t) i, database->db_fp);
-      database->bytes += i;
-    }
-     bytes_read += i;
+  while (len_to_read > 0) {
+    if ( len_to_read > BUFSIZE )
+	i = BUFSIZE;
+    else
+	i = len_to_read;
+    fread_len = fread(buffer, 1, i, object->fp);
+    len_to_read -= fread_len;
+    fwrite (buffer, 1, (size_t) fread_len, database->db_fp);
+    database->bytes += fread_len;
   }
-  sprintf (buffer, "\n");
-  fwrite (buffer, 1, strlen (buffer), database->db_fp);
-  database->bytes += strlen (buffer);
+  fread_len = fread (buffer, 1, 1, object->fp); /* read final terminating newline */
+  if (fread_len !=1)
+    trace (ERROR, default_trace,"copy_irr_object(): Error reading final terminating newline\n");
+  if (buffer[0] != '\n')
+    trace (ERROR, default_trace,"copy_irr_object(): Terminating newline characacter incorrect, value = %d\n",buffer[0]);
+  fwrite ("\n", 1, 1, database->db_fp); /* write terminating newline */
+  database->bytes += 1;
 
   return start_offset;
 }

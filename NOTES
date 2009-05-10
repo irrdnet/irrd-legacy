@@ -1,3 +1,11 @@
+ May 01, 2009      IRRd 2.3.9   Release notes
+   Previous bugfix was incorrect.  Also applied similar fix to
+   copy_irr_object() routine.  Included a fix for 64-bit systems
+   and some code clean-up.
+
+ Apr 20, 2009      IRRd 2.3.8   Release notes
+   Fix bug causing journal file corruption with long attribute line lengths
+   in journal_irr_update due to use of fgets().
 
  Apr 03, 2009      IRRd 2.3.7   Release notes
    Add backward compatibility for asdot format queries

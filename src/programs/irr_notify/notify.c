@@ -139,7 +139,7 @@ void notify (trace_t *tr, char *tmpfname, FILE *fin,
    */
   num_hdls = 0; 
 
-  while (fgets (buf, MAXLINE - 1, fin) != NULL) {
+  while (fgets (buf, MAXLINE, fin) != NULL) {
     if (strncmp (HDR_START, buf, strlen (HDR_START) - 1))
       continue;
 
@@ -574,7 +574,7 @@ char *rpsdist_timestamp (char *ts) {
  */
 void pgp_files_backout (char *pgpfn) {
   int rm = 0;
-  char buf[1024];
+  char buf[MAXLINE];
   FILE *fin;
 
   /* sanity check */
@@ -584,7 +584,7 @@ void pgp_files_backout (char *pgpfn) {
 
   /* remove any PGP key files we may have created in the 
    * RPS-DIST cache area */
-  while (fgets (buf, MAXLINE - 1, fin) != NULL) {
+  while (fgets (buf, MAXLINE, fin) != NULL) {
     if (rm) {
       buf[strlen (buf) - 1] = '\0'; /* get rid of the '\n' */
       remove (buf);
@@ -653,7 +653,7 @@ char *init_jentries (trace_t *tr, char *logfn, long fpos, char *source, FILE *fo
 
   /* copy the transaction "as-is" from the user for the RPS-DIST
    * journal file */
-  while (fgets (curline, MAXLINE - 1, fin) != NULL) {
+  while (fgets (curline, MAXLINE, fin) != NULL) {
     if (first_line && regexec (&mailfromre, curline, 0, 0, 0) != 0)
       in_headers = 0;
 
@@ -806,7 +806,7 @@ char *init_irrd_updates (trace_t *tr, FILE *fin, FILE *fout, ret_info_t *start,
 
       /* copy the canonicalized submission object from the input 
        * file to the IRR update file */
-      while (fgets (buf, MAXLINE - 1, fin) != NULL) {
+      while (fgets (buf, MAXLINE, fin) != NULL) {
 	n = strlen (buf);
 	line_begin = !line_cont;
 	line_cont = (buf[n - 1] != '\n');
@@ -912,7 +912,7 @@ char *init_pgp_updates (trace_t *tr, FILE *fout, ret_info_t *start,
 	}
 
 	/* transfer the public key to an rps-dist PGP key update file */	
-	while (fgets (buf, MAXLINE - 1, fin) != NULL)
+	while (fgets (buf, MAXLINE, fin) != NULL)
 	  fputs (buf, dst);
 
 	/* write the PGP key filename to the RPS-DIST PGP control file */
@@ -925,7 +925,7 @@ char *init_pgp_updates (trace_t *tr, FILE *fout, ret_info_t *start,
 	  goto PGP_ABORT;
 	}
 	* transfer the public key to the rps-dist PGP update file *
-	while (fgets (buf, MAXLINE - 1, fin) != NULL)
+	while (fgets (buf, MAXLINE, fin) != NULL)
 	  fputs (buf, fout);
 	End of old code */
 
@@ -985,7 +985,7 @@ void perform_transactions (trace_t *tr, FILE *fin, ret_info_t *start,
   /* rewind */
   fseek (fin, 0L, SEEK_SET);
 
-  while (fgets (buf, MAXLINE - 1, fin) != NULL) {
+  while (fgets (buf, MAXLINE, fin) != NULL) {
     if (strncmp (HDR_START, buf, strlen (HDR_START) - 1))
       continue;
     /* JW commented out to dup rawhoisd 
@@ -1047,7 +1047,7 @@ void perform_transactions (trace_t *tr, FILE *fin, ret_info_t *start,
       if (EOF == fseek (fin, p->offset, SEEK_SET))
 	  fprintf (stderr, "ERROR: fseek (%ld)\n", p->offset);
       else {
-	fgets (buf, MAXLINE - 1, fin);
+	fgets (buf, MAXLINE, fin);
 	/*fprintf (dfile, "irrd_trans () line: %s", buf);*/
 	fseek (fin, p->offset, SEEK_SET);
       }
