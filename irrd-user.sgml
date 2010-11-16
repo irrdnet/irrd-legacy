@@ -5,7 +5,7 @@
 User/Configuration Guide</title>
 <bookinfo>
 <edition>IRRd User/Configuration Guide</edition>
-<pubdate>October 2008</pubdate>
+<pubdate>November 2010</pubdate>
 <corpauthor>Merit Network, Inc.</corpauthor>
 <revhistory>
    <revision>
@@ -81,6 +81,14 @@ User/Configuration Guide</title>
 	  Document the new !6 command
        </revremark>
    </revision>
+   <revision>
+     <revnumber>2.3.10</revnumber>
+       <date>2010-11-17</date>
+       <authorinitials>ljb</authorinitials>
+       <revremark>
+	  Document the mirror_protocol config option
+       </revremark>
+   </revision>
 </revhistory>
 <copyright>
 <year>1999</year>
@@ -90,6 +98,7 @@ User/Configuration Guide</title>
 <year>2003</year>
 <year>2004</year>
 <year>2008</year>
+<year>2010</year>
 <holder>
 The Regents of the University of Michigan ("The Regents") and
 Merit Network, Inc.  All rights reserved.</holder>
@@ -506,6 +515,7 @@ Specify the path for the cache directory and database files.</para>
 <para>
 <literallayout>
 <command>irr_database &lt;name>  [mirror_host &lt;hostname> [port &lt;port number>] ]</command>
+<command>irr_database &lt;name>  [mirror_protocol &lt;num>]</command>
 <command>irr_database &lt;name>  [authoritative]</command>
 <command>irr_database &lt;name>  [access &lt;num>]</command>
 <command>irr_database &lt;name>  [write-access &lt;num>]</command>
@@ -525,8 +535,10 @@ If the authoritative keyword is used, updates will be allowed for this database.
 <para>
 Access restricts read, write and mirror access to IP addresses permitted by access-list &lt;num>.</para>
 <para>
-Write access refines access and limit updates to IP addresses permitted by access-list &lt;num>.  By default, write access is restricted to the loopback address of the local machine. Mirror-access refines access and limits database mirroring to IP addresses permitted by access-list &lt;num>.
+Write access refines access and limits updates to IP addresses permitted by access-list &lt;num>.  By default, write access is restricted to the loopback address of the local machine. Mirror-access refines access and limits database mirroring to IP addresses permitted by access-list &lt;num>.
 cryptpw-access limits access to hashed passwords in mntner auth: attributes.  If this access list is set, only allowed hosts will be shown CRYPT-PW hash strings in queries and mirror requests.  Denied hosts will instead see the string "HIDDENCRYPTPW" in place of the actual hash.</para>
+<para>
+mirror_host and mirror_protocol defines the mirrored host and protocol used for mirrored databases.  The default mirroring protocol is 1 if the mirror_protocol is not specified.  Optionally, mirror protocol 3 is also supported for the RIPE registry.  Mirror protocol 2 is not currently supported.</para>
 <para>
 Some databases (like RIPE) contain a significant volume of non-routing related information like person objects and role objects. To reduce the size of the database, you can use the filter command to specify the objects you want to include (or not include) in your database.</para>
 <para>

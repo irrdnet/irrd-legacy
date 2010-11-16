@@ -76,7 +76,7 @@ void irr_set_expand (irr_connection_t *irr, char *name) {
 
   start_time = time(NULL);
   convert_toupper (name);
-  stack = Create_STACK (512);
+  stack = Create_STACK (1024);
   hash_member_examined = HASH_Create(SMALL_HASH_SIZE, HASH_KeyOffset,
        HASH_Offset(&member_examined_item, &member_examined_item.key),
        HASH_DestroyFunction, HashMemberExaminedDestroy, 0);

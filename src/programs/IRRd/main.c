@@ -592,6 +592,10 @@ void init_irrd_commands (int UNPRIV_FLAG) {
 		    (int (*)()) config_irr_database_mirror,
 		    "The IRR database mirroring");
 
+  uii_add_command2 (UII_CONFIG, COMMAND_NORM, "irr_database %s mirror_protocol %d", 
+		    (int (*)()) config_irr_database_mirror_protocol,
+		    "IRR mirroring protocol");
+
   uii_add_command2 (UII_CONFIG, COMMAND_NORM, "irr_database %s authoritative", 
 		    (int (*)()) config_irr_database_authoritative,
 		    "Allow write updates for IRR database");

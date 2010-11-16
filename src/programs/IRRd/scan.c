@@ -701,7 +701,8 @@ int read_blank_line_input (FILE *fp, char *buf, int buf_size,
 /* Check for an 'ADD' or 'DEL' at the begining of the
  * mirror or update.  Also calls read_blank_line_input ()
  * to check for exactly one blank line and then start
- * of object.
+ * of object.  Scans for protocol version 3 serial numbers
+ * Version 3 may skip serials
  *
  * Return:
  *   START_F if no errors.
@@ -712,22 +713,35 @@ int pick_off_mirror_hdr (FILE *fp, char *buf, int buf_size,
 			 u_long *mode, u_long *position,
 			 u_long *offset, irr_database_t *db) {
 
+  uint32_t serial_num;
+
   if (!strncasecmp ("ADD", buf, 3))  {
     *mode = IRR_UPDATE;
-    state = read_blank_line_input (fp, buf, buf_size, state, p_save_state, position, offset, db);
   }
   else if (!strncasecmp ("DEL", buf, 3))  {
     *mode = IRR_DELETE;
-    state = read_blank_line_input (fp, buf, buf_size, state, p_save_state, position, offset, db);
   }
   else
     state = DB_EOF; /* no "ADD" or "DEL" so abort scan */
 
-  if (state == DB_EOF) {
+  if (state != DB_EOF && db->mirror_protocol == 3) {
+    if (convert_to_32(buf+4, &serial_num) != 1) {
+      trace (ERROR, default_trace,"Serial num conversion error: %s\n", buf+4);
+      state = DB_EOF;
+    } else if (serial_num > db->serial_number) {
+      db->serial_number = serial_num - 1; /* protocol 3 may skip serials */
+    } else {
+      trace (ERROR, default_trace,"Serial num error -- value unexpected, current value: %d\n", db->serial_number);
+      state = DB_EOF;
+    }
+  }
+  
+  if (state != DB_EOF) { 
+    state = read_blank_line_input (fp, buf, buf_size, state, p_save_state, position, offset, db);
+  } else {
     trace (ERROR, default_trace,"scan.c: pick_off_mirror_hdr(): abort scan\n");
     trace (ERROR, default_trace,"line (%s)\n", buf);
   }
-
   return (state);
 }
 

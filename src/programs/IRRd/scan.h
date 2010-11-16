@@ -7,9 +7,13 @@
  _z = (p) + strlen ((p)); \
  while ((_z-- > (p)) && (*_z == ' ' || *_z == '\t' || *_z == '\n')) *_z = '\0';}
 
-#define whitespace_newline_remove(p) while ((*(p) == ' ') || (*(p) == '\t'))\
-   (p)++; \
-    *((p) + strlen ((p)) - 1) = '\0'
+#define whitespace_newline_remove(p) {int n; \
+  while ((*(p) == ' ') || (*(p) == '\t'))\
+    (p)++; \
+  n =strlen((p)) - 1; \
+  if (p[n] == '\n') \
+    *((p) + n) = '\0'; \
+}
 
 /* Object bit fields used for filtering
  * purposes.  A corresponding bit-field

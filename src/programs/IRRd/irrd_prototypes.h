@@ -49,6 +49,7 @@ void config_create_default ();
 void get_config_irr_directory ();
 int config_irr_database_access_write (uii_connection_t *uii, char *name, int num);
 int config_irr_database_access_cryptpw (uii_connection_t *uii, char *name, int num);
+int config_irr_database_mirror_protocol (uii_connection_t *uii, char *name, int num);
 int config_irr_database_mirror_access (uii_connection_t *uii, char *name, int num);
 int config_irr_database_compress_script (uii_connection_t *uii, char *name,  char *script);
 int config_irr_database_access (uii_connection_t *uii, char *name, int num);

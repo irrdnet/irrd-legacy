@@ -206,6 +206,14 @@ void get_config_irr_database (irr_database_t *database) {
     atts =1;
   }
 
+  /* default protocol is 1, if not version 1, save to config */
+  if (database->mirror_protocol != 1) {
+    config_add_output ("irr_database %s mirror_protocol %d\r\n", 
+		       database->name,
+		       database->mirror_protocol);
+    atts =1;
+  }
+
   if (database->access_list != 0) {
     config_add_output ("irr_database %s access %d\r\n", 
 		       database->name,
@@ -959,6 +967,7 @@ int config_irr_database_mirror (uii_connection_t *uii, char *name,
     return (-1);
   }
   database->mirror_port = port;
+  database->mirror_protocol = 1;	/* default mirror protocol is 1 */
 
   database->mirror_timer = (mtimer_t *)
     New_Timer (irr_mirror_timer, IRR.mirror_interval, "IRR Mirror", database);
@@ -996,6 +1005,30 @@ int config_irr_database_access (uii_connection_t *uii, char *name, int num) {
   config_add_module (0, "access", get_config_irr_database, database); 
 
   database->access_list = num;
+  Delete (name);
+  return (1);
+}
+
+/* config irr_database %s mirror_protocol %d */
+int config_irr_database_mirror_protocol (uii_connection_t *uii, char *name, int num) {
+  irr_database_t *database = NULL;
+
+  if ((database = find_database (name)) == NULL) {
+    config_notice (ERROR, uii, "Database %s not found!\r\n", name);
+    Delete (name);
+    return (-1);
+  }
+
+  if (num != 1 && num != 3) {
+    config_notice (ERROR, uii, "Unsupported mirror protocol type %d.\r\n", num);
+    Delete (name);
+    return (-1);
+  }
+
+  trace (NORM, default_trace, "CONFIG %s mirror protocol %d\n", name, num);
+  config_add_module (0, "mirror protocol", get_config_irr_database, database); 
+
+  database->mirror_protocol = num;
   Delete (name);
   return (1);
 }

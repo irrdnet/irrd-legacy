@@ -270,7 +270,7 @@ prefix_t *
 ascii2prefix (int family, char *string)
 {
     u_long bitlen, maxbitlen;
-    char *cp;
+    char *cp, *endptr, *prefixstr;
     struct in_addr sin;
     struct in6_addr sin6;
     prefix_t *return_prefix = NULL;
@@ -282,30 +282,36 @@ ascii2prefix (int family, char *string)
     }
 
     if (family == AF_INET) {
-	maxbitlen = 32;
+      maxbitlen = 32;
     }
     else if (family == AF_INET6) {
-	maxbitlen = 128;
+      maxbitlen = 128;
     } else
-	return NULL;  /* unrecognized family */
+      return NULL;  /* unrecognized family */
 
-    if ((cp = strchr (string, '/')) != NULL) {
-	*cp = '\0';	/* terminate string at "/" char */
-	bitlen = atol (cp + 1);
-	if (bitlen < 0 || bitlen > maxbitlen)
-	    bitlen = maxbitlen;
+    if ((cp = strchr (string, '/')) != NULL) { /* check for prefix */
+    prefixstr = cp + 1; /* point to the prefix part */
+    if (!isdigit(*prefixstr)) /* first char must be a digit */
+      return NULL;
+    bitlen = strtol (prefixstr, &endptr, 10);
+    if (*endptr) /* if junk after prefix, terminate at end of prefix */
+      *endptr = '\0';
+    if (bitlen > maxbitlen) /* check for a valid prefix length */
+      return NULL;
+    *cp = '\0';    /* temp. terminate string at "/" char for inet_pton */
     } else
-	bitlen = maxbitlen;
+    bitlen = maxbitlen;
 
     if (family == AF_INET) {
-	if (my_inet_pton (AF_INET, string, &sin) > 0)
-	  return_prefix = New_Prefix (AF_INET, &sin, bitlen);
+    if (my_inet_pton (AF_INET, string, &sin) > 0)
+      return_prefix = New_Prefix (AF_INET, &sin, bitlen);
     } else {
-	if (inet_pton (AF_INET6, string, &sin6) > 0)
-	  return_prefix = New_Prefix (AF_INET6, &sin6, bitlen);
+    if (inet_pton (AF_INET6, string, &sin6) > 0)
+      return_prefix = New_Prefix (AF_INET6, &sin6, bitlen);
     }
     if (cp)
       *cp = '/';   /* Restore "/" in string */
+
     return return_prefix;
 }
 

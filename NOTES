@@ -1,3 +1,11 @@
+ Nov 17, 2010      IRRd 2.3.10  Release notes
+   Expand stack size to 1024 entries in rpsl-commands.c (stack overflow issues)
+   Add support for NRTM protocol version 3
+   Perform better error checking in ascii2prefix (due to ARIN issue
+   with URL's appended to route: prefixes)
+   Treat role objects like person objects (index on nic-hdl key field)
+   NTT fix for attributes with comments after attr value
+
  May 01, 2009      IRRd 2.3.9   Release notes
    Previous bugfix was incorrect.  Also applied similar fix to
    copy_irr_object() routine.  Included a fix for 64-bit systems

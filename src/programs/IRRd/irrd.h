@@ -149,6 +149,7 @@ typedef struct _irr_database_t {
   time_t		last_mirrored;		/* when we last mirrored successfully! */
   enum REMOTE_MIRROR_STATUS_T  remote_mirrorstatus;
   int			mirror_port;
+  int			mirror_protocol;	/* mirroring protocol version */
 #define MAX_MIRROR_ERROR_LEN 255
   char			mirror_error_message[MAX_MIRROR_ERROR_LEN + 1];
   time_t		mirror_started;		/* hook for us to timeout on */

@@ -292,7 +292,7 @@ int inetnum2prefixes(irr_database_t *database, irr_object_t *object) {
  * duplicate PRIMARY keys.  Need to fix so it returns 
  * an error
  */
-/* Given a PERSON object, make its secondary keys and it's complete
+/* Given a PERSON/ROLE object, make its secondary keys and it's complete
  * 'person: nic-hdl:' key (which is a primary key).  So this routine
  * inappropriately named.
  *
@@ -305,6 +305,7 @@ int build_secondary_keys (irr_database_t *db, irr_object_t *object) {
 
   switch (object->type) {
   case PERSON:
+  case ROLE:
     p = buf;
     strncpy (buf1, object->name, 255);
     buf1[255] = '\0';
@@ -396,8 +397,8 @@ int add_irr_object (irr_database_t *database, irr_object_t *irr_object) {
     if ((ret_code = irr_database_store (database, irr_object->name, PRIMARY, 
 					irr_object->type, irr_object->offset, 
 					irr_object->len)) > 0) {
-      /* Routine will build the PERSON secondary and 'person: hic-hdl:' primary key */
-      if (irr_object->type == PERSON &&
+      /* Routine will build the PERSON/ROLE secondary and 'person: hic-hdl:' primary key */
+      if ( (irr_object->type == PERSON || irr_object->type == ROLE) &&
 	  (ret_code = build_secondary_keys (database, irr_object)) < 0)
 	irr_database_remove (database, irr_object->name, irr_object->offset);
     }
@@ -448,7 +449,8 @@ int delete_irr_object (irr_database_t *database, irr_object_t *irr_object,
   if (store_hash) {
     if ((ret_code = irr_database_remove (database, irr_object->name, 
 					 stored_irr_object->offset)) > 0)
-      if (stored_irr_object->type == PERSON &&
+      if ( (stored_irr_object->type == PERSON ||
+		stored_irr_object->type == ROLE) &&
 	  (ret_code = build_secondary_keys (database, stored_irr_object)) < 0)
 	irr_database_store (database, irr_object->name, PRIMARY, 
 			    stored_irr_object->type, stored_irr_object->offset, 

@@ -262,7 +262,7 @@ void pick_off_indirect_references (irr_answer_t *irr_answer, LINKED_LIST **ll) {
   enum STATES state  = BLANK_LINE, save_state;
   int curr_f = NO_FIELD;
     
-  if (irr_answer->type == ROUTE || irr_answer->type == ROUTE6 || irr_answer->type == PERSON)
+  if (irr_answer->type == ROUTE || irr_answer->type == ROUTE6 || irr_answer->type == PERSON || irr_answer->type == ROLE)
     return;
 
   if (irr_answer->len == 0 ||
