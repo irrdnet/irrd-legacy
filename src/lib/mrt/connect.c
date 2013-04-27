@@ -2,8 +2,10 @@
  * $Id: connect.c,v 1.3 2000/06/15 16:42:27 jeffhaas Exp $
  */
 
-#include <mrt.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
+#include <mrt.h>
 
 /* utility code to do a non-blocking connecting -- kind of a pain because
  * we can't just catch a signal
@@ -13,7 +15,7 @@ int nonblock_connect (trace_t *default_trace, prefix_t *prefix, int port, int so
   fd_set		fdvar_write; 
   struct timeval	tv;
   int			n, optval;
-  size_t		size;
+  socklen_t		optlen;
 
   tv.tv_sec = 3; /* XXX */
   tv.tv_usec = 0;
@@ -82,9 +84,8 @@ int nonblock_connect (trace_t *default_trace, prefix_t *prefix, int port, int so
   else {
     /* Connection completed; check its status */
     optval = 0;
-    size = sizeof(optval);
-    n = getsockopt(sockfd, SOL_SOCKET, SO_ERROR, (char *) &optval,
-        &size);
+    optlen = (socklen_t)sizeof(optval);
+    n = getsockopt(sockfd, SOL_SOCKET, SO_ERROR, (void *) &optval, &optlen);
 
     /* Solaris has a broken implementation of getsockopt; it should return
      * any error conditions in optval, but if an error exists on the socket

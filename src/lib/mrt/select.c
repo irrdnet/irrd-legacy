@@ -1,8 +1,12 @@
 /*
  * $Id: select.c,v 1.5 2001/07/13 18:02:44 ljb Exp $
  */
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>
 
 #include <mrt.h>
+#include <irrdmem.h>
 
 Select_Struct *SELECT_MASTER;
 
@@ -11,9 +15,9 @@ Destroy_Descriptor (Descriptor_Struct *dsp)
 {
     assert (dsp);
     if (dsp->name)
-		Delete (dsp->name);
+		irrd_free(dsp->name);
     Deref_Event (dsp->event);
-    Delete (dsp);
+    irrd_free(dsp);
 }
 
 
@@ -27,7 +31,7 @@ init_select (trace_t * tr)
 	
     assert (SELECT_MASTER == NULL);
 	
-    SELECT_MASTER = New (Select_Struct);
+    SELECT_MASTER = irrd_malloc(sizeof(Select_Struct));
     SELECT_MASTER->ll_descriptors = LL_Create (LL_DestroyFunction, 
 		Destroy_Descriptor, 0);
     SELECT_MASTER->trace = tr;
@@ -107,7 +111,7 @@ select_add_fd_event_timed_vp (char *name, int fd, u_long type_mask, int on,
 			return (-1);
 		}
 		if (name) {
-            Delete (dsp->name);
+            irrd_free(dsp->name);
             dsp->name = strdup (name);
 		}
 		if (dsp->event)
@@ -122,7 +126,7 @@ select_add_fd_event_timed_vp (char *name, int fd, u_long type_mask, int on,
     }
 	
     if (dsp == NULL) {
-        dsp = New (Descriptor_Struct);
+        dsp = irrd_malloc(sizeof(Descriptor_Struct));
         dsp->name = (name)? name: "noname";
         dsp->name = strdup (dsp->name);
         dsp->fd = fd;
@@ -237,7 +241,7 @@ select_delete_fd_mask (int fd, u_long mask, int close_at_select)
 					break;
 			}
 			if (vp == NULL) {
-				vp = New (ll_value_t);
+				vp = irrd_malloc(sizeof(ll_value_t));
 				vp->value = fd;
 				LL_Add (SELECT_MASTER->ll_close_fds, vp);
 				trace (TR_TRACE, SELECT_MASTER->trace, 

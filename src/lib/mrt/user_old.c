@@ -4,6 +4,9 @@
 
 /* routines that will hopefully go away soon.... */
 
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
 #include <mrt.h>
 #include <user.h>
 
@@ -36,14 +39,14 @@ parse_line (char *line, char *format,...)
 
     fcp = format;
 
-    while (*line && isspace (*line))
+    while (*line && isspace((int)*line))
 	line++;
 
     for ( ; *fcp != '\0'; fcp++) {
 
 	/* eat up spaces */
-	if (isspace (*fcp)) {
-	    while (*line && isspace (*line))
+	if (isspace((int)*fcp)) {
+	    while (*line && isspace((int)*line))
 		line++;
 	    continue;
 	}
@@ -54,16 +57,16 @@ parse_line (char *line, char *format,...)
 	/* literal */
 	if (*fcp != '%') {
 
-	    if (tolower (*fcp) != tolower (*line))
+	    if (tolower((int)*fcp) != tolower((int)*line))
 		return (match);
-	    while (*fcp && !isspace (*fcp) && 
-			tolower (*fcp) == tolower (*line)) {
+	    while (*fcp && !isspace((int)*fcp) && 
+			tolower((int)*fcp) == tolower((int)*line)) {
 		/*printf ("\n%s %s", *fcp, *line); */
 		fcp++;
 		line++;
 	    }
-	    if ((isspace (*line) || *line == '\n' || *line == '\0') &&
-		 (isspace (*fcp) || *fcp == '\0')) {
+	    if ((isspace((int)*line) || *line == '\n' || *line == '\0') &&
+		 (isspace((int)*fcp) || *fcp == '\0')) {
 		match++;
 		fcp--;
 		continue;
@@ -148,10 +151,10 @@ parse_m_option:
 		int i;
 		if ((token = uii_parse_line2 (&line, word)) == NULL)
 		    goto finish;
-		if (!isalpha (token[0]))
+		if (!isalpha((int)token[0]))
 		    goto finish;
 		for (i = 1; token[i]; i++) {
-		    if (!isalnum (token[i]))
+		    if (!isalnum((int)token[i]))
 			goto finish;
 		}
 		chararg = va_arg (ap, char *);
@@ -164,7 +167,7 @@ parse_m_option:
 		if ((token = uii_parse_line2 (&line, word)) == NULL)
 		    goto finish;
 		for (i = 0; token[i]; i++) {
-		    if (!isdigit (token[i]))
+		    if (!isdigit((int)token[i]))
 			goto finish;
 		}
 		intarg = va_arg (ap, int *);
@@ -193,7 +196,7 @@ parse_m_option:
 	        if ((token = uii_parse_line2 (&line, word)) == NULL) 
 		    goto finish;
 	        /* this may be so strict */
-                if (!isalpha (*token) && (*token != '/')) 
+                if (!isalpha((int)*token) && (*token != '/')) 
 		    goto finish; 
 	         chararg = va_arg (ap, char*);
 	         strcpy (chararg, token);

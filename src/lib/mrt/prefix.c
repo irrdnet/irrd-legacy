@@ -1,11 +1,14 @@
 /* 
  * $Id: prefix.c,v 1.4 2001/08/30 18:10:31 ljb Exp $
  */
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 #include <mrt.h>
 #include <netdb.h>
+#include <irrdmem.h>
 
-#ifndef __GLIBC__
+#if !defined(__GLIBC__) && defined(__linux__)
 #ifdef __osf__
 
 /* apparently, OSF's gethostby{name,addr}_r's are different, broken, and
@@ -29,7 +32,7 @@ struct hostent  *gethostbyaddr_r
       For the time being, this part tries to convert Linux glibc 2.X
       gethostXX_r into Solaris's that we use to code MRT. -- masaki
     */
-#if __GLIBC__ >= 2
+#if __GLIBC__ >= 2 || (defined(__FreeBSD__) && defined(HAVE_GETHOSTBYNAME_R))
    /* Glibc 2.X
 
     int gethostbyname_r (const char *name, struct hostent *result_buf, 
@@ -83,13 +86,13 @@ New_Prefix (int family, void *dest, int bitlen)
     prefix_t *prefix;
 
     if (family == AF_INET) {
-      prefix = (prefix_t *) New (v4_prefix_t);
+      prefix = (prefix_t *) irrd_malloc(sizeof(v4_prefix_t));
       pthread_mutex_init (&prefix->mutex_lock, NULL);
       memcpy (&prefix->add.sin, dest, 4);
     }
     else
     if (family == AF_INET6) {
-      prefix = (prefix_t *) New (prefix_t);
+      prefix = (prefix_t *) irrd_malloc(sizeof(prefix_t));
       pthread_mutex_init (&prefix->mutex_lock, NULL);
       memcpy (&prefix->add.sin6, dest, 16);
     }
@@ -186,7 +189,7 @@ string_toprefix(char *name, trace_t *caller_trace)
     prefix_t *dst;
     int status;
 
-    if (isdigit(name[0])) {	/* Numerical address */
+    if (isdigit((int)name[0])) {	/* Numerical address */
 	if (!strchr(name, ':')) {	/* No ':' means IPv4 address */
 	    if ((status = inet_pton(AF_INET, name, buf)) == 0) {
                 trace(NORM, caller_trace, " ** Malformed IP address %s\n",
@@ -257,7 +260,7 @@ Deref_Prefix (prefix_t * prefix)
     prefix->ref_count--;
     if (prefix->ref_count <= 0) {
         pthread_mutex_destroy (&prefix->mutex_lock);
-	Delete (prefix);
+	irrd_free(prefix);
         num_active_prefixes--;
 	return;
     }
@@ -265,6 +268,9 @@ Deref_Prefix (prefix_t * prefix)
 }
 
 /* ascii2prefix
+ * Converts prefix in ASCII to prefix_t struct
+ * May modify string if it contains invalid characters after a prefix
+ * (will Null terminate the string at the of the prefix)
  */
 prefix_t *
 ascii2prefix (int family, char *string)
@@ -282,32 +288,32 @@ ascii2prefix (int family, char *string)
     }
 
     if (family == AF_INET) {
-      maxbitlen = 32;
+	maxbitlen = 32;
     }
     else if (family == AF_INET6) {
-      maxbitlen = 128;
+	maxbitlen = 128;
     } else
-      return NULL;  /* unrecognized family */
+	return NULL;  /* unrecognized family */
 
     if ((cp = strchr (string, '/')) != NULL) { /* check for prefix */
-    prefixstr = cp + 1; /* point to the prefix part */
-    if (!isdigit(*prefixstr)) /* first char must be a digit */
-      return NULL;
-    bitlen = strtol (prefixstr, &endptr, 10);
-    if (*endptr) /* if junk after prefix, terminate at end of prefix */
-      *endptr = '\0';
-    if (bitlen > maxbitlen) /* check for a valid prefix length */
-      return NULL;
-    *cp = '\0';    /* temp. terminate string at "/" char for inet_pton */
+	prefixstr = cp + 1; /* point to the prefix part */
+	if (!isdigit((int)*prefixstr)) /* first char must be a digit */
+	  return NULL; 
+	bitlen = strtol (prefixstr, &endptr, 10);
+	if (*endptr) /* if junk after prefix, terminate at end of prefix */
+	  *endptr = '\0';
+	if (bitlen > maxbitlen) /* check for a valid prefix length */
+	  return NULL; 
+	*cp = '\0';	/* temp. terminate string at "/" char for inet_pton */
     } else
-    bitlen = maxbitlen;
+	bitlen = maxbitlen;
 
     if (family == AF_INET) {
-    if (my_inet_pton (AF_INET, string, &sin) > 0)
-      return_prefix = New_Prefix (AF_INET, &sin, bitlen);
+	if (my_inet_pton (AF_INET, string, &sin) > 0)
+	  return_prefix = New_Prefix (AF_INET, &sin, bitlen);
     } else {
-    if (inet_pton (AF_INET6, string, &sin6) > 0)
-      return_prefix = New_Prefix (AF_INET6, &sin6, bitlen);
+	if (inet_pton (AF_INET6, string, &sin6) > 0)
+	  return_prefix = New_Prefix (AF_INET6, &sin6, bitlen);
     }
     if (cp)
       *cp = '/';   /* Restore "/" in string */
@@ -637,7 +643,7 @@ my_inet_pton (int af, const char *src, void *dst)
 
         for (i = 0; ; i++) {
 	    c = *src++;
-	    if (!isdigit (c))
+	    if (!isdigit(c))
 		return (-1);
 	    val = 0;
 	    do {
@@ -645,7 +651,7 @@ my_inet_pton (int af, const char *src, void *dst)
 		if (val > 255)
 		    return (0);
 		c = *src++;
-	    } while (c && isdigit (c));
+	    } while (c && isdigit(c));
             xp[i] = val;
 	    if (c == '\0')
 		break;
@@ -679,7 +685,7 @@ int is_ipv4_prefix (char *string) {
 
   if ((cp != NULL) && ((len = strtok_r (NULL, "/", &last)) != NULL)) {
     if ((atoi (len) < 0) || (atoi (len) > 32)) {
-      Delete (copy);
+      irrd_free(copy);
       return (-1);
     }
   }
@@ -688,13 +694,13 @@ int is_ipv4_prefix (char *string) {
   
   while (cp != NULL) {
     octet++;
-    if ((atoi (cp) < 0) || (atoi (cp) > 255)) {Delete (copy); return (-1);}
+    if ((atoi (cp) < 0) || (atoi (cp) > 255)) {irrd_free(copy); return (-1);}
     cp = strtok_r (NULL, ".", &last);
   }
 
-  if ((octet > 4) || (octet <= 0)) {Delete (copy); return (-1);}
+  if ((octet > 4) || (octet <= 0)) {irrd_free(copy); return (-1);}
 
-  Delete (copy);
+  irrd_free(copy);
   return (1);
 }
 #else

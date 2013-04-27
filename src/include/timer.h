@@ -7,7 +7,6 @@
 
 #include <sys/types.h>
 #include <signal.h>
-#include <New.h>
 #include <linked_list.h>
 #include <schedule.h>
 

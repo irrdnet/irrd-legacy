@@ -1,0 +1,54 @@
+#
+# $Id: Make.include.in,v 1.7 2001/12/03 20:07:33 ljb Exp $
+#
+
+.c.o:
+#	@echo "Compiling:       $*.c"
+	$(CC) $(CFLAGS) $(CPPFLAGS)  -c $<
+	@if [ "$(ARCHIVE)" ]; then \
+		$(AR) $(ARFLAGS) $(ARCHIVE) $@; \
+		$(RANLIB) $(ARCHIVE); fi
+
+
+HOST_OS =	
+
+EXTRA_LIBS=	
+THREADLIBS=	-lpthread
+
+IRRD_OPS_LIBS=  
+CRYPT_LIB=      
+FLEX_PATH=      /usr/bin/flex
+YACC=		bison -y
+
+CC= 		gcc
+CFLAGS= 	-g -O2 -Wall  -DHAVE_CONFIG_H  -I/usr/include/glib-2.0 -I/usr/lib64/glib-2.0/include  
+CPPFLAGS= 	-D_REENTRANT -D_POSIX_PTHREAD_SEMANTICS -DFUNCPROTO -I../../include 
+
+LD= 		gcc
+LDFLAGS=	 -pthread -L/lib64 -lgthread-2.0 -lglib-2.0   -L/lib64 -lglib-2.0  
+RANLIB= 	ranlib
+INSTALL= 	/usr/bin/install -c -D
+MAKEDEP= 	makedepend
+MAKEDEPCLEAN= 	rm -f .depend
+
+prefix=		/usr/local
+exec_prefix=	${prefix}
+datarootdir=    @datarootdir@
+DESTDIR=	${exec_prefix}/sbin
+MANDIR=		${prefix}/man
+
+MRTLIB= 	../../lib/libmrt.a
+CFGLIB=		../../lib/libcfg.a
+MRT_LIBS=	$(CFGLIB) $(MRTLIB)
+SYS_LIBS=	 -lpthread
+LIBS=		$(MRT_LIBS) $(EXTRA_LIBS) $(SYS_LIBS)
+
+QUANTIFY=	quantify -threads=yes -max-threads=80
+PURIFY=		purify -threads=yes -max-threads=80  -cache-dir=./
+
+SHELL = 	/bin/sh
+CP =		cp -p
+RM =		rm -f
+ARFLAGS =	crv
+
+PGPDIR =	gpg

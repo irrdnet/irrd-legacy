@@ -3,24 +3,25 @@
  * originally Id: main.c,v 1.57 1998/08/03 17:29:08 gerald Exp 
  */
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/ioctl.h>
+#ifndef SETPGRP_VOID
+#include <sys/termios.h>
+#endif /* SETPGRP_VOID */
 #include <stdio.h>
 #include <string.h>
 #ifdef HAVE_STROPTS_H
 #include <stropts.h>  /* need for OSF? */
 #endif /* HAVE_STROPTS_H */
 #include <ctype.h> 
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <fcntl.h>
 #include <time.h>
 #include <signal.h>
 #include <pwd.h>
 #include <grp.h>
 #include <unistd.h>
-#include <sys/ioctl.h>
-#ifndef SETPGRP_VOID
-#include <sys/termios.h>
-#endif /* SETPGRP_VOID */
+
 #include "mrt.h"
 #include "trace.h"
 #include "config_file.h"
@@ -46,7 +47,6 @@ int main (int argc, char *argv[])
     int default_cache = 0;
     char *s;
     extern char *optarg;	/* getopt stuff */
-    extern int optind;		/* getopt stuff */
     int errors = 0;
     int daemon = 1;
     irr_database_t tmp1;	/* just used to build linked list */
@@ -75,6 +75,10 @@ int main (int argc, char *argv[])
     char *config_file = "/etc/irrd.conf";
     int UNPRIV_FLAG = 0;
 
+#ifdef HAVE_LIBPTHREAD
+    g_thread_init(NULL);  /* This is required to make GLIB thread-safe */
+#endif
+
     default_trace = New_Trace2 ("irrd");
     IRR.submit_trace = New_Trace2 ("irrd");
     set_trace (default_trace, TRACE_FLAGS, NORM, 0);
@@ -84,12 +88,13 @@ int main (int argc, char *argv[])
      * set some defaults 
      */
     IRR.expansion_timeout = 0;	/* timeout of zero means no timeout */
-    IRR.max_connections = 25;
+    IRR.max_connections = MAX_TOTAL_CONNECTIONS; /* default max connections */
     IRR.mirror_interval = 60*10; /* mirror every ten minutes */
     IRR.irr_port = IRR_DEFAULT_PORT;
     IRR.tmp_dir = IRR_TMP_DIR;
     IRR.path = NULL;
     IRR.statusfile = NULL;
+    IRR.roa_database = NULL;
 
     while ((c = getopt (argc, argv, "w:axmrHhnkvf:ud:g:l:s:")) != -1)
 	switch (c) {
@@ -190,6 +195,8 @@ int main (int argc, char *argv[])
 				    LL_NextOffset, LL_Offset (&tmp2, &tmp2.next),
 				    LL_PrevOffset, LL_Offset (&tmp2, &tmp2.prev),
 				    0);
+
+    IRR.connections_hash = g_hash_table_new(g_str_hash, g_str_equal);
 
     /* add mutex lock for routines wishing to lock all database */
     pthread_mutex_init (&IRR.lock_all_mutex_lock, NULL);
@@ -293,6 +300,19 @@ int main (int argc, char *argv[])
 
     /* load the DB's and build the indexes */
     c = irr_load_data (x_flag, v_flag);
+
+    /* scan the ROA database if configured */
+    if (IRR.roa_database) {
+      struct stat stat_buf;
+      struct tm tbuf;
+      int n;
+
+      scan_irr_file (IRR.roa_database, NULL, 0, NULL);
+      n = fstat(fileno(IRR.roa_database->db_fp), &stat_buf);
+      IRR.roa_database_mtime = stat_buf.st_mtime;
+      if (gmtime_r(&stat_buf.st_mtime, &tbuf))
+        n = strftime(IRR.roa_timebuffer, sizeof(IRR.roa_timebuffer), "t=%Y-%m-%dT%H:%M:%SZ\n", &tbuf);
+    }
 
     /* re-apply any transactions that didn't complete */
     if (atomic_trans        && 
@@ -571,10 +591,20 @@ void init_irrd_commands (int UNPRIV_FLAG) {
 		    (int (*)()) config_irr_database_nodefault,
 		    "Do not include this database by default when responding to queries");
 
-  uii_add_command2 (UII_CONFIG, COMMAND_NORM,
+/*  uii_add_command2 (UII_CONFIG, COMMAND_NORM,
 		    "irr_database %s routing-table-dump",
 		    (int (*)()) config_irr_database_routing_table_dump,
 		    "This DB file contains a routing table dump");
+*/
+
+  uii_add_command2 (UII_CONFIG, COMMAND_NORM,
+		    "irr_database %s roa-data",
+		    (int (*)()) config_irr_database_roa_data,
+		    "This DB file contains ROA data");
+
+  uii_add_command2 (UII_CONFIG, COMMAND_NORM, "roa-disclaimer %S",
+		    (int (*)()) config_roa_disclaimer,
+		    "Disclaimer for ROA data contained in whois repsonses");
 
   uii_add_command2 (UII_CONFIG, COMMAND_NORM, "irr_path %s", 
 		    (int (*)()) config_irr_path,
@@ -592,9 +622,9 @@ void init_irrd_commands (int UNPRIV_FLAG) {
 		    (int (*)()) config_irr_database_mirror,
 		    "The IRR database mirroring");
 
-  uii_add_command2 (UII_CONFIG, COMMAND_NORM, "irr_database %s mirror_protocol %d", 
-		    (int (*)()) config_irr_database_mirror_protocol,
-		    "IRR mirroring protocol");
+  uii_add_command2 (UII_CONFIG, COMMAND_NORM, "irr_database %s mirror_protocol %d",
+                    (int (*)()) config_irr_database_mirror_protocol,
+                    "IRR mirroring protocol");
 
   uii_add_command2 (UII_CONFIG, COMMAND_NORM, "irr_database %s authoritative", 
 		    (int (*)()) config_irr_database_authoritative,

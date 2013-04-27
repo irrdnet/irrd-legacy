@@ -2,7 +2,12 @@
  * $Id: config_file.c,v 1.3 2002/02/04 20:31:50 ljb Exp $
  */
 
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+
 #include <mrt.h>
+#include <irrdmem.h>
 #include <config_file.h>
 
 /* globals */
@@ -55,7 +60,7 @@ config_add_module (int flags, char *name, void_fn_t call_fn, void *arg)
 	return (0);
     }
 
-    module = New (config_module_t);
+    module = (config_module_t*) irrd_malloc(sizeof(config_module_t));
     module->call_fn = call_fn;
     module->arg = arg;
     module->flags = flags;
@@ -84,11 +89,11 @@ config_del_module (int flags, char *name, void_fn_t call_fn, void *arg)
 
 	    /* XXX comment is never deleted */
 	    if (strcmp (module->name, "!") == 0)
-		Delete (module->arg);
+		irrd_free(module->arg);
 	    if (module->name)
-		Delete (module->name);
+		irrd_free(module->name);
 	    LL_Remove (CONFIG.ll_modules, module);
-	    Delete (module);
+	    irrd_free(module);
     	    pthread_mutex_unlock (&CONFIG.ll_modules_mutex_lock);
 	    return (1);
     }
@@ -125,7 +130,7 @@ get_comment_config (char *comment)
 static int 
 config_comment (uii_connection_t * uii)
 {
-/* network list has a confilicting command "route-map" */
+/* network list has a conflicting command "route-map" */
 if (CONFIG.state_eof && uii->state == UII_CONFIG_NETWORK_LIST) {
     /*
      * if this is a blank line comment, assume we have dropped out of a
@@ -171,7 +176,7 @@ config_enable_password (uii_connection_t * uii, char *password)
     cp = strip_spaces (password);
     set_uii (UII, UII_ENABLE_PASSWORD, cp, 0);
     config_add_module (0, "enable password", get_enable_password, NULL);
-    Delete (password);
+    irrd_free(password);
     return (1);
 }
 
@@ -206,7 +211,7 @@ static int
 config_redirect (uii_connection_t * uii, char *directory)
 {
     if (UII->redirect)
-	Delete (UII->redirect);
+	irrd_free(UII->redirect);
 
     if (uii->negative) {
         UII->redirect = NULL;
@@ -268,11 +273,11 @@ config_access_list (uii_connection_t * uii, int num,
     int n;
 
     permit = (strcasecmp (permit_or_deny, "permit") == 0);
-    Delete (permit_or_deny);
+    irrd_free(permit_or_deny);
 
     if (options) {
 	get_alist_options (options, &wildcard, &refine, &exact);
-	Delete (options);
+	irrd_free(options);
     }
     if (num <= 0 && num >= MAX_ALIST) {
 	config_notice (TR_ERROR, uii,
@@ -298,7 +303,7 @@ config_access_list (uii_connection_t * uii, int num,
         n = remove_access_list (num, permit, prefix, wildcard, exact, refine);
 	if (n == 0) {
             config_del_module (0, "access-list", get_access_list_config, 
-			       (void *) num);
+			       (void*) &num);
 	}
     	return (1);
     }
@@ -311,7 +316,7 @@ config_access_list (uii_connection_t * uii, int num,
     }
     if (n == 1)
         config_add_module (0, "access-list", get_access_list_config, 
-			   (void *) num);
+			   (void *) &num);
     return (1);
 }
 
@@ -438,7 +443,7 @@ config_debug (uii_connection_t * uii, char *s)
 {
     parse_debug (uii, CONFIG.trace, s);
     config_add_module (0, "debug", get_debug_config, NULL);
-    Delete (s);
+    irrd_free(s);
     return (1);
 }
 
@@ -698,7 +703,7 @@ config_line_password (uii_connection_t * uii, char *password)
     }
     cp = strip_spaces (password);
     set_uii (UII, UII_PASSWORD, cp, 0);
-    Delete (password);
+    irrd_free(password);
     return (1);
 }
 
@@ -962,7 +967,7 @@ config_from_file2 (trace_t * tr, char *filename)
 
     MRT->config_file_name = strdup (filename);
     CONFIG.filename = strdup (filename);
-    uii = New (uii_connection_t);
+    uii = (uii_connection_t*) irrd_malloc(sizeof(uii_connection_t));
     uii->sockfd = -1;
     uii->sockfd_out = -1;
     uii->mutex_lock_p = NULL;
@@ -970,7 +975,7 @@ config_from_file2 (trace_t * tr, char *filename)
     if ((filename == NULL) || ((fd = fopen (filename, "r")) == NULL)) {
 	trace (NORM, CONFIG.trace, "Failed to open config file %s\n", filename);
 	trace (NORM, CONFIG.trace, "Using default values only.\n");
-	Delete (uii);
+	irrd_free(uii);
 	return (-1);
     }
 
@@ -997,7 +1002,7 @@ config_from_file2 (trace_t * tr, char *filename)
     if (uii->ll_tokens != NULL)
 	LL_Destroy (uii->ll_tokens);
     end_config (uii);
-    Delete (uii);
+    irrd_free(uii);
 
     /* don't use fatal for now while developing code... just ignore */
     if (errors) {

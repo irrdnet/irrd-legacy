@@ -529,7 +529,7 @@ void canon_put_str (canon_info_t *cn, char *strp, int str_len) {
   if (cn->io == CANON_MEM) {
     memcpy (cn->bufp, strp, str_len);
     if (verbose)
-      fprintf (dfile, "canon_put_str mem (%s) offset (%d): exit\n", strp, cn->bufp - parse_buf);
+      fprintf (dfile, "canon_put_str mem (%s) offset (%ld): exit\n", strp, cn->bufp - parse_buf);
     cn->bufp += str_len - 1; /* lex tokens are '\0' terminated str's */
     cn->buf_space_left -= str_len - 1;
   }

@@ -3,18 +3,19 @@
  * originally Id: config.c,v 1.50 1998/07/20 01:22:03 labovit Exp 
  */
 
+#include <netinet/in.h>
+#include <arpa/inet.h>
 #include <stdio.h>
 #include <string.h>
-#include "mrt.h"
-#include "trace.h"
 #include <time.h>
 #include <signal.h>
 #include <fcntl.h>
 #include <ctype.h>
+#include <glib.h>
+#include <irrdmem.h>
+
 #include "config_file.h"
 #include "irrd.h"
-
-extern trace_t *default_trace;
 
 find_filter_t o_filter[] = {
   {"unused",	  XXX_F	         },	
@@ -174,7 +175,7 @@ int config_irr_directory (uii_connection_t *uii, char *directory) {
   char status_filename[BUFSIZE];
 
   if (IRR.database_dir != NULL) 
-    Delete (IRR.database_dir);
+    irrd_free(IRR.database_dir);
 
   IRR.database_dir = directory;
   config_add_module (0, "irr_directory", get_config_irr_directory, NULL); 
@@ -182,7 +183,7 @@ int config_irr_directory (uii_connection_t *uii, char *directory) {
   sprintf(status_filename, "%s/IRRD_STATUS", directory);
   if (IRR.statusfile) {
     CloseStatusFile(IRR.statusfile);
-    Delete(IRR.statusfile);
+    irrd_free(IRR.statusfile);
   }
   IRR.statusfile = InitStatusFile(status_filename);
 
@@ -208,9 +209,9 @@ void get_config_irr_database (irr_database_t *database) {
 
   /* default protocol is 1, if not version 1, save to config */
   if (database->mirror_protocol != 1) {
-    config_add_output ("irr_database %s mirror_protocol %d\r\n", 
-		       database->name,
-		       database->mirror_protocol);
+    config_add_output ("irr_database %s mirror_protocol %d\r\n",
+                       database->name,
+                       database->mirror_protocol);
     atts =1;
   }
 
@@ -279,6 +280,12 @@ void get_config_irr_database (irr_database_t *database) {
 			database->name);
     atts = 1;
   }
+
+  if (database->flags & IRR_ROA_DATA) {
+    config_add_output ("irr_database %s roa-data\r\n",
+			database->name);
+    atts = 1;
+  }
   
   if (atts == 0) 
     config_add_output ("irr_database %s\r\n", database->name);
@@ -290,27 +297,49 @@ int config_irr_database_nodefault (uii_connection_t *uii, char *name) {
 
   if ((database = find_database (name)) == NULL) {
     config_notice (ERROR, uii, "Database %s not found!\r\n", name);
-    Delete (name);
+    irrd_free(name);
     return (-1);
   }
 
-  Delete (name);
+  irrd_free(name);
   database->flags |= IRR_NODEFAULT;
 
   return (1);
 }
 
-int config_irr_database_routing_table_dump (uii_connection_t *uii, char *name) {
+void get_config_roadisclaimer () {
+  char *st;
+
+  LL_Iterate (IRR.ll_roa_disclaimer, st) {
+    config_add_output ("roa-disclaimer %s\r\n", st);
+  }
+}
+
+/* roa-disclaimer %s */
+int config_roa_disclaimer (uii_connection_t *uii, char *st) {
+
+  if (IRR.ll_roa_disclaimer == NULL)
+    IRR.ll_roa_disclaimer = LL_Create (0);
+  if (st == NULL) 
+    st = " ";
+  LL_Add (IRR.ll_roa_disclaimer, strdup (st));
+  config_add_module (0, "roadisclaimer", get_config_roadisclaimer, NULL);
+  return (1);
+}
+
+int config_irr_database_roa_data (uii_connection_t *uii, char *name) {
   irr_database_t *database = NULL;
 
-  if ((database = find_database (name)) == NULL) {
-    config_notice (ERROR, uii, "Database %s not found!\r\n", name);
-    Delete (name);
+  if (IRR.roa_database != NULL) {
+    config_notice (ERROR, uii, "ROA database %s already exists!\r\n", name);
+    irrd_free(name);
     return (-1);
   }
 
-  Delete (name);
-  database->flags |= IRR_ROUTING_TABLE_DUMP;
+  database = new_database (name);
+  irrd_free(name);
+  IRR.roa_database = database;
+  database->flags |= IRR_ROA_DATA;
 
   return (1);
 }
@@ -321,9 +350,9 @@ int config_irr_database_export (uii_connection_t *uii, char *name, int interval,
 
   if ((database = find_database (name)) == NULL) {
     config_notice (ERROR, uii, "Database %s not found!\r\n", name);
-    Delete (name);
+    irrd_free(name);
     if (num == 1)
-      Delete(filename);
+      irrd_free(filename);
     return (-1);
   }
 
@@ -337,7 +366,7 @@ int config_irr_database_export (uii_connection_t *uii, char *name, int interval,
     database->export_filename = filename;
   }
 
-  Delete(name); 
+  irrd_free(name); 
   return (1);
 }
 
@@ -369,11 +398,11 @@ int config_irr_path (uii_connection_t *uii, char *path) {
   }
   else if (strlen (path) > BUFSIZE) {
     config_notice (ERROR, uii, "path component too large! MAX(%d)\r\n", BUFSIZE);
-    Delete (path);
+    irrd_free(path);
     return -1;
   }
 
-  Delete (IRR.path);
+  irrd_free(IRR.path);
 
   /* make sure path component begin's with a ':' */
   if (*path != ':')
@@ -382,7 +411,7 @@ int config_irr_path (uii_connection_t *uii, char *path) {
     strcpy (buf, path);
 
   IRR.path = strdup (buf);
-  Delete (path);
+  irrd_free(path);
 
   /* let the user know we have updated the path */
   config_notice (NORM, uii, "path component set to (%s)\r\n", IRR.path);
@@ -446,15 +475,15 @@ int config_irr_remote_ftp_url (uii_connection_t *uii, char *name, char *dir) {
     }
   else {
     /* make purify happy */
-    Delete (db->remote_ftp_url);
+    irrd_free(db->remote_ftp_url);
     db->remote_ftp_url = strdup (dir);
     config_notice (NORM, uii, "Remote ftp URL (%s) set for (%s)\r\n", dir, name);
   }
   regfree (&url_re);
 
 INPUT_ERROR:
-  Delete (dir);
-  Delete (name);
+  irrd_free(dir);
+  irrd_free(name);
 
   return ret_code;
 }
@@ -498,7 +527,7 @@ int config_irr_repos_hexid (uii_connection_t *uii, char *name, char *hexid) {
       sprintf (hex_out, "0x%s", hexid);  /* need to add a leading '0x' */
 
     /* replace the old repos hexid with the new */
-    Delete (db->repos_hexid);
+    irrd_free(db->repos_hexid);
     db->repos_hexid = strdup (hex_out);
     ret_code = 1;
     config_notice (NORM, uii, 
@@ -512,8 +541,8 @@ int config_irr_repos_hexid (uii_connection_t *uii, char *name, char *hexid) {
   regfree (&re);
 
 INPUT_ERROR:
-  Delete (hexid);
-  Delete (name);
+  irrd_free(hexid);
+  irrd_free(name);
 
   return ret_code;
 }
@@ -559,7 +588,7 @@ int config_irr_pgppass (uii_connection_t *uii, char *name, char *passwd) {
     if ((n = (rm[offset].rm_eo - rm[offset].rm_so)) <= BUFSIZE) {
       strncpy (pgppass, (char *) (passwd + rm[offset].rm_so), n);
       pgppass[n] = '\0';
-      Delete (db->pgppass);
+      irrd_free(db->pgppass);
       db->pgppass = strdup (pgppass);
       ret_code = 1;
       config_notice (NORM, uii, "PGP password (%s) set for (%s)\r\n", pgppass, name);
@@ -573,8 +602,8 @@ int config_irr_pgppass (uii_connection_t *uii, char *name, char *passwd) {
   regfree (&re);
 
 INPUT_ERROR:
-  Delete (passwd);
-  Delete (name);
+  irrd_free(passwd);
+  irrd_free(name);
 
   return ret_code;
 }
@@ -625,7 +654,7 @@ int config_rpsdist_database (uii_connection_t *uii, char *dbname) {
 CLEAN_UP:
 
   /* clean-up */
-  Delete (dbname);
+  irrd_free(dbname);
 
   return ret_code;
 }
@@ -657,7 +686,7 @@ int config_rpsdist_accept (uii_connection_t *uii, char *host) {
     ret_code = -1;
   }
   
-  Delete (host);
+  irrd_free(host);
   
   return ret_code;
 }
@@ -718,8 +747,8 @@ int config_rpsdist_accept_database (uii_connection_t *uii, char *dbname,
 CLEAN_UP:
 
   /* clean-up */
-  Delete (dbname);
-  Delete (host);
+  irrd_free(dbname);
+  irrd_free(host);
   
   return ret_code;
 }
@@ -788,8 +817,8 @@ int config_rpsdist_database_trusted (uii_connection_t *uii, char *dbname,
 CLEAN_UP:
 
   /* clean-up */
-  Delete (dbname);
-  Delete (host);
+  irrd_free(dbname);
+  irrd_free(host);
 
   return ret_code;
 }
@@ -879,8 +908,8 @@ int config_rpsdist_database_authoritative (uii_connection_t *uii, char *dbname,
 
 CLEAN_UP:
   /* clean-up */
-  Delete (dbname);
-  Delete (passwd);
+  irrd_free(dbname);
+  irrd_free(passwd);
 
   return ret_code;
 }
@@ -891,14 +920,14 @@ int no_config_irr_database_authoritative (uii_connection_t *uii, char *name) {
 
   if ((database = find_database (name)) == NULL) {
     config_notice (ERROR, uii, "Database %s not found!\r\n", name);
-    Delete (name);
+    irrd_free(name);
     return (-1);
   }
 
   trace (NORM, default_trace, "CONFIG %s no authoritative\n", name);
 
   database->flags = 0;
-  Delete (name);
+  irrd_free(name);
   return (1);
 }
 
@@ -910,7 +939,7 @@ int config_irr_database_authoritative (uii_connection_t *uii, char *name) {
     config_irr_database (uii, strdup (name));
 
   if ((database = find_database (name)) == NULL) {
-    Delete (name);
+    irrd_free(name);
     return (-1);
   }
 
@@ -918,7 +947,7 @@ int config_irr_database_authoritative (uii_connection_t *uii, char *name) {
   if (database->mirror_prefix != NULL) {
     config_notice (ERROR, uii, "*ERROR* database %s is configured for mirroring!\r\n",
 		   name);
-    Delete (name);
+    irrd_free(name);
     return (-1);
   }
 
@@ -933,7 +962,7 @@ int config_irr_database_authoritative (uii_connection_t *uii, char *name) {
   trace (NORM, default_trace, "CONFIG %s authoritative\n", name);
   database->flags |= IRR_AUTHORITATIVE;
   config_add_module (0, "irr_database", get_config_irr_database, database); 
-  Delete (name);
+  irrd_free(name);
   return (1);
 }
 
@@ -946,15 +975,15 @@ int config_irr_database_mirror (uii_connection_t *uii, char *name,
     config_irr_database (uii, strdup (name));
 
   if ((database = find_database (name)) == NULL) {
-    Delete (name);
-    Delete (host);
+    irrd_free(name);
+    irrd_free(host);
     return (-1);
   }
 
   if (database->flags &= IRR_AUTHORITATIVE) {
     config_notice (ERROR, uii, "*ERROR* database %s is authoritative!\r\n", name);
-    Delete (name);
-    Delete (host);
+    irrd_free(name);
+    irrd_free(host);
     return (-1);
   }
 
@@ -962,8 +991,8 @@ int config_irr_database_mirror (uii_connection_t *uii, char *name,
 
   if ((database->mirror_prefix = string_toprefix (host, default_trace)) == NULL) {
     config_notice (NORM, uii, "CONFIG Error -- could not resolve %s\r\n", host);
-    Delete (name);
-    Delete (host);
+    irrd_free(name);
+    irrd_free(host);
     return (-1);
   }
   database->mirror_port = port;
@@ -982,8 +1011,8 @@ int config_irr_database_mirror (uii_connection_t *uii, char *name,
     Timer_Turn_ON ((mtimer_t *) database->clean_timer);
   }
 
-  Delete (name);
-  Delete (host);
+  irrd_free(name);
+  irrd_free(host);
   return (1);
 }
 
@@ -997,7 +1026,7 @@ int config_irr_database_access (uii_connection_t *uii, char *name, int num) {
     config_irr_database (uii, strdup (name));
 
   if ((database = find_database (name)) == NULL) {
-    Delete (name);
+    irrd_free(name);
     return (-1);
   }
 
@@ -1005,7 +1034,7 @@ int config_irr_database_access (uii_connection_t *uii, char *name, int num) {
   config_add_module (0, "access", get_config_irr_database, database); 
 
   database->access_list = num;
-  Delete (name);
+  irrd_free(name);
   return (1);
 }
 
@@ -1015,21 +1044,21 @@ int config_irr_database_mirror_protocol (uii_connection_t *uii, char *name, int 
 
   if ((database = find_database (name)) == NULL) {
     config_notice (ERROR, uii, "Database %s not found!\r\n", name);
-    Delete (name);
+    irrd_free (name);
     return (-1);
   }
 
   if (num != 1 && num != 3) {
     config_notice (ERROR, uii, "Unsupported mirror protocol type %d.\r\n", num);
-    Delete (name);
+    irrd_free (name);
     return (-1);
   }
 
   trace (NORM, default_trace, "CONFIG %s mirror protocol %d\n", name, num);
-  config_add_module (0, "mirror protocol", get_config_irr_database, database); 
+  config_add_module (0, "mirror protocol", get_config_irr_database, database);
 
   database->mirror_protocol = num;
-  Delete (name);
+  irrd_free (name);
   return (1);
 }
 
@@ -1039,15 +1068,15 @@ int config_irr_database_mirror_access (uii_connection_t *uii, char *name, int nu
 
   if ((database = find_database (name)) == NULL) {
     config_notice (ERROR, uii, "Database %s not found!\r\n", name);
-    Delete (name);
+    irrd_free (name);
     return (-1);
   }
 
   trace (NORM, default_trace, "CONFIG %s access-list mirror %d\n", name, num);
-  config_add_module (0, "mirror access", get_config_irr_database, database); 
+  config_add_module (0, "mirror access", get_config_irr_database, database);
 
   database->mirror_access_list = num;
-  Delete (name);
+  irrd_free (name);
   return (1);
 }
 
@@ -1057,7 +1086,7 @@ int config_irr_database_access_write (uii_connection_t *uii, char *name, int num
 
   if ((database = find_database (name)) == NULL) {
     config_notice (ERROR, uii, "Database %s not found!\r\n", name);
-    Delete (name);
+    irrd_free(name);
     return (-1);
   }
 
@@ -1065,7 +1094,7 @@ int config_irr_database_access_write (uii_connection_t *uii, char *name, int num
   config_add_module (0, "write access", get_config_irr_database, database); 
 
   database->write_access_list = num;
-  Delete (name);
+  irrd_free(name);
   return (1);
 }
 
@@ -1075,7 +1104,7 @@ int config_irr_database_access_cryptpw (uii_connection_t *uii, char *name, int n
                                                                                 
   if ((database = find_database (name)) == NULL) {
     config_notice (ERROR, uii, "Database %s not found!\r\n", name);
-    Delete (name);
+    irrd_free(name);
     return (-1);
   }
                                                                                 
@@ -1083,7 +1112,7 @@ int config_irr_database_access_cryptpw (uii_connection_t *uii, char *name, int n
   config_add_module (0, "cryptpw access", get_config_irr_database, database);
                                                                                 
   database->cryptpw_access_list = num;
-  Delete (name);
+  irrd_free(name);
   return (1);
 }
 
@@ -1093,7 +1122,7 @@ int config_irr_database_compress_script (uii_connection_t *uii, char *name, char
 
   if ((database = find_database (name)) == NULL) {
     config_notice (ERROR, uii, "Database %s not found!\r\n", name);
-    Delete (name);
+    irrd_free(name);
     return (-1);
   }
 
@@ -1101,7 +1130,7 @@ int config_irr_database_compress_script (uii_connection_t *uii, char *name, char
   config_add_module (0, "compress script", get_config_irr_database, database);
 
   database->compress_script = script;
-  Delete (name);
+  irrd_free(name);
   return (1);
 }
 
@@ -1110,7 +1139,7 @@ int no_config_irr_database (uii_connection_t *uii, char *name) {
   irr_database_t *db;
 
   if ((db = find_database (name)) == NULL) {
-    Delete (name);
+    irrd_free(name);
     config_notice (NORM, uii, "CONFIG no database %s -- database not found!\r\n", db->name);
     return (-1);
   }
@@ -1120,14 +1149,14 @@ int no_config_irr_database (uii_connection_t *uii, char *name) {
   irr_update_lock (db);
   radix_flush(db->radix_v4);
   radix_flush(db->radix_v6);
-  HASH_Destroy(db->hash);
-  HASH_Destroy(db->hash_spec);
-  Delete(db->name);
+  g_hash_table_destroy(db->hash);
+  g_hash_table_destroy(db->hash_spec);
+  irrd_free(db->name);
   irr_update_unlock (db);
   pthread_mutex_destroy(&db->mutex_lock);
   pthread_mutex_destroy(&db->mutex_clean_lock);
-  Delete (db);
-  Delete (name);
+  irrd_free(db);
+  irrd_free(name);
   return (1);
 }
 
@@ -1142,7 +1171,7 @@ int config_irr_database (uii_connection_t *uii, char *name) {
     LL_Add (IRR.ll_database, database);
   }
   config_add_module (0, "irr_database", get_config_irr_database, database); 
-  Delete (name);
+  irrd_free(name);
   return (1);
 }
 
@@ -1183,7 +1212,7 @@ int config_no_debug_server_verbose (uii_connection_t *uii) {
 int config_debug_server_file (uii_connection_t *uii, char *filename) {
   set_trace (default_trace, TRACE_LOGFILE, filename, NULL);
   config_add_module (0, "debug", get_config_server_debug, NULL);
-  Delete (filename);
+  irrd_free(filename);
   return (1);
 }
 
@@ -1221,7 +1250,7 @@ int config_debug_submission_file (uii_connection_t *uii, char *filename) {
   set_trace (IRR.submit_trace, TRACE_LOGFILE, filename, NULL);
   config_add_module (0, "debug", get_config_submission_debug, 
 		     IRR.submit_trace);
-  Delete (filename);
+  irrd_free(filename);
   return (1);
 }
 
@@ -1385,7 +1414,7 @@ int config_irr_database_no_clean (uii_connection_t *uii, char *name) {
 
   if ((database = find_database (name)) == NULL) {
     config_notice (ERROR, uii, "Database %s not found!\r\n", name);
-    Delete (name);
+    irrd_free(name);
     return (-1);
   }
 
@@ -1395,7 +1424,7 @@ int config_irr_database_no_clean (uii_connection_t *uii, char *name) {
     Timer_Turn_OFF (database->clean_timer);
   }
 
-  Delete (name);
+  irrd_free(name);
   return (1);
 }
 
@@ -1405,7 +1434,7 @@ int config_irr_database_clean (uii_connection_t *uii, char *name, int seconds) {
 
   if ((database = find_database (name)) == NULL) {
     config_notice (ERROR, uii, "Database %s not found!\r\n", name);
-    Delete (name);
+    irrd_free(name);
     return (-1);
   }
 
@@ -1424,7 +1453,7 @@ int config_irr_database_clean (uii_connection_t *uii, char *name, int seconds) {
     Timer_Turn_ON ((mtimer_t *) database->clean_timer);
   }
 
-  Delete (name);
+  irrd_free(name);
   return (1);
 }
 
@@ -1509,23 +1538,24 @@ enum OBJECT_FILTERS find_object_type (char *name) {
  */
 int config_irr_database_filter (uii_connection_t *uii, char *name, char *object) {
   irr_database_t *database;
-  char *last, *filter, *s;
+  char *last = NULL;
+  char *filter, *s;
   enum OBJECT_FILTERS F;
   u_long filter_bak;
   int ret_val = 1, tilda;
 
   if ((database = find_database (name)) == NULL) {
     config_notice (ERROR, uii, "Database %s not found!\r\n", name);
-    Delete (name);
+    irrd_free(name);
     if (object != NULL)
-      Delete (object);
+      irrd_free(object);
     return (-1);
   }
 
   if (object == NULL) {
     trace (TR_ERROR, default_trace,
 	   "config_irr_database_filter (): NULL object input filter: ABORT! \n");
-    Delete (name);
+    irrd_free(name);
     return -1;
   }
 
@@ -1569,8 +1599,8 @@ int config_irr_database_filter (uii_connection_t *uii, char *name, char *object)
     }
   }
 
-  Delete (name);
-  Delete (object);
+  irrd_free(name);
+  irrd_free(object);
   free (s);
   return ret_val;
 }

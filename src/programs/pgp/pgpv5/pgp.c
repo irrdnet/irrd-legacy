@@ -109,7 +109,10 @@ void run_cmd (trace_t *tr, char *env, FILE **in, FILE **out,
       execlp (PGPK, PGPK, "+batchmode=1", "-ll", p1, NULL); 
       break;
     case PGP_VERIFY_REGULAR:
-      execlp (PGPV, PGPV, "+batchmode=1", "-o", p1, p2, NULL); 
+      /* pgp version unix50i1b says
+	 "In batchmode, use +force to allow overwriting of output files"
+      */
+      execlp (PGPV, PGPV, "+batchmode=1", "+force", "-o", p1, p2, NULL); 
       break;
     case PGP_VERIFY_DETACHED:
       execlp (PGPV, PGPV, "+batchmode=1", p1, NULL); 

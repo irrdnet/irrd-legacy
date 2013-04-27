@@ -4,7 +4,7 @@
 
 include ../../Make.include
 
-OBJS    = config_file.o 
+OBJS    = config_file.o   
 ARCHIVE = $(CFGLIB)
 
 include ../Make.include

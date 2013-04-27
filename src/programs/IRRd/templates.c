@@ -1,21 +1,7 @@
+/* AUTOMATICALLY GENERATED - DO NOT EDIT - see ../irr_util/README */
+
 #include "scan.h"
 
-/* obj_template [] uses the 'enum IRR_OBJECTS' data struct defined
- * in scan.h as it's index.  Any changes to obj_template [] or
- * 'enum IRR_OBJECTS' need to be coordinated.
- *
- * The values/elements of this array were generated with the 
- * 'create_templates.pl' which is in the irr_util directory.
- * The script uses the file 'rpsl.config' (also in irr_util)
- * as input.  'rpsl.config' is an ascii file in which object
- * definitions can be added, deleted, or modified easily.
- *
- * To add a new object type/template, first update the 'rpsl.config' file
- * and then run 'create_templates.pl' to create the new templates and 
- * replace below.  'enum IRR_OBJECTS' in scan.h needs to be updated 
- * and m_info [] in commands.c and key_info [] in scan.c need to be 
- * udpated also (see 'enum IRR_OBJECTS' in scan.h for more information). 
- */
 char *obj_template[IRR_MAX_CLASS_KEYS] = {
 "aut-num:      [mandatory]   [single]     [primary/look-up key]\n"
 "as-name:      [mandatory]   [single]     [ ]\n"
@@ -72,6 +58,8 @@ char *obj_template[IRR_MAX_CLASS_KEYS] = {
 "components:     [optional]    [single]     [ ]\n"
 "admin-c:        [optional]    [multiple]   [ ]\n"
 "tech-c:         [optional]    [multiple]   [ ]\n"
+"geoidx:         [optional]    [multiple]   [ ]\n"
+"roa-uri:        [optional]    [single]     [ ]\n"
 "remarks:        [optional]    [multiple]   [ ]\n"
 "notify:         [optional]    [multiple]   [ ]\n"
 "mnt-by:         [mandatory]   [multiple]   [ ]\n"
@@ -90,6 +78,8 @@ char *obj_template[IRR_MAX_CLASS_KEYS] = {
 "components:     [optional]    [single]     [ ]\n"
 "admin-c:        [optional]    [multiple]   [ ]\n"
 "tech-c:         [optional]    [multiple]   [ ]\n"
+"geoidx:         [optional]    [multiple]   [ ]\n"
+"roa-uri:        [optional]    [single]     [ ]\n"
 "remarks:        [optional]    [multiple]   [ ]\n"
 "notify:         [optional]    [multiple]   [ ]\n"
 "mnt-by:         [mandatory]   [multiple]   [ ]\n"
@@ -312,6 +302,7 @@ char *obj_template[IRR_MAX_CLASS_KEYS] = {
 "notify:        [optional]    [multiple]   [ ]\n"
 "mnt-by:        [mandatory]   [multiple]   [ ]\n"
 "changed:       [mandatory]   [multiple]   [ ]\n"
-"source:        [mandatory]   [single]     [ ]\n"
+"source:        [mandatory]   [single]     [ ]\n",
 
 };
+/* number of objects (21) */

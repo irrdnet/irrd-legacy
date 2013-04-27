@@ -2,20 +2,39 @@ $Id: README,v 1.2 2000/08/03 17:11:20 gerald Exp $
 
 Utility programs
 
-attr_tokens.pl uses rpsl.config as input to create data structures
-for the parse.  It creates the tokens.rpsl file as output.
+== attr_tokens.pl ==
 
-create_templates.pl uses rpsl.config to create the object templates
-used to satisfy the '-t' IRRd command.  It reads from stdin and
-write to stdout.  You should feed it rpsl.config and write the
-outout to templates.rpsl.  See create_templates.pl for more
-details.
+attr_tokens.pl uses rpsl.config as input to create data structures for the
+parse.  It creates the tokens.rpsl file as output.  Run it like this:
 
-crypt_gen.c is a C-program which generates encrypted keys. 
+./attr_tokens.pl rpsl.config
 
-mailloop.pl is used in the pipeline call to irr_submit to detect
-mail loops and take appropriate action.
+then look at tokens.rpsl and paste each section of code in to the indicated
+source file.  Namely, rpsl.y and rpsl.fl in the irr_rpsl_check directory
+will need to be updated.   Also, these files
+will need to be updated to support syntax checking on any new attributes.
 
-ripe_subset.pl can take an allocation DB (eg, ripe) and filter
-the route objects, thus reducing the DB size significantly (eg,
-for ftp export)
+== create_templates.pl ==
+
+obj_template [] uses the 'enum IRR_OBJECTS' data struct defined in scan.h as
+its index.  Any changes to obj_template [] or 'enum IRR_OBJECTS' need to be
+coordinated.
+
+create_templates.pl uses rpsl.config to create the object templates used to
+satisfy the '-t' IRRd command.  It reads from stdin and write to stdout.
+Run it like this:
+
+./create_templates.pl <rpsl.config
+
+then paste the output in to the obj_template[] initializer in
+../IRRd/templates.c.  'enum IRR_OBJECTS' in scan.h needs to be updated and
+m_info [] in commands.c and key_info [] in scan.c need to be udpated also
+(see 'enum IRR_OBJECTS' in scan.h for more information).
+
+crypt_gen.c is a C-program which generates encrypted keys.
+
+mailloop.pl is used in the pipeline call to irr_submit to detect mail loops
+and take appropriate action.
+
+ripe_subset.pl can take an allocation DB (eg, ripe) and filter the route
+objects, thus reducing the DB size significantly (eg, for ftp export)

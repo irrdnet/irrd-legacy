@@ -7,6 +7,10 @@
 
 $m = 0;
 
+print "/* AUTOMATICALLY GENERATED - DO NOT EDIT - see ../irr_util/README */\n\n";
+print "#include \"scan.h\"\n\n";
+print "char *obj_template[IRR_MAX_CLASS_KEYS] = {\n";
+
 while (<STDIN>) {
 
     next if (/^\#/);
@@ -163,7 +167,7 @@ foreach $type (@obj_order) {
     $n++;
 }
 
-print "number of objects ($n)\n";
+print "};\n/* number of objects ($n) */\n";
 
 
 ##########################################################################

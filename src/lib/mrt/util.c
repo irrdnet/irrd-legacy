@@ -1,6 +1,8 @@
 /*
  * $Id: util.c,v 1.3 2001/07/13 18:02:46 ljb Exp $
  */
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 #include <mrt.h>
 
@@ -77,11 +79,11 @@ uii_parse_line2 (char **line, char *word)
     int in_quote = 0;	/* used for grouping everything within a """" into a single token */
 
     /* skip spaces */
-    while (*cp && isspace (*cp))
+    while (*cp && isspace((int)*cp))
 	cp++;
 
     start = cp;
-    while ((in_quote || !isspace (*cp)) && (*cp != '\0') && (*cp != '\n')) {
+    while ((in_quote || !isspace((int)*cp)) && (*cp != '\0') && (*cp != '\n')) {
       if (*cp == '\"') {
 	if (in_quote == 0) 
 	  in_quote = 1;
@@ -93,7 +95,7 @@ uii_parse_line2 (char **line, char *word)
 
     if ((len = cp - start) > 0) {
 	if (word == NULL) {
-	    word = NewArray (char, len + 1);
+	    word = irrd_malloc(sizeof(char) * (len + 1));
 	    assert (word);
 	}
 	memcpy (word, start, len);

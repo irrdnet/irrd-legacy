@@ -9,8 +9,8 @@
 #ifndef _LINKED_LIST_H
 #define _LINKED_LIST_H
 
-#include <New.h>
 #include <stdio.h>
+#include <irrdmem.h>
 /*#include <stdarg.h>*/
    
 #ifdef __cplusplus

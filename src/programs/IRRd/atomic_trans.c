@@ -1,14 +1,18 @@
 
-#include <stdio.h>
-#include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+
 #include "config_file.h"
 #include "irrd.h"
 
 /* The functions in this file support atomic transactions for irrd.
  * For each !us...!ue transaction there is a transaction file built
- * which can be used to restore a DB to it's state prior to a trans.
+ * which can be used to restore a DB to its state prior to a trans.
  * On bootstrap irrd looks for transaction files and if it finds one
  * that is complete it will re-apply the transaction. */
 
@@ -23,8 +27,6 @@ static void    add_rbtrans_obj     (rollback_t *, trans_t *);
 static long    complete_trans_file (FILE *, char *, char *);
 static int     active_trans        (irr_database_t *, char *);
 static int     transaction_dels    (irr_database_t *, FILE *, FILE *);
-
-extern m_command_t m_info [];
 
 /* Initialize the transaction update file with the file offset
  * and first three letters of the key attribute for the
@@ -128,20 +130,20 @@ trace (NORM, default_trace, "JW: attr (%s)\n", attr);
       if (rm[4].rm_so == -1)
 	i = 3;
       *(buf + rm[i].rm_eo) = '\0';
-      snprintf (pkey, BUFSIZE, buf + rm[i].rm_so);
+      snprintf (pkey, BUFSIZE, "%s", buf + rm[i].rm_so);
 
 trace (NORM, default_trace, "JW: key (%s)\n", pkey);
 
       /* now find the objects type (eg, route, maintainer, aut-num, ...) */
-      for (i = 0; i < IRR_MAX_MCMDS &&
+      for (i = 0; m_info[i].command &&
 	          strncasecmp (attr, m_info[i].command,
 			       strlen (m_info[i].command));
 	          i++);
 
       /* did we find the object type? 
-       * if yes then look it up and find it's file offset and first
+       * if yes then look it up and find its file offset and first
        * three attribute letters so we can restore delete operations */
-      if (i < IRR_MAX_MCMDS) {
+      if (m_info[i].command) {
 	/* non-route object processing */
         if ((type = m_info[i].type) != ROUTE) {
 	  if (first_lookup) {
@@ -347,7 +349,7 @@ char *build_transaction_file (irr_database_t *db, FILE *u_fp, char *uname,
   return NULL;
 }
 
-/* Rollback DB (db->name) to it's original state after a
+/* Rollback DB (db->name) to its original state after a
  * transaction.
  *
  * Rollback can occur after a system crash or after an
@@ -356,7 +358,7 @@ char *build_transaction_file (irr_database_t *db, FILE *u_fp, char *uname,
  * file which is used to roll back the trancsaction.  
  *
  * Function assumes that first a transaction file (fname) is
- * built which can be used to restore the DB to it's original
+ * built which can be used to restore the DB to its original
  * state and then the transaction is applied to the DB.  
  * Therefore, if the transaction file is not complete then no 
  * changes were made to the DB and no repair is needed.
@@ -372,10 +374,10 @@ char *build_transaction_file (irr_database_t *db, FILE *u_fp, char *uname,
  *
  * Restoration procedure:
  * 1. see if transaction file was built completely
- * 2. truncate the DB it's orignal length
+ * 2. truncate the DB its orignal length
  * 3. for each "fpos xx" line, go to byte offset "fpos" and write "xx"
  *    to undo the delete operation.
- * The DB should now be in it's original state.
+ * The DB should now be in its original state.
  * 
  * Input:
  *  -pointer to the database struct (db)
@@ -383,7 +385,7 @@ char *build_transaction_file (irr_database_t *db, FILE *u_fp, char *uname,
  *   DB (fname).
  *
  * Return:
- *  -1 if it restored the DB to it's original state without error
+ *  -1 if it restored the DB to its original state without error
  *  -0 otherwise
  */
 int db_rollback (irr_database_t *db, char *fname) {
@@ -452,7 +454,7 @@ int db_rollback (irr_database_t *db, char *fname) {
     fclose (db->db_fp);
   }
 
-  /* truncate the DB to it's original length;
+  /* truncate the DB to its original length;
    * this effectively undoes any ADD operations to the DB */
   sprintf (buf, "%s/%s.db", IRR.database_dir, db->name);
   if (truncate (buf, fpos) < 0) {
@@ -518,7 +520,9 @@ CLEAN_UP:
   fclose (fin);
 
   return ret_code;
+#ifdef notdef
 trace (NORM, default_trace, "JW: rollback bye-bye! ret_code (%d)\n", ret_code);
+#endif
 }
 
 
@@ -570,7 +574,7 @@ int rollback_check (rollback_t *ll) {
 
       /* is this transaction active? ie, is the trans file complete and
        * was the trans interupted before finishing?  if yes, add the DB 
-       * to our linked list and roll the DB back to it's state before the 
+       * to our linked list and roll the DB back to its state before the 
        * transaction. */
       switch (active_trans (db, fname)) {
       case 1: /* active transaction */
@@ -578,7 +582,7 @@ int rollback_check (rollback_t *ll) {
 	       "calling db_rollback...\n");
 	add_rbtrans_obj (ll, create_rbtrans_obj (db, fname));
 
-	/* rollback the DB to it's original state */
+	/* rollback the DB to its original state */
 	if (!db_rollback (db, fname)) {
 	  trace (ERROR, default_trace, "rollback_check (): db_rollback "
 		 "error.  Aborting check process.\n");
@@ -1004,7 +1008,7 @@ trace (NORM, default_trace, "JW: no file_exists (%s)\n", fname);
  * their original state before the last transaction.
  *
  * Function assumes the transaction file is complete.  Function
- * will restore the journal file to it's original size and
+ * will restore the journal file to its original size and
  * reset the current serial file.
  *
  * Input;
@@ -1064,7 +1068,7 @@ int journal_rollback (irr_database_t *db, char *fname) {
 	 cs, jsize);
   
 
-  /* truncate the journal to it's original size */
+  /* truncate the journal to its original size */
   make_journal_name (db->name, JOURNAL_NEW, buf);
   if (truncate (buf, jsize) < 0) {
     trace (ERROR, default_trace, "journal_rollback ():  Can't truncate journal"
@@ -1088,7 +1092,9 @@ CLEAN_UP:
 
   fclose (fin);
   return ret_code;
+#ifdef notdef
 trace (NORM, default_trace, "JW: journal_rollback () bye-bye!\n");
+#endif
 }
 
 /* Get the update file name (ie, the !us...!ue name) from the transaction

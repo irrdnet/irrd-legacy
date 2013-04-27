@@ -1,1 +1,0 @@
-30 9 * * * /private/ra/archive/gerald-dev/irrdcacher/irrdcacher -c /private/ra/archive/gerald-dev/data1 -h radb1.merit.edu -p 43 -w /private/ra/archive/gerald-dev/irrdcacher mci canet

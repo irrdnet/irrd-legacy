@@ -482,10 +482,11 @@ void print_hdr_struct (FILE *fout, trans_info_t *ti) {
     fprintf (fout, "%s\n", UNKNOWN_USER);
 
   fprintf (fout, "%s\n", HDR_END);
-
   
   return;
 
+/* debugging stuff */
+#ifdef notdef
   fprintf (fout, "NOTIFY---\n");
   if (ti->nnext != ti->notify_addrs) {
     p = ti->notify_addrs;
@@ -503,6 +504,7 @@ void print_hdr_struct (FILE *fout, trans_info_t *ti) {
   }
 
   fprintf (fout, "----------\n");
+#endif
 }
 
 /*
@@ -636,4 +638,5 @@ char *myconcat (char *x, char *y) {
 char *myconcat_nospace (char *x, char *y) {
 
   return astrconcat(x, y, 0);
-};
+}
+

@@ -94,26 +94,27 @@ enum IRR_OBJECTS {
   LIMERICK,     /* 19 */
   IPV6_SITE,    /* 20 */
 /* begin non-class attributes */
-  ORIGIN,	/* 21 */
-  MNT_BY,	/* 22 */
-  ADMIN_C,      /* 23 */
-  TECH_C,       /* 24 */
-  NIC_HDL,      /* 25 */
-  MBRS_BY_REF,	/* 26 */
-  MEMBER_OF,	/* 27 */
-  MEMBERS,	/* 28 */
-  MP_MEMBERS,	/* 29 */
-  WITHDRAWN,	/* 30 */
-  SYNTAX_ERR,   /* 31 */
-  WARNING,      /* 32 */
-  PREFIX,	/* 33 */
-  CONTACT,      /* 34 */
-  AUTH,         /* 35 */
-  NO_FIELD      /* 36 */
+  ORIGIN,	/* 22 */
+  MNT_BY,	/* 23 */
+  ADMIN_C,      /* 24 */
+  TECH_C,       /* 25 */
+  NIC_HDL,      /* 26 */
+  MBRS_BY_REF,	/* 27 */
+  MEMBER_OF,	/* 28 */
+  MEMBERS,	/* 29 */
+  MP_MEMBERS,	/* 30 */
+  WITHDRAWN,	/* 31 */
+  SYNTAX_ERR,   /* 32 */
+  WARNING,      /* 33 */
+  PREFIX,	/* 34 */
+  CONTACT,      /* 35 */
+  AUTH,         /* 36 */
+  ROASTATUS_ATTR,   /* 37 */
+  NO_FIELD      /* LAST -- add new ones above this line */
 };
 /* max keys should be one more than actual number */
-#define IRR_MAX_CLASS_KEYS	21
-#define IRR_MAX_KEYS	37
+#define IRR_MAX_CLASS_KEYS	22
+#define IRR_MAX_KEYS		((int) NO_FIELD + 1)
 
 enum STATES {
   BLANK_LINE = 01, /* line starting with a '\n' */

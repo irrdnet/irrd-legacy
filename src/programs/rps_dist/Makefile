@@ -14,16 +14,16 @@ INC = -I../../include/
 all: $(GOAL)
 
 $(GOAL): $(RPSOBJS)
-	gcc -Wall $(RPSOBJS) -g -o $@ $(LIBINC) $(LIBS) $(INC)
+	@gcc -Wall $(RPSOBJS) -g -o $@ $(LIBINC) $(LIBS) $(INC)
 
 .c.o:
-	gcc -Wall $(INC) -g -c $< 
+	@gcc -Wall $(INC) -g -c $< 
 
 clean:
 	$(RM) *.o core *.core *~*  $(GOAL) $(GOAL).purify
 
 debug:
-	gcc -g -o $(GOAL) $(RPSOBJS:.o=.c) $(INC) $(LIBS)
+	@gcc -g -o $(GOAL) $(RPSOBJS:.o=.c) $(INC) $(LIBS)
 
 $(GOAL).purify: $(RPSOBJS)
 	purify -cache-dir=/tmp gcc -Wall $(RPSOBJS) -g -o $(GOAL).purify $(LIBINC) $(LIBS) $(INC)

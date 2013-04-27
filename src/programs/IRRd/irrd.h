@@ -9,16 +9,21 @@
 #include <radix.h>
 #include <dirent.h>
 #include <regex.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
 #include "scan.h"
-#include "hash.h"
 #include "timer.h"
-#include "rwlock.h"
 #include <config.h>
 #include <irr_defs.h>
+#include <glib.h>
 
 #define EXPAND_TIMEOUT 45  /* set expansion timeout value - seconds */
 #define MIRROR_TIMEOUT 600 /* 10 minutes */
 #define DEF_FTP_URL "ftp://ftp.radb.net/radb/dbase"
+
+extern char *obj_template[];
+extern trace_t *default_trace;
 
 enum SPEC_KEYS { /* these are used for id values in the special hash */
   SET_OBJX,	/*  hash lookup for as-set and route-set objects */
@@ -58,9 +63,10 @@ enum RIPE_FLAGS_T {
   TEMPLATE    = 01000,   /* send object template <type> */
   OBJ_TYPE    = 02000,  /* restrict object search to <type> */
   INVERSE_ATTR   = 04000, /* do an inverse lookup for the given attr name */
-  KEYFIELDS_ONLY = 010000  /* display only key field attributes */
+  KEYFIELDS_ONLY = 010000,  /* display only key field attributes */
+  ROA_STATUS = 020000,  /* display roa-status attribute */
+  ROA_URI = 040000  /* include the ROA URI in the roa-status attribute */
 };
-#define IRR_MAX_MCMDS 30
 
 enum REMOTE_MIRROR_STATUS_T {
   MIRRORSTATUS_UNDETERMINED = 0, /* Uninitialized */
@@ -116,6 +122,7 @@ typedef struct _irr_database_t {
 #define IRR_READ_ONLY		2
 #define IRR_NODEFAULT		4	/* Do not include by default in queries */
 #define IRR_ROUTING_TABLE_DUMP  8	/* Routing Table Dump flag */
+#define IRR_ROA_DATA		16	/* ROA flag */
 
   u_long		access_list;		/* restrict access */
   u_long		write_access_list;	/* restrict writes -- refines access */
@@ -128,11 +135,9 @@ typedef struct _irr_database_t {
   /*rwlock_t		rwlock;*/
   radix_tree_t		*radix_v4;		/* a v4 radix tree */
   radix_tree_t		*radix_v6;		/* a v6 radix tree */
-#define DEF_HASH_SIZE  1013	/* default hash size */
-#define SMALL_HASH_SIZE  337	/* smaller hash for use with updates */
-  HASH_TABLE		*hash;		
-  HASH_TABLE		*hash_spec;	/* hash for special queries */
-  HASH_TABLE		*hash_spec_tmp;	/* memory hash */
+  GHashTable		*hash;		
+  GHashTable		*hash_spec;	/* hash for special queries */
+  GHashTable		*hash_spec_tmp;	/* memory hash */
 
   int			no_dbclean;	/* flag to disable dbcleaning. By default, we clean */
   mtimer_t		*mirror_timer;
@@ -149,7 +154,7 @@ typedef struct _irr_database_t {
   time_t		last_mirrored;		/* when we last mirrored successfully! */
   enum REMOTE_MIRROR_STATUS_T  remote_mirrorstatus;
   int			mirror_port;
-  int			mirror_protocol;	/* mirroring protocol version */
+  int                   mirror_protocol;        /* mirroring protocol version */
 #define MAX_MIRROR_ERROR_LEN 255
   char			mirror_error_message[MAX_MIRROR_ERROR_LEN + 1];
   time_t		mirror_started;		/* hook for us to timeout on */
@@ -159,12 +164,22 @@ typedef struct _irr_database_t {
   int			num_objects_notfound[IRR_MAX_CLASS_KEYS];
 } irr_database_t;
 
+enum OBJ_ROASTATUS {
+  ROA_UNKNOWN=0,    /* 0 */
+  ROA_INVALID,
+  ROA_VALID
+};
+
 typedef struct _irr_answer_t {
   irr_database_t  *db;
   enum IRR_OBJECTS type;
   u_long	offset;
   u_long	len;
   char 		*blob;
+  irr_prefix_object_t	*prefix_obj;
+  irr_prefix_object_t	*roa_obj;
+  u_short	prefix_bitlen;
+  u_short	roa_bitlen;
 } irr_answer_t;
 
 /* a generic object so we don't have to write new code every time a new
@@ -209,7 +224,7 @@ typedef struct _reference_key_t {
 
 typedef struct _statusfile_t {
   char			*filename;	/* Name of the status file */
-  HASH_TABLE		*hash_sections;	/* Hash of variable hashes keyed on section */
+  GHashTable	*hash_sections;	/* Hash of variable hashes keyed on section */
   trace_t		*trace_status;	/* Trace handle for logging exceptions */
   pthread_mutex_t	mutex_lock;	/* Mutex on this file */
 } statusfile_t;
@@ -223,9 +238,14 @@ typedef struct _irr_t {
   char			*tmp_dir;	/* cache directory for writing temp files quickly */
   char			*path; /* additional path componenet, eg, find irrdcacher */
   /* LINKED_LIST		*ll_database_tmp; use for sorting */
-  LINKED_LIST		*ll_database;	/* list of databases */
-  LINKED_LIST		*ll_database_alphabetized; /* just used in show database */
-  LINKED_LIST		*ll_connections;  /* all current whois connections */
+  irr_database_t	*roa_database;	/* link ROA database if provisioned */
+  time_t	roa_database_mtime;	/* Last modification time of roa db*/
+  char		roa_timebuffer[80]; /* buffer to hold ASCII time */
+  LINKED_LIST	*ll_roa_disclaimer; /* disclaimer message for ROA data */
+  LINKED_LIST	*ll_database;	/* list of databases */
+  LINKED_LIST	*ll_database_alphabetized; /* just used in show database */
+  LINKED_LIST	*ll_connections;  /* all current whois connections */
+  GHashTable    *connections_hash;	/* track num connections per host */
   pthread_mutex_t	connections_mutex_lock; /* lock around connection linked list */
   int			sockfd;		/* the whois/port 43 socket */
 /*  int			access_list;	   access list before accepting telnets */
@@ -239,7 +259,7 @@ typedef struct _irr_t {
   int			connections;	/* current number of connections */
   u_long		export_interval; /* when should we export database */
   pthread_mutex_t	lock_all_mutex_lock;
-  HASH_TABLE		*key_string_hash; /* fast key lookup (*rt, *am, etc) */
+  GHashTable		*key_string_hash; /* fast key lookup (*rt, *am, etc) */
 
   statusfile_t          *statusfile;	/* Global status file */
  
@@ -254,6 +274,8 @@ typedef struct _irr_t {
   LINKED_LIST		*ll_response_forward_header;
   /* end stuff just to keep track of pipeline */
 } irr_t;
+
+extern irr_t IRR;
 
 typedef struct _final_answer_t {
   u_char *ptr;
@@ -295,6 +317,13 @@ typedef struct _irr_connection_t {
   char *end;		/* pointer to end of line */
 } irr_connection_t;
 
+/* for counting per host connections */
+typedef struct _connection_hash_t {
+  char *key;	/* IP in ASCII */
+  int  num;	/* current active connections for this IP */
+  time_t blacklist;  /* Time at which max host connections exceeded */
+} connection_hash_t;
+
 /* for scan.c quick matching of *rt, *am, etc */
 typedef struct _keystring_hash_t {
   char *key;
@@ -308,20 +337,23 @@ typedef struct _hash_item_t {
 
 typedef struct _section_hash_t {
   char *key;
-  HASH_TABLE *hash_vars;
+  GHashTable *hash_vars;
 } section_hash_t;
 
 typedef struct _key_label {
   char *name;
-  int len;
   enum F_PROPERTY f_type;
   enum OBJECT_FILTERS filter_val; /* identify obj field type for filtering */
 } key_label_t;
+
+extern key_label_t key_info[];
 
 typedef struct _m_command_t {
   char *command;
   enum IRR_OBJECTS type;
 } m_command_t;
+
+extern m_command_t m_info [];
 
 typedef struct _find_filter_t {
   char *name;
@@ -340,17 +372,15 @@ typedef struct _objlist_t {
   enum IRR_OBJECTS type; /* object type (for filtering) */
 } objlist_t;
 
-extern irr_t IRR;
-extern trace_t *default_trace;
-
 #define	IRR_OUTPUT_BUFFER_SIZE  1024*64
 #define IRR_DEFAULT_PORT	43
 #define IRR_TMP_DIR             "/var/tmp"
 #define IRR_EXIT		2
 #define IRR_MAXCMDLEN		384	/* max size for commands and queries */
+#define MAX_TOTAL_CONNECTIONS	128	/* default maximum total connections */
+#define MAX_PER_IP_CONNECTIONS	5	/* max connections per IP address */
 
 #define	MIRROR_BUFFER		1024*4
-
 #define IRR_DELETE		2
 #define IRR_UPDATE		3	/* implicit replace -- need to delete first */
 #define IRR_NOMODE		4	/* serial xtrans with no ADD or DEL header */
@@ -390,6 +420,8 @@ extern trace_t *default_trace;
 					*/
 #define PRIMARY_MODE		4	/* search hash for primary only */
 #define TYPE_MODE		8	/* search hash for exact type */
+#define INCLUDE_ROASTATUS	16	/* include ROA roa-status */
+#define INCLUDE_ROAURI		32	/* include ROA URI with roa-status */
 
 /***********************/
 					   

@@ -57,7 +57,7 @@ static FILE *rpsdist_fopen (char *);
 static char *send_rps_dist_trans (trace_t *, FILE *, ret_info_t *, char *, 
 				  char *, long, char *, int);
 static char *init_jentries (trace_t *, char *, long, char *, FILE *);
-static char *init_irrd_updates (trace_t *, FILE *, FILE *, ret_info_t *, char *);
+static char *init_irrd_updates (trace_t *, FILE *, FILE *, ret_info_t *, const char *);
 static char *init_pgp_updates (trace_t *, FILE *, ret_info_t *, char *, int *);
 static long get_irrd_cs (trace_t *, char *, char *, int);
 static void pgp_files_backout (char *);
@@ -409,7 +409,7 @@ char *send_rps_dist_trans (trace_t *tr, FILE *fin, ret_info_t *start,
   /* initialize the irrd, pgp and journal files */
 
   /* This is the !us...!ue data */
-  if ((ret_code = init_irrd_updates (tr, fin, irrd_f, start, (char *) WARN_TAG)))
+  if ((ret_code = init_irrd_updates (tr, fin, irrd_f, start, WARN_TAG)))
     goto ABORT_TRANS;
   fclose (irrd_f);
   irrd_f = NULL;
@@ -769,7 +769,7 @@ JENTRY_ABORT: /* if we get here, someth'in went wrong */
  *   otherwise a string message explaining the error condition
  */
 char *init_irrd_updates (trace_t *tr, FILE *fin, FILE *fout, ret_info_t *start,
-			 char *warn_tag) {
+			 const char *warn_tag) {
   int n, line_cont, line_begin;
   irrd_result_t *p;
   char *ret_code;

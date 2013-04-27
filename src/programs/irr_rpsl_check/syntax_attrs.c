@@ -497,14 +497,15 @@ void name_syntax (parse_info_t *obj, char *hdl) {
 }
 
 int is_nichdl (char *nichdl) {
-  char *p;
   extern config_info_t ci;
 
   if (verbose) fprintf (dfile, "\n---JW: enter is_nichdl(%s): short circut, nichdl() always true!\n", nichdl);
 
   /* sanity check only */
   return !regexec(&re[RE_SANITY_HDL], nichdl, (size_t) 0, NULL, 0);
-  
+
+/* more extensive checks below -- not currently done */
+#ifdef notdef  
   /* lower case alpha not allowed */
   if (!regexec(&re[RE_LCALPHA], nichdl, (size_t) 0, NULL, 0)) {
     if (verbose) fprintf (dfile, "JW: found lower case, is not a handle (%s)!\n", nichdl);
@@ -572,6 +573,7 @@ int is_nichdl (char *nichdl) {
   }
 
   return 0;
+#endif /* notdef */
 }
 
 /*

@@ -38,7 +38,8 @@
 #define TR_DEFAULT_FLAGS	(TR_FATAL|TR_ERROR|TR_WARN)
 #define TR_DEFAULT_APPEND	TRUE
 #define TR_DEFAULT_FLOCK	TRUE
-#define TR_DEFAULT_MAX_FILESIZE	0		/* 100,000 bytes */
+/* We do not currently support LARGE files, so limit filesize to max int */
+#define TR_DEFAULT_MAX_FILESIZE 2147483647      /* Max size for 32 bit files */
 #define TR_DEFAULT_SYSLOG	TR_LOG_FILE	/* Use logfile only */
 
 typedef struct _error_list_t {

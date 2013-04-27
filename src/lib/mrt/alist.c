@@ -1,7 +1,10 @@
 /*
  * $Id: alist.c,v 1.2 2001/07/13 18:02:41 ljb Exp $
  */
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
+#include <irrdmem.h>
 #include "mrt.h"
 
 static LINKED_LIST *access_list[MAX_ALIST];
@@ -66,7 +69,7 @@ add_access_list (int num, int permit, prefix_t *prefix, prefix_t *wildcard,
    if (access_list[num] == NULL) {
       access_list[num] = LL_Create (0);
    }
-   condition = New (condition_t);
+   condition = irrd_malloc(sizeof(condition_t));
    condition->permit = permit;
    /* expects Ref_Prefix can handle even a case of prefix == NULL */
    condition->prefix = Ref_Prefix (prefix);
@@ -106,7 +109,7 @@ del_access_list (int num) {
     if (access_list[num] == NULL) {
         return (-1);
     }
-    Delete (access_list[num]);
+    irrd_free(access_list[num]);
     access_list[num] = NULL;
     return (1);
 }

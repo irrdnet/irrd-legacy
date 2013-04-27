@@ -3,18 +3,19 @@
  * originally Id: update.c,v 1.46 1998/07/29 21:15:18 gerald Exp 
  */
 
+#include <netinet/in.h>
+#include <arpa/inet.h>
 #include <stdio.h>
 #include <string.h>
-#include "mrt.h"
-#include "trace.h"
 #include <time.h>
 #include <signal.h>
-#include "config_file.h"
 #include <fcntl.h>
+
+#include "mrt.h"
+#include "trace.h"
+#include "config_file.h"
 #include "irrd.h"
 #include "irrd_prototypes.h"
-
-extern trace_t *default_trace;
 
 static int build_secondary_keys (irr_database_t *db, irr_object_t *object);
 static int inetnum2prefixes(irr_database_t *db, irr_object_t *object);
@@ -127,7 +128,10 @@ int irr_special_indexing_store (irr_database_t *database, irr_object_t *irr_obje
     make_6as_key (key_buf, print_as(str_origin, irr_object->origin));
   case ROUTE:
     prefix = ascii2prefix(family, irr_object->name);
-    if (prefix == NULL) return 0;
+    if (prefix == NULL) {
+      trace (ERROR, default_trace, "irr_special_indexing_store: prefix %s is invalid\n", irr_object->name);
+      return 0;
+    }
     add_spec_keys (database, irr_object);
     if (family == AF_INET)
 	make_gas_key (key_buf, print_as(str_origin, irr_object->origin));
@@ -292,7 +296,7 @@ int inetnum2prefixes(irr_database_t *database, irr_object_t *object) {
  * duplicate PRIMARY keys.  Need to fix so it returns 
  * an error
  */
-/* Given a PERSON/ROLE object, make its secondary keys and it's complete
+/* Given a PERSON/ROLE object, make its secondary keys and its complete
  * 'person: nic-hdl:' key (which is a primary key).  So this routine
  * inappropriately named.
  *
@@ -398,7 +402,7 @@ int add_irr_object (irr_database_t *database, irr_object_t *irr_object) {
 					irr_object->type, irr_object->offset, 
 					irr_object->len)) > 0) {
       /* Routine will build the PERSON/ROLE secondary and 'person: hic-hdl:' primary key */
-      if ( (irr_object->type == PERSON || irr_object->type == ROLE) &&
+      if ( (irr_object->type == PERSON || irr_object->type == ROLE) && 
 	  (ret_code = build_secondary_keys (database, irr_object)) < 0)
 	irr_database_remove (database, irr_object->name, irr_object->offset);
     }
@@ -460,6 +464,7 @@ int delete_irr_object (irr_database_t *database, irr_object_t *irr_object,
   /* statistics */
   if (ret_code > 0) {
     database->num_objects[irr_object->type]--;
+    database->bytes -= irr_object->len;
     *db_offset = stored_irr_object->offset;
     trace (NORM, default_trace, "Object %s deleted!\n", irr_object->name);
   }

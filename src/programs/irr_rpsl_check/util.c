@@ -242,7 +242,7 @@ int irrcheck_find_token (char **x, char **y) {
     return -1;
 
   *y = *x + 1;
-  while (**y != '\0' && isgraph (**y)) (*y)++;
+  while (**y != '\0' && isgraph((int)**y)) (*y)++;
 
   /* fprintf (dfile, "irrcheck_find_token () returns 1..\n"); */
   return 1;  
@@ -327,7 +327,7 @@ void error_msg_queue (parse_info_t *obj, char *emsg, int msg_type) {
   obj->errp += slen + 1; /* want each message terminated with a '\0' */
 
   if (verbose) 
-    fprintf (dfile, "error_msg_queue(), copied n bytes-(%d) curr attr-(%d)\n",n,obj->curr_attr); 
+    fprintf (dfile, "error_msg_queue(), copied n bytes-(%d) curr attr-(%d)\n",(int) n, obj->curr_attr); 
   if (verbose) fprintf (dfile, "error_msg_queue(), msg-(%s)\n",emsg);
   if (msg_type == WARN_MSG          ||
       msg_type == WARN_OVERRIDE_MSG ||
@@ -678,7 +678,7 @@ void init_regexes () {
   regex_compile (re, (int) RE_NAME, "^[[:alpha:]][[:alnum:].'`|-]*$");
   regex_compile (re, (int) RE_APNIC_HDL, "^[A-Z]{2}[[:digit:]]{3}JP(-JP)?$");
   regex_compile (re, (int) RE_LCALPHA, "[a-z]");
-  regex_compile (re, (int) RE_STD_HDL, "^[A-Z]{2,4}([1-9][[:digit:]]{0,5})?(-[[:graph:]]+)?(-NIC)?$");
+  regex_compile (re, (int) RE_STD_HDL, "^[A-Z]{1,4}([1-9][[:digit:]]{0,5})?(-[[:graph:]]+)?(-NIC)?$");
   regex_compile (re, (int) RE_RIPE_HDL, "^AUTO-[[:digit:]]+[A-Z]*$");
   regex_compile (re, (int) RE_REAL, "^[+-]?([[:digit:]]+)?.[[:digit:]]+(E[+-]?[[:digit:]]+)?$");
   regex_compile (re, (int) RE_ASNAME, "^[A-Z][A-Z0-9-]+$");

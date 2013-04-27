@@ -3,42 +3,37 @@
  * originally Id: util.c,v 1.51 1998/08/07 19:48:58 gerald Exp 
  */
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 #include <mrt.h>
 #include <trace.h>
 #include <time.h>
 #include <signal.h>
 #include <config_file.h>
 #include <limits.h>
-#include "irrd.h"
 #include <fcntl.h>
 #include <ctype.h>
-#include <sys/stat.h>
+#include <glib.h>
+
+#include "irrd.h"
 
 static int find_token (char **, char **);
-extern key_label_t key_info[];
-extern trace_t *default_trace;
-extern m_command_t m_info [];
 
 irr_database_t *new_database (char *name) {
   irr_database_t *database;
-  hash_item_t hash_item;
 
-  database = New (irr_database_t);
+  database = irrd_malloc(sizeof(irr_database_t));
   memset(database, 0, sizeof(irr_database_t));
 
   database->radix_v4 = New_Radix (32); 
   database->radix_v6 = New_Radix (128);
-  database->hash =
-    HASH_Create (DEF_HASH_SIZE,
-                 HASH_KeyOffset, HASH_Offset (&hash_item, &hash_item.key),
-                 HASH_DestroyFunction, irr_hash_destroy,
-                 0);
-  database->hash_spec =
-    HASH_Create (DEF_HASH_SIZE,
-                 HASH_KeyOffset, HASH_Offset (&hash_item, &hash_item.key),
-                 HASH_DestroyFunction, irr_hash_destroy, 0);
+  database->hash = g_hash_table_new_full(g_str_hash, g_str_equal, NULL, (GDestroyNotify)irr_hash_destroy);
+  database->hash_spec = g_hash_table_new_full(g_str_hash, g_str_equal, NULL, (GDestroyNotify)irr_hash_destroy);
 
   database->name = strdup (name);
   database->mirror_fd  = -1;
@@ -76,12 +71,9 @@ void irr_lock_all (irr_connection_t *irr) {
   irr_database_t *database;
 
   /* Avoid deadlock, only 1 routine can get all locks at one time */
-  trace (TRACE, default_trace, "About to lock  --lock_all_mutex_lock--\n");
   if (pthread_mutex_lock (&IRR.lock_all_mutex_lock) != 0)
     trace (ERROR, default_trace, "Error locking --lock_all_mutex_lock--: %s\n", 
 	   strerror (errno));
-  else
-    trace (TRACE, default_trace, "Locked --lock_all_mutex_lock--\n");
 
   LL_ContIterate (irr->ll_database, database) {
     irr_lock (database);
@@ -90,10 +82,7 @@ void irr_lock_all (irr_connection_t *irr) {
   if (pthread_mutex_unlock (&IRR.lock_all_mutex_lock) != 0)
     trace (ERROR, default_trace, "Error unlocking --lock_all_mutex_lock--: %s\n",
            strerror (errno));
-  else
-    trace (TRACE, default_trace, "Unlocked --lock_all_mutex_lock--\n");
 
-  trace (TRACE, default_trace, "Done with lock_all\n");
 }
 
 /* irr_unlock_all
@@ -194,9 +183,9 @@ long copy_irr_object (irr_database_t *database, irr_object_t *object) {
 void Delete_IRR_Object (irr_object_t *object) {
 /* ll_mbrs and ll_mbr_by_ref are saved as data for the hash */
   if (object->name) 
-    Delete (object->name);
+    irrd_free(object->name);
   if (object->nic_hdl)
-    Delete (object->nic_hdl);
+    irrd_free(object->nic_hdl);
   if (object->ll_mnt_by) 
     LL_Destroy (object->ll_mnt_by);
   if (object->ll_mbrs) 
@@ -207,7 +196,7 @@ void Delete_IRR_Object (irr_object_t *object) {
     LL_Destroy (object->ll_mbr_of);
   if (object->ll_prefix) 
     LL_Destroy (object->ll_prefix);
-  Delete (object);
+  irrd_free(object);
 }
 
 /* New_IRR_Object
@@ -216,7 +205,7 @@ void Delete_IRR_Object (irr_object_t *object) {
 irr_object_t *New_IRR_Object (char *buffer, u_long position, u_long mode) {
   irr_object_t *irr_object;
 
-  irr_object = New (irr_object_t);
+  irr_object = irrd_malloc(sizeof(irr_object_t));
   irr_object->offset = position;
   irr_object->origin_found = 0;
   irr_object->mode = mode;
@@ -227,8 +216,8 @@ irr_object_t *New_IRR_Object (char *buffer, u_long position, u_long mode) {
 }
 
 void Delete_Ref_keys (reference_key_t *ref_item) {
-  Delete (ref_item->key);
-  Delete (ref_item);
+  irrd_free(ref_item->key);
+  irrd_free(ref_item);
 }
 
 void foldin_key_list (LINKED_LIST **ll, char *key, int type) {
@@ -250,7 +239,7 @@ void foldin_key_list (LINKED_LIST **ll, char *key, int type) {
   }
 
   if (!found) {
-    ref_item = New (reference_key_t);
+    ref_item = irrd_malloc(sizeof(reference_key_t));
     ref_item->key = strdup (key);
     ref_item->type = type;
     LL_Add ((*ll), ref_item);
@@ -279,7 +268,7 @@ void pick_off_indirect_references (irr_answer_t *irr_answer, LINKED_LIST **ll) {
       if ((irr_answer->type == IPV6_SITE && 
 	   (curr_f == PREFIX || curr_f == CONTACT)) ||
 	  (curr_f == ADMIN_C || curr_f == TECH_C)) {
-	cp = buf + key_info[curr_f].len;
+	cp = buf + strlen(key_info[curr_f].name);
 	whitespace_newline_remove (cp);
 	foldin_key_list (ll, cp, curr_f);
       }
@@ -401,14 +390,14 @@ int convert_to_32 (char *strval, uint32_t *uval) {
 
 irr_hash_string_t *new_irr_hash_string (char *str) {
   irr_hash_string_t *tmp;
-  tmp = New (irr_hash_string_t);
+  tmp = irrd_malloc(sizeof(irr_hash_string_t));
   tmp->string = strdup (str);
   return (tmp);
 }
 
 void delete_irr_hash_string (irr_hash_string_t *str) {
-  Delete (str->string);
-  Delete (str);
+  irrd_free(str->string);
+  irrd_free(str);
 }
 
 /* This routine finds a token in the string.  *x will
@@ -517,7 +506,7 @@ int ripe_obj_type (irr_connection_t *irr, char **cp) {
     return slen;
   *cp = q;
 
-  for (i = 0; i < IRR_MAX_MCMDS; i++) {
+  for (i = 0; m_info[i].command; i++) {
     j = strlen (m_info[i].command) - 1;
     if (slen == j &&
         !strncasecmp (p, m_info[i].command, j)) {
@@ -576,6 +565,20 @@ int parse_ripe_flags (irr_connection_t *irr, char **cp) {
       case 'k': irr->stay_open = 1;    break;
       case 'F': irr->ripe_flags |= FAST_OUT;    break;
       case 'r': irr->ripe_flags |= RECURS_OFF;  break;
+      case 'R':
+		if (IRR.roa_database == NULL) {
+		  strcpy (buf, "%%  ROA Database not configured, \"-R\" flag not supported.\n\n\n");
+		  non_flag_token = 1;
+		} else
+		  irr->ripe_flags |= ROA_STATUS;
+		break;
+      case 'U':
+		if (IRR.roa_database == NULL) {
+		  strcpy (buf, "%%  ROA Database not configured, \"-U\" flag not supported.\n\n\n");
+		  non_flag_token = 1;
+		} else
+		  irr->ripe_flags |= ROA_URI;
+		break;
       case 'a': irr->ripe_flags |= SOURCES_ALL; break;
       case 'K': irr->ripe_flags |= KEYFIELDS_ONLY; break;
       case 'l': irr->ripe_flags |= LESS_ONE;    break;
@@ -660,7 +663,7 @@ void delete_prefix_objs (irr_prefix_object_t *prefix_obj) {
   /* follow the linked list of prefix objects and delete them */
   while (prefix_obj) {
     next = prefix_obj->next;
-    Delete(prefix_obj);
+    irrd_free(prefix_obj);
     prefix_obj = next;
   }
 }
@@ -752,7 +755,10 @@ void interactive_io (char *msg) {
   trace (NORM, default_trace, "%s [y/n]\n", msg);
   printf ("%s [y/n] ", msg);
   buf[0] = '\0';
-  fgets (buf, BUFSIZE, stdin);
+  while (buf != fgets (buf, BUFSIZE, stdin)) {
+    printf ("Error reading input\n");
+    printf ("%s [y/n] ", msg);
+  }
 
   if (buf[0] == 'n' || buf[0] == 'N') {
     trace (NORM, default_trace, "Terminating execution at user's request.\n");
@@ -806,7 +812,7 @@ char *dir_chks (char *dir, int creat_dir) {
 
     /* we have permission problems or ... */
     snprintf (file, BUFSIZE, 
-	      "Could not create the directory: %s", strerror (errno));
+	      "Could not create the directory '%s': %s", dir, strerror (errno));
     return strdup (file);
   }
   else {

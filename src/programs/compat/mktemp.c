@@ -39,7 +39,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
-#include <unistd.h>
+//#include <unistd.h>
 
 #if !defined(HAVE_MKSTEMP) || !defined(HAVE_MKDTEMP)
 static int _gettemp(char *, int *, int, int);

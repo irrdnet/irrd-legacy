@@ -4,25 +4,28 @@
  * originally Id: telnet.c,v 1.59 1998/08/03 17:29:10 gerald Exp 
  */
 
-#include <stdio.h>
-#include <string.h>
-#include "mrt.h"
-#include "select.h"
-#include "trace.h"
-#include <time.h>
-#include <ctype.h>
-#include <signal.h>
-#include <netinet/in.h>
-#include <netinet/tcp.h>
-#include <arpa/inet.h>
-#include <netdb.h>
-#include <stdarg.h>
-#include "config_file.h"
 #include <sys/types.h>
-#include <fcntl.h>
+#include <sys/socket.h>
 #ifndef SETPGRP_VOID
 #include <sys/termios.h>
 #endif
+#include <netinet/in.h>
+#include <netinet/tcp.h>
+#include <arpa/inet.h>
+#include <time.h>
+#include <ctype.h>
+#include <signal.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+#include <netdb.h>
+#include <stdarg.h>
+#include <fcntl.h>
+
+#include "mrt.h"
+#include "select.h"
+#include "trace.h"
+#include "config_file.h"
 #include "config_file.h"
 #include "irrd.h"
 
@@ -31,10 +34,6 @@
 #else
 #define SOCKADDR sockaddr_in
 #endif
-
-extern trace_t *default_trace;
-extern irr_t IRR;
-extern key_label_t key_info[];
 
 static int irr_read_command (irr_connection_t * irr);
 
@@ -118,12 +117,15 @@ int irr_accept_connection (int fd) {
   int sockfd;
   socklen_t len;
   int family;
+  int too_many_flag = 0;
   prefix_t *prefix;
   struct SOCKADDR addr;
   irr_connection_t *irr_connection;
   u_int one = 1;
+  char *ascii_prefix;
   char tmp[BUFSIZE];
-  irr_database_t *database;
+  irr_database_t *database; 
+  connection_hash_t *connection_hash_item;
 
   len = sizeof (addr);
   memset ((struct SOCKADDR *) &addr, 0, len);
@@ -186,10 +188,43 @@ int irr_accept_connection (int fd) {
     }
   }
 
-  trace (TRACE, default_trace, "accepting connection from %s\n",
-	 prefix_toa (prefix));
+  /* check per host connnection limit */
+  ascii_prefix = prefix_toa(prefix);
 
-  irr_connection = New (irr_connection_t);
+  if (pthread_mutex_lock (&IRR.connections_mutex_lock) != 0)
+    trace (ERROR, default_trace, "locking -- connection_mutex_lock--: %s\n",
+	   strerror (errno));
+
+  connection_hash_item = g_hash_table_lookup(IRR.connections_hash, ascii_prefix);
+  if (connection_hash_item == NULL) {
+    connection_hash_item = irrd_malloc(sizeof(connection_hash_t));
+    connection_hash_item->key = strdup(ascii_prefix);
+    connection_hash_item->num = 1;
+    g_hash_table_insert(IRR.connections_hash, connection_hash_item->key, connection_hash_item);
+  } else {
+    if (connection_hash_item->num >= MAX_PER_IP_CONNECTIONS) {
+      too_many_flag = 1;
+    } else {
+      connection_hash_item->num++;
+    }
+  }
+
+  if (pthread_mutex_unlock (&IRR.connections_mutex_lock) != 0)
+    trace (ERROR, default_trace, "unlocking -- connection_mutex_lock--: %s\n",
+	   strerror (errno));
+
+  if (too_many_flag) {
+    trace (INFO, default_trace, "Too many host connections (%d) -- REJECTING %s\n",
+	   connection_hash_item->num, ascii_prefix);
+    Deref_Prefix (prefix);
+    close (sockfd);
+    return (-1);
+  }
+
+  trace (TRACE, default_trace, "accepting connection from %s\n",
+	 ascii_prefix);
+
+  irr_connection = irrd_malloc(sizeof(irr_connection_t));
 #ifndef HAVE_LIBPTHREAD    
   irr_connection->schedule = New_Schedule ("irr_connection", default_trace);
 #else
@@ -210,7 +245,7 @@ int irr_accept_connection (int fd) {
     if ((database->access_list > 0) &&
 	(!apply_access_list (database->access_list, prefix))) {
       trace (NORM, default_trace, "Access to %s denied for %s\n",
-	     database->name, prefix_toa (prefix));
+	     database->name, ascii_prefix);
     }
     else {
       if (! (database->flags & IRR_NODEFAULT))
@@ -229,7 +264,7 @@ int irr_accept_connection (int fd) {
     trace (ERROR, default_trace, "unlocking -- connection_mutex_lock--: %s\n",
 	   strerror (errno));
 
-  sprintf (tmp, "IRR %s", prefix_toa (prefix));
+  sprintf (tmp, "IRR %s", ascii_prefix);
   mrt_thread_create (tmp, irr_connection->schedule,
 		     (thread_fn_t) start_irr_connection, irr_connection);
   return (1);
@@ -243,6 +278,7 @@ listen_telnet (u_short port) {
   socklen_t len;
   int optval;
   int sockfd;
+  int family;
   struct sockaddr *sa;
   struct sockaddr_in serv_addr;
 #ifdef HAVE_IPV6 
@@ -263,20 +299,23 @@ listen_telnet (u_short port) {
   if (port <= 0) return (0);
 
 #ifdef HAVE_IPV6
+  family = AF_INET6;
   sa = (struct sockaddr *) &serv_addr6;
   len = sizeof (serv_addr6);
 #else
+  family = AF_INET;
   sa = (struct sockaddr *) &serv_addr;
   len = sizeof (serv_addr);
 #endif  /* HAVE_IPV6 */
 
-  if ((sockfd = socket (sa->sa_family, SOCK_STREAM, IPPROTO_TCP)) < 0) {
+  if ((sockfd = socket (family, SOCK_STREAM, IPPROTO_TCP)) < 0) {
 #ifdef HAVE_IPV6
     /* retry with IPV4 */
     trace (NORM, default_trace, "Unable to get IPV6 socket (%s), retrying with IPV4\n", strerror(errno));
+    family = AF_INET;
     sa = (struct sockaddr *) &serv_addr;
     len = sizeof (serv_addr);
-    if ((sockfd = socket (sa->sa_family, SOCK_STREAM, IPPROTO_TCP)) < 0) {
+    if ((sockfd = socket (family, SOCK_STREAM, IPPROTO_TCP)) < 0) {
 #endif
       trace (ERROR, default_trace, "Could not get socket (%s)\n",
 	   strerror (errno));
@@ -315,7 +354,7 @@ listen_telnet (u_short port) {
   trace (NORM, default_trace, "listening for connections on port %d (fd %d)\n",
 	 port, sockfd);
                    
-  select_add_fd (sockfd, 1, (void_fn_t) irr_accept_connection, (void *) sockfd);
+  select_add_fd (sockfd, 1, (void_fn_t) irr_accept_connection, (void*) sockfd);
 
   return (sockfd);
 }
@@ -429,50 +468,65 @@ static int irr_read_command (irr_connection_t * irr) {
 }
 
 int irr_destroy_connection (irr_connection_t * connection) {
+  connection_hash_t *connection_hash_item;
+  char *ascii_prefix;
 
-   if (pthread_mutex_lock (&IRR.connections_mutex_lock) != 0)
-     trace (ERROR, default_trace, "connection_mutex_lock--: %s\n",
-	    strerror (errno));
+  if (pthread_mutex_lock (&IRR.connections_mutex_lock) != 0)
+    trace (ERROR, default_trace, "connection_mutex_lock--: %s\n",
+	strerror (errno));
 
-   LL_Remove (IRR.ll_connections, connection);
-   IRR.connections--;
+  LL_Remove (IRR.ll_connections, connection);
+  ascii_prefix = prefix_toa(connection->from);
+  connection_hash_item = g_hash_table_lookup(IRR.connections_hash, ascii_prefix);
+  if (connection_hash_item == NULL) {
+    trace (ERROR, default_trace, "error locating hash entry for %s\n", ascii_prefix);
+  } else {
+    connection_hash_item->num--;
+    if (connection_hash_item->num < 1) {
+      g_hash_table_remove(IRR.connections_hash, connection_hash_item->key);
+      free(connection_hash_item->key);
+      irrd_free(connection_hash_item);
+    }
+  }
 
-   if (pthread_mutex_unlock (&IRR.connections_mutex_lock) != 0)
-     trace (ERROR, default_trace, "connection_mutex_lock--: %s\n",
-	    strerror (errno));
+  IRR.connections--;
 
-   trace (NORM, default_trace, 
-	  "Closing connection from %s (fd %d, %d connections)\n", 
-	  prefix_toa (connection->from),
-	  connection->sockfd,
-	  IRR.connections);
+  if (pthread_mutex_unlock (&IRR.connections_mutex_lock) != 0)
+    trace (ERROR, default_trace, "connection_mutex_lock--: %s\n",
+	strerror (errno));
+
+  trace (NORM, default_trace, 
+	"Closing connection from %s (fd %d, %d connections)\n", 
+	ascii_prefix,
+	connection->sockfd,
+	IRR.connections);
 
 #ifndef HAVE_LIBPTHREAD
-   select_delete_fd (connection->sockfd);
+  select_delete_fd (connection->sockfd);
 #else
-   close (connection->sockfd);
+  close (connection->sockfd);
 #endif /* HAVE_LIBPTHREAD */
 
-   /*LL_RemoveFn (IRR.ll_irr_connections, connection, 0);*/
-   Deref_Prefix (connection->from);
+  /*LL_RemoveFn (IRR.ll_irr_connections, connection, 0);*/
+  Deref_Prefix (connection->from);
 #ifndef HAVE_LIBPTHREAD    
-   if(connection->schedule->is_running > 0)
-     /* if we running as a scheduled event, can't destroy schedule yet */
-     delete_schedule (connection->schedule);
-   else
-     /* it's safe to destroy the schedule */
-     destroy_schedule (connection->schedule);
+  if(connection->schedule->is_running > 0)
+    /* if we running as a scheduled event, can't destroy schedule yet */
+    delete_schedule (connection->schedule);
+  else
+    /* it's safe to destroy the schedule */
+    destroy_schedule (connection->schedule);
 #endif
-   LL_Destroy (connection->ll_database);
+  LL_Destroy (connection->ll_database);
 
-   if (connection->answer != NULL)
-     Delete (connection->answer);
+  if (connection->answer != NULL)
+    irrd_free(connection->answer);
 
-   Delete (connection);
+  irrd_free(connection);
 
-   mrt_thread_exit ();
-   /* NOTREACHED */
-   return(-1);
+  mrt_thread_exit ();
+  /* NOTREACHED */
+  return(-1);
 }
 
 int irr_add_answer (irr_connection_t *irr, char *format, ...) {
@@ -640,8 +694,8 @@ void irr_write_nobuffer (irr_connection_t *irr, char *buf) {
 }
 
 void delete_final_answer (final_answer_t *tmp) {
-  Destroy (tmp->buf);
-  Destroy (tmp);
+  irrd_free(tmp->buf);
+  irrd_free(tmp);
 }
 
 /* irr_write_direct
@@ -666,7 +720,7 @@ void irr_write_direct (irr_connection_t *irr, FILE *fp, int len) {
 
     /* no room, we need to add another one */
     if (final_answer == NULL || n == 0) {
-      final_answer = New (final_answer_t);
+      final_answer = irrd_malloc(sizeof(final_answer_t));
       final_answer->buf = final_answer->ptr = malloc (4096); 
       LL_Add (irr->ll_final_answer, final_answer);
       n = 4096;
@@ -678,9 +732,63 @@ void irr_write_direct (irr_connection_t *irr, FILE *fp, int len) {
     else
       bytes = len - read;
 
-    fread(final_answer->ptr, 1, bytes, fp);
+    size_t items=0;
+
+    items = fread(final_answer->ptr, 1, bytes, fp);
     read += bytes;
     final_answer->ptr += bytes;
+#if OPT_POSTGRES
+    /* Add geoidx hook; someday this will be a proper database and joins will do this */
+    /* Someday (sooner, I hope) this will support > 1 geoidx */
+    gchar *geoidx;
+    int idx;
+    char query[250];
+    char buf[100] = {'\0'};
+    if ( NULL != (geoidx = g_strstr_len(final_answer->ptr - bytes, bytes, "geoidx"))) {
+      geoidx += strlen("geoidx");
+      while (*++geoidx == ' '); /* first ++ gets rid of ':' token */
+      idx = atoi(geoidx);
+#include <postgresql/libpq-fe.h>
+      /* What?? #inlcude here? Disgusting! But, this code won't be around long anyways
+	 because we're replacing everything with postgresql soon, right? Riiigghttt?? */
+      PGconn *conn;
+      PGresult *res;
+      conn = PQconnectdb("dbname=geo_test user=ppannuto");
+      if (PQstatus(conn) == CONNECTION_BAD) {
+	      fprintf(stderr, "Unable to connect to database: %s", PQerrorMessage(conn));
+	      return;
+      }
+      snprintf(query, 250, "SELECT cntry_name,fips_cntry FROM wb WHERE gid = %d", idx);
+      res = PQexec(conn, query);
+      if (PQresultStatus(res) != PGRES_TUPLES_OK) {
+	      fprintf(stderr, "Did not receive data from query?\n");
+	      return;
+      }
+
+      if (1 != PQntuples(res)) {
+	      fprintf(stderr, "Wrong number of tuples? (%d)\n", PQntuples(res));
+	      return;
+      }
+
+      int i;
+      for (i = 0; i < PQnfields(res); i++) {
+	      /* FIXME: 100's enough, right? Bad! */
+	      strcat(buf, PQfname(res, i));
+	      strcat(buf, ":\t");
+	      strcat(buf, PQgetvalue(res, 0, i));
+	      strcat(buf, "\n");
+	      fprintf(stderr, "%s\n", buf);
+      }
+
+      PQclear(res);
+
+      bytes = final_answer->ptr - final_answer->buf;
+      if (strlen(buf) + 1 > bytes)
+	      fprintf(stderr, "WARNING: extra geoidx info truncated\n");
+      bytes = snprintf(final_answer->ptr, bytes, "%s", buf);
+      final_answer->ptr += bytes;
+    }
+#endif
   }
   return;
 }
@@ -710,7 +818,7 @@ void irr_write (irr_connection_t *irr, char *buf, int len) {
 
     /* no room, we need to add another one */
     if (final_answer == NULL || n == 0) {
-      final_answer = New (final_answer_t);
+      final_answer = irrd_malloc(sizeof(final_answer_t));
       final_answer->buf = final_answer->ptr = malloc (4096); 
       LL_Add (irr->ll_final_answer, final_answer);
       n = 4096;
@@ -761,6 +869,7 @@ void send_dbobjs_answer (irr_connection_t *irr, enum INDEX_T index, int mode) {
   char buffer[BUFSIZE];
   irr_answer_t *irr_answer;
   u_long answer_size = 0;
+  char *disc_str;
   int first = 1;
 
   /* compute answer size */ 
@@ -788,6 +897,13 @@ void send_dbobjs_answer (irr_connection_t *irr, enum INDEX_T index, int mode) {
   if (mode == RAWHOISD_MODE) {
     /* # of bytes in answer */
     sprintf (buffer, "A%d\n", (int) answer_size);
+    irr_write (irr, buffer, strlen(buffer));
+  } else if ( (irr->ripe_flags & ROA_STATUS) && IRR.ll_roa_disclaimer) {
+    buffer[0] = '\0';
+    LL_Iterate (IRR.ll_roa_disclaimer, disc_str) {
+      strcat (buffer, disc_str);
+      strcat (buffer, "\n");
+    }
     irr_write (irr, buffer, strlen(buffer));
   }
 
@@ -818,19 +934,62 @@ void send_dbobjs_answer (irr_connection_t *irr, enum INDEX_T index, int mode) {
 
 void irr_write_answer (irr_answer_t *irr_answer, irr_connection_t *irr) {
   int show_keyfields_only = irr->ripe_flags & KEYFIELDS_ONLY;
-  int hide_cryptpw = 0;
+  int gen_roa_status = irr->ripe_flags & ROA_STATUS;
+  int hide_cryptpw = 0, roamaxlen = -1;
   u_long len;
   char buf[BUFSIZE];
   char outbuf[BUFSIZE];
 
-  if (fseek (irr_answer->db->db_fp, irr_answer->offset, SEEK_SET) < 0)
+  if (gen_roa_status && irr_answer->roa_obj) {
+    char *cp;
+    enum STATES state  = BLANK_LINE, save_state;
+    int curr_f = NO_FIELD;
+    int loop_exit = 0;
+
+    if (fseek (IRR.roa_database->db_fp, irr_answer->roa_obj->offset, SEEK_SET) < 0) {
+      trace (ERROR, default_trace, "fseek failed in roa_database\n");
+      return;
+    }
+    do {
+      cp = fgets(buf, BUFSIZE, IRR.roa_database->db_fp);
+      len = strlen(buf);
+      strcpy(outbuf,buf);	/* need a copy because get_state may
+				   modify our string */
+      state = get_state (cp, len, state, &save_state);
+      switch (state) {
+        case START_F:
+          curr_f = get_curr_f (buf);
+	case LINE_CONT:
+          if (curr_f == ROASTATUS_ATTR) {
+            if (get_roamaxlen(outbuf,&roamaxlen) < 0) {
+	      irr_write_nobuffer(irr, "%% Internal error. ROA maxlen.\n");
+    	      trace (ERROR, default_trace, "error getting maxlen\n");
+	      return;
+	     } else
+	      loop_exit = 1;	/* we've got our maxlen field */
+	  }
+	  break;
+	case BLANK_LINE:
+	case DB_EOF:
+	  loop_exit = 1;
+	  break;
+        default:
+          break;
+      }
+    } while (!loop_exit);
+  }
+
+  if (fseek (irr_answer->db->db_fp, irr_answer->offset, SEEK_SET) < 0) {
     trace (ERROR, default_trace, "fseek failed in irr_write_answer\n");
+    irr_write_nobuffer(irr, "%% Internal error. fseek\n");
+    return;
+  }
 
   if  (irr_answer->type == MNTNER && irr_answer->db->cryptpw_access_list != 0 &&
     !apply_access_list(irr_answer->db->cryptpw_access_list, irr->from) )
     hide_cryptpw = 1;
 
-  if (show_keyfields_only || hide_cryptpw) {
+  if (show_keyfields_only || hide_cryptpw || gen_roa_status) {
     char *cp;
     enum STATES state  = BLANK_LINE, save_state;
     int curr_f = NO_FIELD;
@@ -858,6 +1017,53 @@ void irr_write_answer (irr_answer_t *irr_answer, irr_connection_t *irr) {
               scrub_cryptpw(outbuf);
             irr_write (irr, outbuf, len);
 	  }
+          if (gen_roa_status && curr_f == ORIGIN) {
+  	    enum OBJ_ROASTATUS roastatus = ROA_INVALID;
+
+	    if (roamaxlen == -1) { /* no ROA max length specified */
+	      if (!irr_answer->roa_obj) { /* no ROA found at all */
+		roastatus = ROA_UNKNOWN;
+	      } else if (irr_answer->prefix_bitlen == irr_answer->roa_bitlen && irr_answer->prefix_obj->origin == irr_answer->roa_obj->origin) {
+		roastatus = ROA_VALID;
+	      } else
+		roastatus = ROA_INVALID;
+	    } else {	/* ROA max length field preset, must check */
+	      if (irr_answer->prefix_obj->origin == irr_answer->roa_obj->origin
+		  && irr_answer->prefix_bitlen >= irr_answer->roa_bitlen
+		  && irr_answer->prefix_bitlen <= roamaxlen) {
+		roastatus = ROA_VALID;
+	      } else
+		roastatus = ROA_INVALID;
+	    }
+	    switch (roastatus) {
+	      case ROA_VALID:
+		if (roamaxlen != -1) {
+		  sprintf(outbuf, "roa-status: v=1; s=valid; m=%d; ",roamaxlen);
+		} else {
+		  strcpy (outbuf, "roa-status: v=1; s=valid; ");
+		}
+		break;
+	      case ROA_INVALID:
+		strcpy (outbuf, "roa-status: v=1; s=invalid; ");
+		break;
+              default:
+		strcpy (outbuf, "roa-status: v=1; s=unknown; ");
+		break;
+	    }
+	    strcat (outbuf, IRR.roa_timebuffer);
+	    irr_write(irr, outbuf, strlen(outbuf));
+	    if (irr->ripe_flags & ROA_URI && (roastatus == ROA_VALID || roastatus == ROA_INVALID)) {
+	      do {
+	        cp = fgets(outbuf, BUFSIZE, IRR.roa_database->db_fp);
+	        if (cp == NULL)
+		  break;
+	        if (*cp == ' ' || *cp == '\t' || *cp == '+' )
+	          irr_write(irr, outbuf, strlen(outbuf));
+		else
+		  break;
+	      } while (TRUE);
+	    }
+	  }
 	  break;
 	case BLANK_LINE:
 	case DB_EOF:
@@ -878,17 +1084,44 @@ void irr_write_answer (irr_answer_t *irr_answer, irr_connection_t *irr) {
 void irr_build_memory_answer (irr_connection_t *irr, u_long len, char *blob) {
   irr_answer_t *irr_answer;
 
-  irr_answer = New (irr_answer_t);
+  irr_answer = irrd_malloc(sizeof(irr_answer_t));
   irr_answer->len = len;
   irr_answer->blob = blob;
   LL_Add (irr->ll_answer, irr_answer);
 }
 
+/* build a query answer referencing on-disk prefix type objects */
+void irr_build_prefix_answer (irr_connection_t *irr, irr_database_t *database, irr_prefix_object_t *prefix_object) {
+  irr_answer_t *irr_answer;
+
+  irr_answer = irrd_malloc(sizeof(irr_answer_t));
+  irr_answer->db = database;
+  irr_answer->len = prefix_object->len;
+  irr_answer->offset = prefix_object->offset;
+  irr_answer->prefix_obj = prefix_object;
+  LL_Add (irr->ll_answer, irr_answer);
+} /* end irr_build_prefix_answer() */
+
+/* build a query answer referencing on-disk prefix type objects */
+void irr_build_roa_answer (irr_connection_t *irr, irr_database_t *database, irr_prefix_object_t *prefix_object, u_short bitlen, radix_node_t *roa_node) {
+  irr_answer_t *irr_answer;
+
+  irr_answer = irrd_malloc(sizeof(irr_answer_t));
+  irr_answer->db = database;
+  irr_answer->len = prefix_object->len;
+  irr_answer->offset = prefix_object->offset;
+  irr_answer->prefix_obj = prefix_object;
+  irr_answer->roa_obj = roa_node->data;
+  irr_answer->prefix_bitlen = bitlen;
+  irr_answer->roa_bitlen = roa_node->prefix->bitlen;
+  LL_Add (irr->ll_answer, irr_answer);
+} /* end irr_build_roa_answer() */
+
 /* build a query answer referencing on-disk objects */
 void irr_build_answer (irr_connection_t *irr, irr_database_t *database, enum IRR_OBJECTS type, u_long offset, u_long len) {
   irr_answer_t *irr_answer;
 
-  irr_answer = New (irr_answer_t);
+  irr_answer = irrd_malloc(sizeof(irr_answer_t));
   irr_answer->db = database;
   irr_answer->type = type;
   irr_answer->offset = offset;

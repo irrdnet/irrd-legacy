@@ -1,13 +1,15 @@
+#include <netinet/in.h>
+#include <arpa/inet.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
+#include <time.h>
+
 #include "mrt.h"
 #include "trace.h"
-#include <time.h>
 #include "irrd.h"
 
 #define GRM_BUFSIZE (10*1024)
-
-extern trace_t *default_trace;
 
 /*
  * mirrorstatus_buildquery:

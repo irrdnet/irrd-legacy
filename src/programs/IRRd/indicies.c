@@ -6,18 +6,20 @@
 
 /* routines for handling indicies in hashes */
 
+#include <netinet/in.h>
+#include <arpa/inet.h>
 #include <stdio.h>
 #include <string.h>
-#include "mrt.h"
-#include "trace.h"
 #include <time.h>
 #include <signal.h>
-#include "config_file.h"
 #include <fcntl.h>
 #include <ctype.h>
-#include "irrd.h"
+#include <glib.h>
 
-extern trace_t *default_trace;
+#include "mrt.h"
+#include "trace.h"
+#include "config_file.h"
+#include "irrd.h"
 
 /* irr_database_store
  * 2 count | [1 type | 1 primary/secondary | 4 offset | 4 len] | ...
@@ -36,7 +38,7 @@ int irr_database_store (irr_database_t *database, char *key, u_char p_or_s,
   int ret_code = 1;
 
   convert_toupper(key);
-  hash_item = HASH_Lookup (database->hash, key);
+  hash_item = g_hash_table_lookup(database->hash, key);
 
   /* JW want to dissallow duplicate primary key additions of same type */
 
@@ -76,30 +78,30 @@ int irr_database_store (irr_database_t *database, char *key, u_char p_or_s,
   UTIL_PUT_NETSHORT (count, cp); /* count */
 
   if (hash_item == NULL) {
-    hash_item = New (hash_item_t);
+    hash_item = irrd_malloc(sizeof(hash_item_t));
     hash_item->key = strdup (key);
     hash_item->value = buffer;
-    HASH_Insert (database->hash, hash_item);
+    g_hash_table_insert(database->hash, hash_item->key, hash_item);
   } else
     hash_item->value = buffer;
 
   return ret_code; 
 }
 
-int irr_hash_destroy (hash_item_t *hash_item) {
+void irr_hash_destroy (hash_item_t *hash_item) {
 
   if (hash_item == NULL) 
-    return (1);
+    return;
 
   if (hash_item->key)
-    Delete (hash_item->key);
+    irrd_free(hash_item->key);
 
   if (hash_item->value)
-    Delete (hash_item->value);
+    irrd_free(hash_item->value);
 
-  Delete (hash_item);
+  irrd_free(hash_item);
 
-  return (1);
+  return;
 }
 
 /* irr_database_find_matches
@@ -126,7 +128,7 @@ int irr_database_find_matches (irr_connection_t *irr, char *key,
 
   LL_Iterate (irr->ll_database, database) {
     
-    hash_item = HASH_Lookup (database->hash, key);
+    hash_item = g_hash_table_lookup(database->hash, key);
     
     if (hash_item == NULL)
       continue;
@@ -169,7 +171,7 @@ int irr_database_find_matches (irr_connection_t *irr, char *key,
   return (1);
 }
 
-/* given an object key, find it's offset and length.  return 1 if found and
+/* given an object key, find its offset and length.  return 1 if found and
  * -1 otherwise.
  */
 int find_object_offset_len (irr_database_t *db, char *key, 
@@ -204,7 +206,7 @@ int irr_database_remove (irr_database_t *database, char *key, u_long offset) {
   u_short count, new_count;
   
   convert_toupper (key);
-  hash_item = HASH_Lookup (database->hash, key);
+  hash_item = g_hash_table_lookup(database->hash, key);
 
   if (hash_item == NULL)  {
     trace (ERROR, default_trace, 
@@ -245,7 +247,7 @@ int irr_database_remove (irr_database_t *database, char *key, u_long offset) {
     buffer_new = realloc(hash_item->value, OBJCOUNT_SIZE + (new_count * OBJINFO_SIZE)); /* free unused space */
     hash_item->value = buffer_new;
   } else {
-    HASH_Remove (database->hash, hash_item);
+    g_hash_table_remove(database->hash, hash_item->key);
   }
 
   return 1;

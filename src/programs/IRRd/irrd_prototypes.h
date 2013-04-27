@@ -14,7 +14,9 @@ void mark_deleted_irr_object (irr_database_t *database, u_long offset);
 
 /* configuration */
 int config_irr_database_nodefault (uii_connection_t *uii, char *name);
-int config_irr_database_routing_table_dump (uii_connection_t *uii, char *name);
+/*int config_irr_database_routing_table_dump (uii_connection_t *uii, char *name); */
+int config_irr_database_roa_data (uii_connection_t *uii, char *name);
+int config_roa_disclaimer (uii_connection_t *uii, char *line);
 int config_irr_database_clean (uii_connection_t *uii, char *name, int seconds);
 int config_irr_database_no_clean (uii_connection_t *uii, char *name);
 int config_tmp_directory (uii_connection_t *uii, char *dir);
@@ -101,6 +103,8 @@ void irr_send_error (irr_connection_t * irr, char *);
 void irr_mode_send_error (irr_connection_t * irr, int mode, char *);
 void irr_build_memory_answer (irr_connection_t *irr, u_long len, char * blob);
 void irr_build_answer (irr_connection_t *irr, irr_database_t *database, enum IRR_OBJECTS type, u_long offset, u_long len);
+void irr_build_prefix_answer (irr_connection_t *irr, irr_database_t *database, irr_prefix_object_t *prefix_object);
+void irr_build_roa_answer (irr_connection_t *irr, irr_database_t *database, irr_prefix_object_t *prefix_object, u_short bitlen, radix_node_t *roa_node);
 void send_dbobjs_answer (irr_connection_t * irr, enum INDEX_T index, int mode);
 int listen_telnet (u_short port);
 int irr_destroy_connection (irr_connection_t * connection);
@@ -181,6 +185,7 @@ int pick_off_mirror_hdr (FILE *fp, char *buf, int buf_size,
 			 u_long *mode, u_long *position,
 			 u_long *offset, irr_database_t *db);
 int get_curr_f (char *buf);
+int get_roamaxlen (char *buf, int *maxlen);
 
 /* RPSL */
 void irr_set_expand (irr_connection_t *irr, char *name);
@@ -199,7 +204,7 @@ void make_mntobj_key (char *new_key, char *maint);
 void make_6as_key (char *gas_key, char *origin);
 void make_gas_key (char *gas_key, char *origin);
 void make_setobj_key (char *new_key, char *obj_name);
-int irr_hash_destroy (hash_item_t *hash_item);
+void irr_hash_destroy (hash_item_t *hash_item);
 void store_hash_spec (irr_database_t *database, hash_spec_t *hash_item);
 hash_spec_t *fetch_hash_spec (irr_database_t *database, char *key,
                               enum FETCH_T mode); 

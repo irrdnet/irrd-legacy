@@ -3,15 +3,19 @@
  * originally Id: uii_commands.c,v 1.19 1998/06/15 16:20:36 gerald Exp 
  */
 
+#include <sys/types.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 #include <stdio.h>
 #include <string.h>
-#include "mrt.h"
-#include "trace.h"
+#include <unistd.h>
 #include <time.h>
 #include <signal.h>
-#include "config_file.h"
-#include <sys/types.h>
 #include <ctype.h>
+
+#include "mrt.h"
+#include "trace.h"
+#include "config_file.h"
 #include "irrd.h"
 
 #include <fcntl.h>
@@ -21,8 +25,6 @@
 #ifndef localtime_r /* Not present on SunOS, at least. */
 #define localtime_r(a,b) localtime(a)
 #endif
-
-extern trace_t *default_trace;
 
 /* Handler routines for IRR lookups
  * the show_xxx functions are human readable UII commands
@@ -176,7 +178,7 @@ void show_database (uii_connection_t *uii) {
 void uii_irr_reload (uii_connection_t *uii, char *name) {
   if (name != NULL) {
     irr_reload_database (name, uii, NULL);
-    Delete (name);
+    irrd_free(name);
   }
 }
 
@@ -347,7 +349,7 @@ int uii_irr_irrdcacher (uii_connection_t *uii, char *name) {
 ABORT_IRRDCACHER:
 
   /* clean up */
-  Delete  (name);
+  irrd_free(name);
   regfree (&good_re);
   regfree (&url_re);
   regfree (&notfound_re);
@@ -362,7 +364,7 @@ void uii_export_database (uii_connection_t *uii, char *name) {
 
   if (IRR.ftp_dir == NULL) {
     uii_send_data (uii, "Error -- no ftp directory configured.\r\n");
-    Delete (name);
+    irrd_free(name);
     return;
   }
 
@@ -383,7 +385,7 @@ void uii_export_database (uii_connection_t *uii, char *name) {
   else 
     uii_send_data (uii, "Could not find %s database...\r\n", name);
 
-  Delete (name);
+  irrd_free(name);
   return;
 }
 
@@ -401,7 +403,7 @@ void uii_irr_clean (uii_connection_t *uii, char *name) {
   else 
     uii_send_data (uii, "Could not find %s database...\r\n", name);
 
-  Delete (name);
+  irrd_free(name);
   return;
 }
 
@@ -420,7 +422,7 @@ void uii_irr_mirror (uii_connection_t *uii, char *name, uint32_t serial) {
   
   if (database == NULL) {
     config_notice (ERROR, uii, "Database not found\r\n");
-    Delete (name);
+    irrd_free(name);
     return;
   }
 
@@ -441,14 +443,14 @@ void uii_irr_mirror (uii_connection_t *uii, char *name, uint32_t serial) {
   if (request_mirror (database, uii, serial) == -1) {
     uii_send_data (uii, "\r\n** ERROR ** mirroring database!\r\n");
     uii_send_data (uii, "See logfile for more information\r\n");
-    Delete (name);
+    irrd_free(name);
     return;
   }
 
   if (database->mirror_timer != NULL) 
     Timer_Reset_Time (database->mirror_timer);
 
-  Delete (name);
+  irrd_free(name);
   return;
 }
 
@@ -458,12 +460,12 @@ void uii_set_serial (uii_connection_t *uii, char *name, uint32_t serial) {
 
   if ((database = find_database (name)) != NULL) {
     database->serial_number = serial;
-    Delete (name);
+    irrd_free(name);
     return;
   }
   
   uii_send_data (uii, "%s database not found\r\n", name);
-  Delete (name);
+  irrd_free(name);
 }
 
 void uii_show_ip (uii_connection_t *uii, prefix_t *prefix, int num, char *lessmore) {
@@ -636,12 +638,12 @@ int uii_delete_route (uii_connection_t *uii, char *name, prefix_t *prefix, int a
   if (db == NULL) {   
     uii_send_data (uii, "Could not find %s database...\r\n", name);
     Deref_Prefix(prefix);
-    Delete (name);
+    irrd_free(name);
     return (-1);
   }
-  Delete (name);    
+  irrd_free(name);    
 
-  irr_object = New (irr_object_t);
+  irr_object = irrd_malloc(sizeof(irr_object_t));
   irr_object->type = ROUTE;
   irr_object->name = prefix_toax (prefix);
   irr_object->origin = as;
@@ -673,10 +675,10 @@ int uii_read_update_file (uii_connection_t *uii, char *file, char *name) {
 
   if (db == NULL) {   
     uii_send_data (uii, "Could not find %s database...\r\n", name);
-    Delete (name);
+    irrd_free(name);
     return (-1);
   }
-  Delete (name); 
+  irrd_free(name); 
 
   if ((fp = fopen (file, "r")) == NULL) {
     uii_send_data (uii, "Could not open %s\r\n", file);
@@ -753,7 +755,7 @@ int kill_irrd (uii_connection_t *uii) {
     /* XXX this code does not work -ljb */
     /* need to mutex_init(irr->lock_all_mutex_lock) ? */
 #ifdef notdef
-    irr = New (irr_connection_t);
+    irr = irrd_malloc(sizeof(irr_connection_t));
     irr->ll_database = IRR.ll_database;
     irr_lock_all (irr);
     mrt_set_force_exit (MRT_FORCE_EXIT);

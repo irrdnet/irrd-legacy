@@ -31,7 +31,7 @@
 #endif
 #include <sys/param.h>
 #include <sys/socket.h>
-#include <unistd.h>
+//#include <unistd.h>
 #include <ctype.h>
 #ifdef HAVE_STRING_H
 #include <string.h>
@@ -75,11 +75,11 @@ typedef void (*void_fn_t)();
 typedef int (*int_fn_t)();
 typedef void *(*thread_fn_t)(void *);
 
-#include <New.h>
 #include <linked_list.h>
 #include <trace.h>
 #include <schedule.h>
 #include <select.h>
+
 
 #ifndef ON
 #define ON 1
@@ -94,12 +94,12 @@ typedef void *(*thread_fn_t)(void *);
 #define INET_ADDRSTRLEN   16
 #endif /* INET_ADDRSTRLEN */
 
-#ifndef HAVE_STRUCT_IN6_ADDR
+//#ifndef HAVE_STRUCT_IN6_ADDR
 /* IPv6 address */
-struct in6_addr {
- u_char s6_addr[16];
-};
-#endif /* HAVE_STRUCT_IN6_ADDR */
+//struct in6_addr {
+// u_char s6_addr[16];
+//};
+//#endif /* HAVE_STRUCT_IN6_ADDR */
 
 typedef struct _prefix_t {
     u_short family;		/* AF_INET | AF_INET6 */
@@ -125,9 +125,7 @@ typedef struct _v4_prefix_t {
 } v4_prefix_t;
 
 #include <alist.h>
-#include <hash.h>
 #include <user.h>
-#include <stack.h>
 
 /* Main MRT structure
  * holds bookkeeping information on gateways, threads, signals, etc
@@ -356,8 +354,8 @@ int byte_compare (void *addr, void *dest, int bits, void *wildcard);
 
 /* Solaris 2.5.1 lacks prototype for inet_ntop and inet_pton */
 #if defined(HAVE_DECL_INET_NTOP) && ! HAVE_DECL_INET_NTOP
-const char *inet_ntop (int af, const void *src, char *dst, size_t size);
-int inet_pton (int af, const char *src, void *dst);
+//const char *inet_ntop (int af, const void *src, char *dst, size_t size);
+//int inet_pton (int af, const char *src, void *dst);
 #endif /* HAVE_INET_NTOP */
 
 /* Solaris 2.5.1 lacks prototype for getdtablesize() */

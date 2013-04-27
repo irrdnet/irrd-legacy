@@ -5,17 +5,19 @@
 
 #include <stdio.h>
 #include <string.h>
-#include "mrt.h"
-#include "trace.h"
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>
 #include <time.h>
 #include <signal.h>
+#include <ctype.h>
+
+#include "mrt.h"
+#include "trace.h"
 #include "config_file.h"
 #include "select.h"
-#include <ctype.h>
 #include "irrd.h"
 #include "irrd_prototypes.h"
-
-extern trace_t *default_trace;
 
 static int mirror_read_data ();
 int dump_serial_updates (irr_connection_t *irr, irr_database_t *database, int journal_ext, uint32_t protocol_num, uint32_t from, uint32_t to);
@@ -267,41 +269,41 @@ int valid_start_line (irr_database_t *database, FILE *fp, uint32_t *serial_num) 
     
     if (state == START_F) {
       if (!strncmp ("%START Version:", buffer, 15)) {
-	cp = strtok_r (buffer+15, " ", &last);
-	if (convert_to_32(cp, &protocol_version) != 1) {
-	  trace (ERROR, default_trace, " (%s) Error getting protocol: %s", database->name, buffer);
-	  ret = -1;
-	  break;
+        cp = strtok_r (buffer+15, " ", &last);
+        if (convert_to_32(cp, &protocol_version) != 1) {
+          trace (ERROR, default_trace, " (%s) Error getting protocol: %s", database->name, buffer);
+          ret = -1;
+          break;
         }
-	if (protocol_version != database->mirror_protocol) {
-	  trace (ERROR, default_trace, " (%s) Mirror protocol incorrect: %d", database->name, protocol_version);
-	  ret = -1;
-	  break;
-	}
-	cp = strtok_r (NULL, " ", &last);
-	if (strcasecmp(cp, database->name) != 0) {
-	  trace (ERROR, default_trace, " (%s) Database name mismatch: %s", database->name, cp);
-	  ret = -1;
-	  break;
-	}
-	if ((cp = strtok_r (NULL, "-", &last)) != NULL) {
-	  *serial_num = atol (cp);
-	  trace (NORM, default_trace,"(%s) Mirror SERIAL First-(%d)\n", database->name, *serial_num);
-	} else {
-	  trace (ERROR, default_trace, " (%s) Database first serial number scan error: %s", database->name, cp);
-	  ret = -1;
-	  break;
-	}
+        if (protocol_version != database->mirror_protocol) {
+          trace (ERROR, default_trace, " (%s) Mirror protocol incorrect: %d", database->name, protocol_version);
+          ret = -1;
+          break;
+        }
+        cp = strtok_r (NULL, " ", &last);
+        if (strcasecmp(cp, database->name) != 0) {
+          trace (ERROR, default_trace, " (%s) Database name mismatch: %s", database->name, cp);
+          ret = -1;
+          break;
+        }
+        if ((cp = strtok_r (NULL, "-", &last)) != NULL) {
+          *serial_num = atol (cp);
+          trace (NORM, default_trace,"(%s) Mirror SERIAL First-(%d)\n", database->name, *serial_num);
+        } else {
+          trace (ERROR, default_trace, " (%s) Database first serial number scan error: %s", database->name, cp);
+          ret = -1;
+          break;
+        }
 	if ((cp = strtok_r (NULL, "-", &last)) != NULL) {
 	  *serial_num = atol (cp);
 	  trace (NORM, default_trace,"(%s) Mirror SERIAL Last-(%d)\n", database->name, *serial_num);
 	  ret = 1;
 	  break;
-	} else {
-	  trace (ERROR, default_trace, " (%s) Database last serial number scan error: %s", database->name, cp);
-	  ret = -1;
-	  break;
-	}
+        } else {
+          trace (ERROR, default_trace, " (%s) Database last serial number scan error: %s", database->name, cp);
+          ret = -1;
+          break;
+        }
       }
       else if (buffer[0] == '%') {
 	/* Guarantee newline termination */
@@ -602,32 +604,32 @@ int dump_serial_updates (irr_connection_t *irr, irr_database_t *database, int jo
       if (chk_serial == 0)
         chk_serial = serial;
       if (chk_serial++ != serial) {
-	if (protocol_num == 3 && serial >= chk_serial) { /* mirror protocol 3 may skip serial */
-	  chk_serial = serial+1;
-	} else {
+        if (protocol_num == 3 && serial >= chk_serial) { /* mirror protocol 3 may skip serial */
+          chk_serial = serial+1;
+        } else {
           trace (ERROR, default_trace, "Skipped sequence mirror update, should be (%u) (%s) says (%u)\n", chk_serial - 1, file, serial);
-  	  fclose (journal_fp);
+          fclose (journal_fp);
           return (-1);
-	}
+        }
       }
       if (serial > to)
         break;
       if (serial < from)
-        continue;
+      continue;
       if (fgets(buf,BUFSIZE,journal_fp) != NULL) {
         if (strncmp(buf, "ADD", 3) && strncmp(buf, "DEL", 3)) {
           trace (ERROR, default_trace, "Improper mirror update, should be ADD or DEL but is:%s\n", buf);
-  	  fclose (journal_fp);
+          fclose (journal_fp);
           return (-1);
-	}
-	if (protocol_num == 3) {
-	  sprintf(buf + 3, " %u\n", serial);
-	}
-	irr_write (irr, buf, strlen(buf));
-	continue;
+        }
+        if (protocol_num == 3) {
+          sprintf(buf + 3, " %u\n", serial);
+        }
+        irr_write (irr, buf, strlen(buf));
+        continue;
       } else {
           trace (ERROR, default_trace, "Error reading update type: %s", buf);
-  	  fclose (journal_fp);
+          fclose (journal_fp);
           return (-1);
       }
     }

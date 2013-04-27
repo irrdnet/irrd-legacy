@@ -322,7 +322,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdarg.h>
-#include <assert.h>
+//#include <assert.h>
 #include <errno.h>
 
 #ifdef isdigit
@@ -409,12 +409,12 @@ int portable_vsnprintf(char *str, size_t str_m, const char *fmt, va_list ap);
 #endif
 
 /* declarations */
-
-static char credits[] = "\n\
+#if !defined(HAVE_SNPRINTF) || defined(PREFER_PORTABLE_SNPRINTF)
+static char credits[] = "\n\ 
 @(#)snprintf.c, v2.2: Mark Martinec, <mark.martinec@ijs.si>\n\
 @(#)snprintf.c, v2.2: Copyright 1999, Mark Martinec. Frontier Artistic License applies.\n\
 @(#)snprintf.c, v2.2: http://www.ijs.si/software/snprintf/\n";
-
+#endif
 #if defined(NEED_ASPRINTF)
 int asprintf(char **ptr, const char *fmt, /*args*/ ...) {
   va_list ap;

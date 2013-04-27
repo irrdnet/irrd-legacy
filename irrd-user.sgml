@@ -5,7 +5,7 @@
 User/Configuration Guide</title>
 <bookinfo>
 <edition>IRRd User/Configuration Guide</edition>
-<pubdate>November 2010</pubdate>
+<pubdate>April 2013</pubdate>
 <corpauthor>Merit Network, Inc.</corpauthor>
 <revhistory>
    <revision>
@@ -89,6 +89,14 @@ User/Configuration Guide</title>
 	  Document the mirror_protocol config option
        </revremark>
    </revision>
+   <revision>
+     <revnumber>3.0.6</revnumber>
+       <date>2013-04-26</date>
+       <authorinitials>ljb</authorinitials>
+       <revremark>
+	  Document new commands to support roa-status attribute.
+       </revremark>
+   </revision>
 </revhistory>
 <copyright>
 <year>1999</year>
@@ -99,6 +107,7 @@ User/Configuration Guide</title>
 <year>2004</year>
 <year>2008</year>
 <year>2010</year>
+<year>2013</year>
 <holder>
 The Regents of the University of Michigan ("The Regents") and
 Merit Network, Inc.  All rights reserved.</holder>
@@ -178,7 +187,7 @@ The Merit IRRd development team accepts comments, requests, and bug reports at i
 <section>
 <title>Credits</title>
 <para>
-The IRRd development team includes:  Larry Blunk, Dale Fay, and Christerfer Frazier at Merit.  Project alumni include Gerald Winters, Susan Harris, Craig Labovitz, Jon Poland and Matt Lewinsky.</para>
+Larry Blunk currently serves as the primary developer of IRRd at Merit.  Project alumni include Dale Fay, Christerfer Frazier, Gerald Winters, Susan Harris, Craig Labovitz, Jon Poland and Matt Lewinsky.</para>
 <para>
 IRRd RPSL support was developed with funding from the National Science Foundation (NCR-9321060). Commercial funding from Merit Network, Inc. supported all other IRRd development.</para>
 <para>
@@ -525,6 +534,7 @@ Specify the path for the cache directory and database files.</para>
     [non-critical|routing-registry-objects|&lt;object name>]
   | [~(non-critical|routing-registry-objects|&lt;object name>)]</command>
 <command>irr_database &lt;name>  [export &lt;export interval>]</command>
+<command>irr_database &lt;name>  [roa-data]</command>
 </literallayout>
 </para>
 <para>
@@ -543,6 +553,18 @@ mirror_host and mirror_protocol defines the mirrored host and protocol used for 
 Some databases (like RIPE) contain a significant volume of non-routing related information like person objects and role objects. To reduce the size of the database, you can use the filter command to specify the objects you want to include (or not include) in your database.</para>
 <para>
 The export option will atomically copy the database into the ftp_dir directory for exporting.</para>
+<para>
+If the roa-data keyword is used, this database contains RPKI based
+roa-status attributes.  This database is used to generate the roa-status
+attribute for route and route6 objects when the -R query flag is specified.
+This database is not otherwise queried or referenced.
+</para>
+<para>
+<command>roa-disclaimer &lt;string></command></para>
+<para>Add a disclaimer message to responses which contain a roa-status
+attribute.  This may be required due to RIR Relying Party Agreements.
+Longer messages may be broken into
+multiple lines by specifying multiple roa-disclaimer commands.</para>
 <para>
 <command>irr_mirror_interval &lt;seconds></command></para>
 <para>The interval for obtaining mirror updates.  The default is 10 minutes.</para>
@@ -1385,7 +1407,7 @@ For multi-source non-indexed queries, &lt;optional messages> is of the form  &lt
      Some other error, see the &lt;optional message> for details.
 </screen>
 <section>
-<title>Summary of Commands</title>
+<title>Summary of IRRd Query Commands</title>
 <para>
 <informaltable frame='none'>
 <tgroup cols='2'>
@@ -1522,6 +1544,29 @@ are processed by irr_rpsl_submit before being added to a database.
 <entry>
 <synopsis>
 Provide the IRRd version number.
+</synopsis>
+</entry>
+</row>
+<row>
+<entry><command>-R</command></entry>
+<entry>
+<synopsis>
+This is an IRRd specific query flag used to indicate that the server
+should generate a roa-status attribute for covered route/route6 objects.
+Note that the server must have been configured with an roa-data database
+in order to generate a roa-status attribute.  If an roa-data database
+has not been configured, the server will return an error.
+</synopsis>
+</entry>
+</row>
+<row>
+<entry><command>-U</command></entry>
+<entry>
+<synopsis>
+This IRRd specific query flag is used in conjunction with the -R query flag
+and indicates that the server should provide ROA URI information in the
+roa-status attribute.  By default, the server will not include the URI
+in the roa-status attribute.
 </synopsis>
 </entry>
 </row>

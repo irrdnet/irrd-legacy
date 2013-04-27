@@ -157,15 +157,16 @@ proto_t    *pr;
 %token  T_IN_KEY T_NA_KEY T_CY_KEY T_RZ_KEY T_ST_KEY T_I6_KEY T_KC_KEY
 %token  T_MH_KEY T_OW_KEY T_FP_KEY T_CE_KEY T_DC_KEY T_TD_KEY T_RP_KEY
 %token  T_PL_KEY T_AF_KEY T_RT_KEY T_R6_KEY T_HO_KEY T_IJ_KEY T_MO_KEY
-%token  T_CO_KEY T_AB_KEY T_AG_KEY T_EC_KEY T_AN_KEY T_AA_KEY T_IP_KEY
-%token  T_MI_KEY T_EX_KEY T_MX_KEY T_DF_KEY T_MD_KEY T_MA_KEY T_AK_KEY
-%token  T_IR_KEY T_AZ_KEY T_LA_KEY T_IF_KEY T_PE_KEY T_MZ_KEY T_PM_KEY
-%token  T_IE_KEY T_RI_KEY T_RX_KEY T_MY_KEY T_AS_KEY T_MS_KEY T_RS_KEY
-%token  T_ME_KEY T_MM_KEY T_IS_KEY T_MG_KEY T_MJ_KEY T_PS_KEY T_PG_KEY
-%token  T_MP_KEY T_FS_KEY T_FI_KEY T_MF_KEY T_PN_KEY T_AD_KEY T_RO_KEY
-%token  T_TB_KEY T_MT_KEY T_DT_KEY T_MN_KEY T_AT_KEY T_S6_KEY T_LO_KEY
-%token  T_PR_KEY T_AP_KEY T_TU_KEY T_CT_KEY T_UL_KEY T_LI_KEY T_TE_KEY
-%token  T_AU_KEY T_UD_KEY T_UO_KEY T_UP_KEY T_UC_KEY
+%token  T_CO_KEY T_AB_KEY T_AG_KEY T_EC_KEY T_CU_KEY T_GX_KEY T_AN_KEY
+%token  T_AA_KEY T_IP_KEY T_MI_KEY T_EX_KEY T_MX_KEY T_DF_KEY T_MD_KEY
+%token  T_MA_KEY T_AK_KEY T_IR_KEY T_AZ_KEY T_LA_KEY T_IF_KEY T_PE_KEY
+%token  T_MZ_KEY T_PM_KEY T_IE_KEY T_RI_KEY T_RX_KEY T_MY_KEY T_AS_KEY
+%token  T_MS_KEY T_RS_KEY T_ME_KEY T_MM_KEY T_IS_KEY T_MG_KEY T_MJ_KEY
+%token  T_PS_KEY T_PG_KEY T_MP_KEY T_FS_KEY T_FI_KEY T_MF_KEY T_PN_KEY
+%token  T_AD_KEY T_RO_KEY T_TB_KEY T_MT_KEY T_DT_KEY T_MN_KEY T_AT_KEY
+%token  T_S6_KEY T_LO_KEY T_PR_KEY T_AP_KEY T_TU_KEY T_CT_KEY T_UL_KEY
+%token  T_LI_KEY T_TE_KEY T_AU_KEY T_UD_KEY T_UO_KEY T_UP_KEY T_UC_KEY
+
 
 /* RPSL reserved words */
 
@@ -226,6 +227,8 @@ proto_t    *pr;
 %type <string> attr_member_of
 %type <string> attr_aggr_mtd
 %type <string> attr_export_comps
+%type <string> attr_roa_uri
+%type <string> attr_geoidx
 
 /* aut-num class */
 
@@ -571,6 +574,8 @@ line_route: attr_route { $$ = $1; }
   | attr_aggr_bndry    { $$ = $1; }
   | attr_aggr_mtd      { $$ = $1; }
   | attr_member_of     { $$ = $1; }
+  | attr_roa_uri       { $$ = $1; }
+  | attr_geoidx        { $$ = $1; }
   ;
 
 /* inet-rtr class */
@@ -1391,6 +1396,8 @@ attr_route6:       T_R6_KEY T_PREFIX6 { $$ = $2; };
 attr_holes:        T_HO_KEY prefix_list { $$ = $2; };
 attr_inject:       T_IJ_KEY route_inject { $$ = $2; };
 attr_export_comps: T_EC_KEY filter { $$ = $2; };
+attr_roa_uri: T_CU_KEY non_null_lines { $$ = $2; };
+attr_geoidx: T_GX_KEY non_null_lines { $$ = $2; };
 attr_components:   T_CO_KEY { filter_count = 0; } opt_atomic components_list
   { if (filter_count)
       $$ = my_strcat (&curr_obj, 2, 0, $3, $4);

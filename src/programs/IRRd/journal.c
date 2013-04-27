@@ -3,20 +3,22 @@
  * originally Id: journal.c,v 1.13 1998/06/23 23:30:44 gerald Exp 
  */
 
-
-
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 #include <stdio.h>
 #include <string.h>
-#include "mrt.h"
-#include "trace.h"
+#include <unistd.h>
 #include <time.h>
 #include <signal.h>
-#include "config_file.h"
-#include <sys/stat.h>
 #include <fcntl.h>
+
+#include "mrt.h"
+#include "trace.h"
+#include "config_file.h"
 #include "irrd.h"
 
-extern trace_t *default_trace;
 void make_journal_name (char * dbname, int journal_ext, char * journal_name);
 
 /* journal_irr_update

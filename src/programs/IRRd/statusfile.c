@@ -28,10 +28,12 @@
 #include <ctype.h>
 #include <unistd.h>
 #include <mrt.h>
-#include "irrd.h"
+#include <glib.h>
 #ifdef HAVE_LIBGEN_H
 #include <libgen.h>
 #endif /* HAVE_LIBGEN_H */
+
+#include "irrd.h"
 
 /**
  ** Constants
@@ -43,10 +45,9 @@
 #ifdef TESTJMH
 trace_t *default_trace;
 irr_t   IRR;
-#else
-extern trace_t *default_trace;
-extern irr_t   IRR;
 #endif
+
+void add_value_to_list(gpointer key, gpointer value, GList *data);
 
 /**********************************************************************
  **
@@ -65,11 +66,11 @@ StrTrim (char *buf)
 
   /* Strip trailing whitespace */
   p = buf + strlen(buf) - 1;
-  while ((p >= buf) && isspace(*p)) *p-- = '\0';
+  while ((p >= buf) && isspace((int)*p)) *p-- = '\0';
 
   /* Remove any leading white space */
   p = buf;
-  while (isspace(*p)) p++;
+  while (isspace((int)*p)) p++;
   if (p != buf)
     memmove(buf, p, strlen(p)+1);
 
@@ -124,7 +125,7 @@ VarTrim (char *buf)
   /* Remove white space after = */
   if ((p = strchr(buf, '=')) != NULL) {
     p++; q = p;
-    while (isspace(*q)) q++;
+    while (isspace((int)*q)) q++;
     if (p != q)
       memmove (p, q, strlen(q)+1);
   }
@@ -132,7 +133,7 @@ VarTrim (char *buf)
   /* Remove white space before = */
   if ((p = q = strchr(buf, '=')) != NULL) {
     if (q != buf) {
-      while (((p-1) >= buf) && isspace(*(p-1))) p--;
+      while (((p-1) >= buf) && isspace((int)*(p-1))) p--;
       if (p != q)
 	 memmove(p, q, strlen(q)+1);
     }
@@ -147,28 +148,28 @@ VarTrim (char *buf)
  ** Hash maintenance functions
  **/
 
-static int
+static void
 HashItemDestroy (hash_item_t *h)
 {
-if (h == NULL) return (1);
+if (h == NULL) return;
 
-if (h->key) Delete (h->key);
-if (h->value) Delete (h->value);
-Delete(h);
+if (h->key) irrd_free(h->key);
+if (h->value) irrd_free(h->value);
+irrd_free(h);
   
-return (1);
+return;
 }
 
-static int
+static void
 HashSectionDestroy (section_hash_t *h)
 {
-if (h == NULL) return (1);
+if (h == NULL) return;
 
-if (h->key) Delete (h->key);
-if (h->hash_vars) HASH_Destroy (h->hash_vars);
-Delete(h);
+if (h->key) irrd_free(h->key);
+if (h->hash_vars) g_hash_table_destroy(h->hash_vars);
+irrd_free(h);
   
-return (1);
+return;
 }
 
 static int
@@ -177,17 +178,14 @@ InsertVar (statusfile_t *sf, char *section, hash_item_t *h)
 section_hash_t *h_sect;
 
 /* Find the proper section */
-if ((h_sect = HASH_Lookup(sf->hash_sections, section)) == NULL) {
-   h_sect = New(section_hash_t);
+if ((h_sect = g_hash_table_lookup(sf->hash_sections, section)) == NULL) {
+   h_sect = irrd_malloc(sizeof(section_hash_t));
    h_sect->key = strdup(section);
-   h_sect->hash_vars = HASH_Create(HASHSIZE_VARS,
-				   HASH_KeyOffset, HASH_Offset(h, &(h->key)),
-				   HASH_DestroyFunction, HashItemDestroy,
-				   0);
-   HASH_Insert(sf->hash_sections, h_sect);
+   h_sect->hash_vars = g_hash_table_new_full(g_str_hash, g_str_equal, NULL, (GDestroyNotify)HashItemDestroy);
+   g_hash_table_insert(sf->hash_sections, h_sect->key, h_sect);
    }
 
-HASH_Insert(h_sect->hash_vars, h);
+g_hash_table_insert(h_sect->hash_vars, h->key, h);
 
 return (1);
 }
@@ -198,8 +196,8 @@ LookupVar (statusfile_t *sf, char *section, char *variable)
 hash_item_t    *p_hi;
 section_hash_t *p_sh;
 
-if ((p_sh = HASH_Lookup(sf->hash_sections, section)) != NULL) {
-   if ((p_hi = HASH_Lookup(p_sh->hash_vars, variable)) != NULL) {
+if ((p_sh = g_hash_table_lookup(sf->hash_sections, section)) != NULL) {
+   if ((p_hi = g_hash_table_lookup(p_sh->hash_vars, variable)) != NULL) {
       return (p_hi);
       }
    }
@@ -213,9 +211,9 @@ DeleteVar (statusfile_t *sf, char *section, char *variable)
 hash_item_t    *p_hi;
 section_hash_t *p_sh;
 
-if ((p_sh = HASH_Lookup(sf->hash_sections, section)) != NULL) {
-   if ((p_hi = HASH_Lookup(p_sh->hash_vars, variable)) != NULL) {
-      HASH_Remove(p_sh->hash_vars, p_hi);
+if ((p_sh = g_hash_table_lookup(sf->hash_sections, section)) != NULL) {
+   if ((p_hi = g_hash_table_lookup(p_sh->hash_vars, variable)) != NULL) {
+      g_hash_table_remove(p_sh->hash_vars, p_hi->key);
       return (1);
       }
    }
@@ -229,7 +227,7 @@ ProcessLine (statusfile_t *sf, char *section, char *line)
 char tmp[BUFSIZE], *p, *q, *last;
 hash_item_t    *h_var;
 
-  h_var = New(hash_item_t);
+  h_var = irrd_malloc(sizeof(hash_item_t));
 
   tmp[BUFSIZE-1] = '\0';
   strncpy(tmp, line, BUFSIZE);
@@ -264,8 +262,8 @@ hash_item_t    *h_var;
   }
 
   /* Failure cases */
-  if (h_var->key) Delete(h_var->key);
-  Delete(h_var);
+  if (h_var->key) irrd_free(h_var->key);
+  irrd_free(h_var);
 
   return (0);
 }
@@ -281,7 +279,7 @@ CmtTrim(tmp);
 
 p = tmp;
 
-while (isspace(*p)) p++;
+while (isspace((int)*p)) p++;
 if (*p == '[') {
    p++;
    p = strdup(p);
@@ -408,10 +406,23 @@ else {
    }
 
 if ((fp = fopen(tmp, "w")) != NULL) {
+   GList *list = NULL;
+   GList *iter = NULL;
+   g_hash_table_foreach(sf->hash_sections, (GHFunc)add_value_to_list, list);
+   
+   iter = list;
    /* Print the file */
-   HASH_Iterate(sf->hash_sections, p_sh) {
+   while (iter) {
+      p_sh = iter->data;
       fprintf (fp, "[%s]\n", p_sh->key);
-      HASH_Iterate(p_sh->hash_vars, p_hi) {
+     
+      GList *list2 = NULL;
+      GList *iter2 = NULL;
+      g_hash_table_foreach(p_sh->hash_vars, (GHFunc)add_value_to_list, list2);
+      
+      iter2 = list2;
+      while(iter2) {
+        p_hi = iter2->data;
 	 /* If the data contains anything other than what is useful for
 	    numbers, print it with quotes.  We somewhat sloppily assume
 	    that numbers will contain no whitespace. */
@@ -421,8 +432,8 @@ if ((fp = fopen(tmp, "w")) != NULL) {
 
 	 if (*p && (*p == '-')) p++;
 	 while (*p && is_num && decimal_count <= 1) {
-	    if (!isdigit(*p) && (*p == '.')) decimal_count++;
-	    else if (!isdigit(*p)) is_num = 0;
+	    if (!isdigit((int)*p) && (*p == '.')) decimal_count++;
+	    else if (!isdigit((int)*p)) is_num = 0;
 	    p++;
 	    }
 	 if ((decimal_count <= 1) && is_num) {
@@ -431,9 +442,13 @@ if ((fp = fopen(tmp, "w")) != NULL) {
 	 else {
 	    fprintf (fp, "%s=\"%s\"\n", p_hi->key, p_hi->value);
 	    }
+   iter2 = iter2->next;
 	 }
+      g_list_free(list2);
       fprintf(fp, "\n");
+      iter = iter->next;
       }
+   g_list_free(list);
    fclose (fp);
 
    /* Rotate the files */
@@ -482,6 +497,10 @@ FAIL:
 return (ret);
 }
 
+void add_value_to_list(gpointer key, gpointer data, GList *list) {
+  list = g_list_append(list, data);
+}
+
 /**********************************************************************
  **
  ** Public Functions
@@ -502,14 +521,10 @@ statusfile_t *
 InitStatusFile (char *filename)
 {
 statusfile_t *sf;
-section_hash_t sh;
 
- if ((sf = New(statusfile_t)) != NULL) {
+ if ((sf = irrd_malloc(sizeof(statusfile_t))) != NULL) {
    sf->filename = strdup(filename);
-   if ((sf->hash_sections = HASH_Create (HASHSIZE_SECTIONS,
- 				    HASH_KeyOffset, HASH_Offset(&sh, &(sh.key)),
-				    HASH_DestroyFunction, HashSectionDestroy, 
-				    0)) == NULL)
+   if (!(sf->hash_sections = g_hash_table_new_full(g_str_hash, g_str_equal, NULL, (GDestroyNotify)HashSectionDestroy)))
       goto FAIL;
    ReadStatusFile(sf);
    pthread_mutex_init (&(sf->mutex_lock), NULL);
@@ -530,12 +545,12 @@ int
 CloseStatusFile (statusfile_t *sf)
 {
 
-  Delete(sf->filename);
+  irrd_free(sf->filename);
   sf->filename = NULL;
 
   if (!pthread_mutex_lock(&(sf->mutex_lock))) {
     if (sf->hash_sections) {
-      HASH_Destroy(sf->hash_sections);
+      g_hash_table_destroy(sf->hash_sections);
       sf->hash_sections = NULL;
     }
     pthread_mutex_unlock(&(sf->mutex_lock));
@@ -613,7 +628,7 @@ if (!pthread_mutex_lock(&(sf->mutex_lock))) {
       }
    /* If its not, add a new value */
    else {
-      p_hi = New(hash_item_t);
+      p_hi = irrd_malloc(sizeof(hash_item_t));
       p_hi->key = strdup(variable);
       p_hi->value = strdup(value);
       if (InsertVar(sf, section, p_hi)) ret = 1;
@@ -644,7 +659,7 @@ config_statusfile (uii_connection_t *uii, char *filename)
 {
   if (IRR.statusfile) {
     CloseStatusFile(IRR.statusfile);
-    Delete(IRR.statusfile);
+    irrd_free(IRR.statusfile);
   }
   IRR.statusfile = InitStatusFile(filename);
 

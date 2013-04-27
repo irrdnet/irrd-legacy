@@ -1,7 +1,8 @@
 #!/usr/bin/perl
 
-#open (OUT, ">$ARGV[0]") or die "Can't open output file-($ARGV[0])\n";
-open (OUT, ">tokens.rpsl") or die "Can't open output file-(tokens.rpsl)\n";
+open (OUT1, ">../irr_rpsl_check/attrs.rpsl") or die "Can't open output file-(attrs.rpsl)\n";
+open (OUT2, ">tokens.rpsl") or die "Can't open output file-(tokens.rpsl)\n";
+open (OUT3, ">../../include/irr_rpsl_tokens.h") or die "Can't open output file-(irr_rpsl_tokens.h)\n";
 open (IN, "<$ARGV[0]") or die "Can't open input file-($ARGV[0])\n";
 $tokens = $bison_tokens = $lex_rules = "";
 $enum_attrs  = "enum ATTRS {\n";
@@ -144,9 +145,7 @@ while (<IN>) {
     
 }
 
-print OUT "/********************** irr_attrs.c **********************/\n";
-
-print OUT "\n/*--------Bison legal attr------*/\n";
+print OUT1 "/*--------Bison legal attr------*/\n";
 $legal_attrs = "short legal_attrs[MAX_OBJS][MAX_ATTRS] = {\n";
 foreach $type (@obj_order) {
     %legalfield = ();
@@ -184,9 +183,9 @@ foreach $type (@obj_order) {
     $legal_attrs .= "},\n";
 }
 $legal_attrs .= "};\n";
-print OUT "$legal_attrs";
+print OUT1 "$legal_attrs";
 
-print OUT "\n/*--------Bison multiple_attrs------*/\n";
+print OUT1 "\n/*--------Bison multiple_attrs------*/\n";
 $mult_attrs = "short mult_attrs[MAX_OBJS][MAX_ATTRS] = {\n";
 foreach $type (@obj_order) {
     %multfield = ();
@@ -218,7 +217,7 @@ foreach $type (@obj_order) {
     $mult_attrs .= "},\n";
 }
 $mult_attrs .= "};\n";
-print OUT "$mult_attrs";
+print OUT1 "$mult_attrs";
 
 $attr_name = "char *attr_hash[MAX_OBJS][MAX_ATSQ_LEN] = {\n";
 $attr_map_field = "short attr_map_field[MAX_OBJS][MAX_ATSQ_LEN] = {\n";
@@ -239,14 +238,14 @@ foreach $type (@obj_order) {
 }
 $attr_name .= "};\n";
 $attr_map_field .= "};\n";
-print OUT "\n/*--------attr_hash------*/\n";
-print OUT "$attr_name";
-printf OUT "\n";
-print OUT "\n/*--------attr_map_field------*/\n";
-print OUT "$attr_map_field";
+print OUT1 "\n/*--------attr_hash------*/\n";
+print OUT1 "$attr_name";
+printf OUT1 "\n";
+print OUT1 "\n/*--------attr_map_field------*/\n";
+print OUT1 "$attr_map_field";
 
 
-print OUT "\n/*--------Bison mandatory's------*/\n";
+print OUT1 "\n/*--------Bison mandatory's------*/\n";
 $mands = "short mand_attrs[MAX_OBJS][MAX_MANDS] = {\n";
 $max_mands = 0;
 foreach $type (@obj_order) {
@@ -261,9 +260,9 @@ foreach $type (@obj_order) {
     $max_mands = $count if (++$count > $max_mands);
 }
 $mands .= "};\n";
-print OUT "$mands";
+print OUT1 "$mands";
 
-print OUT "\n/*--------attrs which are keys-----------*/\n";
+print OUT1 "\n/*--------attrs which are keys-----------*/\n";
 $attr_is_key = "short attr_is_key[MAX_ATTRS] = {\n";
 for ($i=0;$i < $n;$i++) {
   $attr_is_key[$i] = -1;
@@ -292,9 +291,9 @@ if ($i % 15 == 0) {
 else {
     $attr_is_key .= "\n};\n";
 }
-print OUT "$attr_is_key";
+print OUT1 "$attr_is_key";
 
-print OUT "\n/*-------long attributes char array------*/\n";
+print OUT1 "\n/*-------long attributes char array------*/\n";
 $count = 0;
 $longs = "char *attr_name[MAX_ATTRS] = {\n";
 foreach $field (@long_attrs) {
@@ -315,10 +314,10 @@ if ($count % 5 == 0) {
 else {
     $longs .= "\n};\n";
 }
-print OUT "$longs";
+print OUT1 "$longs";
 
 
-#print OUT "\n/*-------short attributes char array------*/\n";
+#print OUT1 "\n/*-------short attributes char array------*/\n";
 #$count = 0;
 #$shorts = "char *attr_sname[MAX_ATTRS] = {\n";
 #foreach $field (@attrs) {
@@ -339,9 +338,9 @@ print OUT "$longs";
 #else {
 #    $shorts .= "\n};\n";
 #}
-#print OUT "$shorts";
+#print OUT1 "$shorts";
 
-print OUT "\n/*-------object types char array------*/\n";
+print OUT1 "\n/*-------object types char array------*/\n";
 $count = 0;
 $longs = "char *obj_type[MAX_OBJS] = {\n";
 foreach $i (@obj_order) {
@@ -363,9 +362,9 @@ if ($count % 5 == 0) {
 else {
     $longs .= "\n};\n";
 }
-print OUT "$longs";
+print OUT1 "$longs";
 
-print OUT "\n/* -------Countries char array------ */\n";
+print OUT1 "\n/* -------Countries char array------ */\n";
 $count = 0;
 $origin = "#define MAX_COUNTRIES $countries\n";
 $origin .= "char *countries[MAX_COUNTRIES] = {\n";
@@ -387,50 +386,51 @@ if ($count % 10 == 0) {
 else {
     $origin .= "\n};\n";
 }
-print OUT "$origin";
+print OUT1 "$origin\n";
 
-print OUT "\n\n\n/********************** rpsl.y **************************/\n";
-print OUT "\n/*--------Bison tokens--------*/\n";
+close (OUT1);
+
+print OUT2 "\n\n\n/********************** rpsl.y **************************/\n";
+print OUT2 "\n/*--------Bison tokens--------*/\n";
 if ($n % 7 != 6) {
     $bison_tokens .= "\n";
 }
-print OUT "$bison_tokens";
+print OUT2 "$bison_tokens";
 
 
-print OUT "\n\n\n/********************** rpsl.fl **************************/\n";
-print OUT "\n/*--------token -> int map----*/\n";
-print OUT "int attr_tokens[MAX_ATTRS] = {\n";
-print OUT "$tokens";
-print OUT "};\n";
+print OUT2 "\n\n\n/********************** rpsl.fl **************************/\n";
+print OUT2 "\n/*--------token -> int map----*/\n";
+print OUT2 "int attr_tokens[MAX_ATTRS] = {\n";
+print OUT2 "$tokens";
+print OUT2 "};\n";
+
+close (OUT2);
 
 
-print OUT "\n\n\n/********************** irr_rpsl_check.h *****************/\n\n";
-print OUT "#define     F_NOATTR      -1\n";
-print OUT "#define     MAX_ATTRS $n\n";
-print OUT "#define     MAX_OBJS $m\n";
-print OUT "#define     MAX_ATSQ_LEN $max_atsq_len\n"; 
-print OUT "#define     MAX_MANDS $max_mands\n";
+print OUT3 "#define     F_NOATTR      -1\n";
+print OUT3 "#define     MAX_ATTRS $n\n";
+print OUT3 "#define     MAX_OBJS $m\n";
+print OUT3 "#define     MAX_ATSQ_LEN $max_atsq_len\n"; 
+print OUT3 "#define     MAX_MANDS $max_mands\n";
 
-print OUT "\n/* --------Bison enum FIELDS--------*/\n";
+print OUT3 "\n/* --------Bison enum FIELDS--------*/\n";
 if ($n % 8 != 7) {
     $enum_attrs .= "\n};";
 }
 else {
     $enum_attrs .= "};\n";
 }
-print OUT "$enum_attrs";
+print OUT3 "$enum_attrs";
 
-print OUT "\n/*--------Bison enum OBJS--------*/\n";
+print OUT3 "\n/*--------Bison enum OBJS--------*/\n";
 if ($m % 8 != 7) {
-    $enum_objs .= "\n};";
+    $enum_objs .= "\n};\n";
 }
 else {
     $enum_objs .= "};\n";
 }
-print OUT "$enum_objs";
+print OUT3 "$enum_objs";
 
-
-
-close (OUT);
+close (OUT3);
 
 1;

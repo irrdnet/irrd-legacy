@@ -1,8 +1,12 @@
 /*
  * $Id: mrt.c,v 1.4 2001/09/17 21:46:34 ljb Exp $
  */
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>
 
 #include <mrt.h>
+#include <irrdmem.h>
 
 mrt_t *MRT;
 
@@ -64,8 +68,8 @@ mrt_thread_t *mrt_thread_create (char *name, schedule_t *schedule,
   /* a call should be delayed at the end */
 #endif /* HAVE_LIBPTHREAD */
 
-  mrt_thread = New (mrt_thread_t);
-  /* this expects New () clears the memory */
+  mrt_thread = irrd_malloc(sizeof(mrt_thread_t));
+  /* this expects irrd_malloc() clears the memory */
   mrt_thread->name = strdup ((name)? name: "");
   mrt_thread->thread = thread;
   mrt_thread->schedule = schedule;
@@ -146,8 +150,8 @@ void mrt_thread_exit (void) {
 #ifdef HAVE_LIBPTHREAD
   pthread_attr_destroy (&mrt_thread->attr);
 #endif /* HAVE_LIBPTHREAD */
-  Delete (mrt_thread->name);
-  Delete (mrt_thread);
+  irrd_free(mrt_thread->name);
+  irrd_free(mrt_thread);
 #ifdef HAVE_LIBPTHREAD
   pthread_exit (NULL);
 #endif /* HAVE_LIBPTHREAD */
@@ -169,8 +173,8 @@ mrt_thread_kill_all (void)
         pthread_cancel (mrt_thread->thread);
   	pthread_attr_destroy (&mrt_thread->attr);
 #endif /* HAVE_LIBPTHREAD */
-        Delete (mrt_thread->name);
-        Delete (mrt_thread);
+        irrd_free(mrt_thread->name);
+        irrd_free(mrt_thread);
 	prev = LL_GetPrev (MRT->ll_threads, mrt_thread);
 	LL_Remove (MRT->ll_threads, mrt_thread);
 	mrt_thread = prev;
@@ -438,7 +442,7 @@ int init_mrt (trace_t *tr) {
    signal (SIGHUP, mrt_process_signal);
    signal (SIGINT, mrt_process_signal);
 
-   MRT = New (mrt_t);
+   MRT = irrd_malloc(sizeof(mrt_t));
    MRT->start_time = time (NULL);
    MRT->ll_threads = LL_Create (0);
    MRT->ll_trace = LL_Create (0);
@@ -456,7 +460,7 @@ int init_mrt (trace_t *tr) {
    pthread_mutex_init (&MRT->mutex_lock, NULL);
    init_schedules (tr);
 
-   mrt_thread = New (mrt_thread_t);
+   mrt_thread = irrd_malloc(sizeof(mrt_thread_t));
    mrt_thread->name = strdup ("MAIN thread");
    mrt_thread->schedule = NULL;
    mrt_thread->thread = pthread_self ();
@@ -510,7 +514,7 @@ mrt_socket (int domain, int type, int protocol, char *s, int l)
 int 
 mrt_accept (int d, struct sockaddr *addr, socklen_t *addrlen, char *s, int l)
 {
-    int r = accept (d, addr, addrlen);
+    int r = accept (d, addr, (unsigned int*) addrlen);
     trace (TR_TRACE, MRT->trace, "accept (%d) -> %d in %s at %d\n", 
 	   d, r, s, l);
     return (r);

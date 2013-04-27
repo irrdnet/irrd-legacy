@@ -1,8 +1,11 @@
 /*
  * $Id: schedule.c,v 1.2 2001/08/06 17:01:50 ljb Exp $
  */		
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 #include <mrt.h>
+#include <irrdmem.h>
 
 schedule_master_t *SCHEDULE_MASTER;
 
@@ -12,7 +15,7 @@ int
 init_schedules (trace_t *tr)
 {
   assert (SCHEDULE_MASTER == NULL);
-  SCHEDULE_MASTER = New (schedule_master_t);
+  SCHEDULE_MASTER = irrd_malloc(sizeof(schedule_master_t));
   SCHEDULE_MASTER->ll_schedules = LL_Create (0);
   SCHEDULE_MASTER->trace = tr;
   pthread_mutex_init (&SCHEDULE_MASTER->mutex_lock, NULL);
@@ -24,7 +27,7 @@ New_Schedule (char *description, trace_t *tr)
 {
    schedule_t *schedule;
 
-   schedule = New (schedule_t);
+   schedule = irrd_malloc(sizeof(schedule_t));
    schedule->ll_events = LL_Create (LL_DestroyFunction, Deref_Event, 0);
 
    if (description == NULL)
@@ -56,8 +59,8 @@ New_Event (int narg)
 {
     event_t *event;
 
-    event = New (event_t);
-    event->args = (narg > 0)? NewArray (void *, narg): NULL;
+    event = irrd_malloc(sizeof(event_t));
+    event->args = (narg > 0)? irrd_malloc(sizeof(void *) * narg): NULL;
     event->narg = narg;
     event->ref_count = 1;
     pthread_mutex_init (&event->mutex_lock, NULL);
@@ -82,11 +85,11 @@ Deref_Event (event_t *event)
     event->ref_count--;
     if (event->ref_count <= 0) {
         if (event->args)
-            Delete (event->args);
+            irrd_free(event->args);
         pthread_mutex_destroy (&event->mutex_lock);
 	if (event->description)
-	    Delete (event->description);
-        Delete (event);
+	    irrd_free(event->description);
+        irrd_free(event);
 	return;
     }
     pthread_mutex_unlock (&event->mutex_lock);
@@ -373,9 +376,9 @@ pthread_mutex_t *intervene_thread_start (schedule_t *schedule) {
   pthread_mutex_t *mutex, *mutex_cond_lock;
   pthread_cond_t *cond;
   
-  mutex = New (pthread_mutex_t);
-  mutex_cond_lock = New (pthread_mutex_t);
-  cond = New (pthread_cond_t);
+  mutex = irrd_malloc(sizeof(pthread_mutex_t));
+  mutex_cond_lock = irrd_malloc(sizeof(pthread_mutex_t));
+  cond = irrd_malloc(sizeof(pthread_cond_t));
 
 
   pthread_mutex_init (mutex, NULL);
@@ -458,13 +461,13 @@ destroy_schedule (schedule_t *schedule)
    trace (TR_THREAD, schedule->trace, 
 	  "THREAD Destroyed schedule for %s\n", schedule->description);
 #endif /* MRT_DEBUG */
-   Delete (schedule->description);
+   irrd_free(schedule->description);
 #ifdef HAVE_LIBPTHREAD
    pthread_cond_destroy (&schedule->cond_new_event);
 #endif /* HAVE_LIBPTHREAD */
    pthread_mutex_destroy (&schedule->mutex_cond_lock);
    pthread_mutex_destroy (&schedule->mutex_lock);
-   Delete (schedule);
+   irrd_free(schedule);
 }
 
 #ifndef HAVE_LIBPTHREAD

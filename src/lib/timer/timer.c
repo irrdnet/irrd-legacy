@@ -1,10 +1,13 @@
 /*
  * $Id: timer.c,v 1.2 2000/08/04 04:14:16 labovit Exp $
  */
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>
 
 #include <mrt.h>
 #include <timer.h>
-
+#include <irrdmem.h>
 
 /* #define DEBUG_TIMER	1 */
  
@@ -164,8 +167,8 @@ Timer_Master_Fire (void)
 	    LL_RemoveFn (TIMER_MASTER->ll_timers, timer, NULL);
 	    Deref_Event (timer->event);
 	    if (timer->name)
-    	        Delete (timer->name);
-    	    Delete (timer);
+    	        irrd_free(timer->name);
+    	    irrd_free(timer);
 	    timer = prev;
 	}
         else if (BIT_TEST (timer->flags, TIMER_ONE_SHOT)) {
@@ -223,7 +226,7 @@ init_timer (trace_t *tr)
 {
     assert (TIMER_MASTER == NULL);
 
-    TIMER_MASTER = New (Timer_Master);
+    TIMER_MASTER = irrd_malloc(sizeof(Timer_Master));
     TIMER_MASTER->ll_timers = LL_Create (LL_CompareFunction, Timer_Compare,
 			                 LL_AutoSort, True, 0);
     TIMER_MASTER->time_interval = 0;
@@ -409,7 +412,7 @@ New_Timer2 (char *name, int interval, u_long flags, schedule_t *schedule,
     event_t *event;
     int i = 0;
 
-    timer = New (mtimer_t);
+    timer = irrd_malloc(sizeof(mtimer_t));
 /*
     timer->call_fn = call_fn;
     timer->arg = arg;
@@ -471,6 +474,6 @@ Destroy_Timer (mtimer_t *timer)
 
     Deref_Event (timer->event);
     if (timer->name)
-        Delete (timer->name);
-    Delete (timer);
+        irrd_free(timer->name);
+    irrd_free(timer);
 }

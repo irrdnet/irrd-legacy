@@ -17,10 +17,10 @@
 #include <irr_rpsl_check.h>
 #include <config.h>
 
-#if defined(HAVE_DECL_INET_NTOP) && ! HAVE_DECL_INET_NTOP
-const char *inet_ntop (int af, const void *src, char *dst, size_t size);
-int inet_pton (int af, const char *src, void *dst);
-#endif /* HAVE_INET_NTOP */
+//#if defined(HAVE_DECL_INET_NTOP) && ! HAVE_DECL_INET_NTOP
+//const char *inet_ntop (int af, const void *src, char *dst, size_t size);
+//int inet_pton (int af, const char *src, void *dst);
+//#endif /* HAVE_INET_NTOP */
 
 /* Given a short prefix (ie, no prefix length) or long prefix
  * (ie, prefix/length) return yes or no if 'string' is legal.
@@ -65,7 +65,7 @@ int _is_ipv4_prefix (parse_info_t *obj, char *string, int short_prefix) {
   /* check the ip length part */
   if (!short_prefix) {
     for (i = 0; i < 3 && *++p; i++) {
-      if (!isdigit (*p)) {
+      if (!isdigit((int)*p)) {
 	error_msg_queue (obj, "Non-numeric value in prefix mask", ERROR_MSG);
 	return 0;
       }
@@ -136,7 +136,7 @@ int _is_ipv6_prefix (parse_info_t *obj, char *string, int short_prefix) {
   /* check the ip length part */
   if (!short_prefix) {
     for (i = 0; i < 4 && *++p; i++) {
-      if (!isdigit (*p)) {
+      if (!isdigit((int)*p)) {
 	error_msg_queue (obj, "Non-numeric value in prefix mask", ERROR_MSG);
 	return 0;
       }
@@ -178,7 +178,7 @@ int irrd_inet_pton (int af, const char *src, void *dst) {
 
         for (i = 0; ; i++) {
             c = *src++;
-            if (!isdigit (c))
+            if (!isdigit(c))
                 return (-1);
             val = 0;
             do {
@@ -186,7 +186,7 @@ int irrd_inet_pton (int af, const char *src, void *dst) {
                 if (val > 255)
                     return (0);
                 c = *src++;
-            } while (c && isdigit (c));
+            } while (c && isdigit(c));
             xp[i] = val;
             if (c == '\0')
                 break;

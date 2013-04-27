@@ -7,7 +7,7 @@ include ../Make.include
 
 INSTALL_DIRS= IRRd irr_rpsl_submit irr_rpsl_check irr_notify 
 #DIRS=$(PROGRAM_DIRS)
-DIRS=atomic_ops compat IRRd hdr_comm pgp irr_rpsl_check irrd_ops \
+DIRS= irr_util atomic_ops IRRd hdr_comm pgp irr_rpsl_check irrd_ops \
 	irr_notify irr_rpsl_submit 
 # Does not build on non-thread systems
 # rps_dist

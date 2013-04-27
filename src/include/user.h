@@ -5,7 +5,6 @@
 #ifndef _USER_H
 #define _USER_H
 
-#include <New.h>
 #include <linked_list.h>
 #include <timer.h>
 

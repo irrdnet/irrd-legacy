@@ -3,6 +3,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/time.h>
+#include <unistd.h>
 #ifndef NT
 #include <dirent.h>
 #endif /* NT */

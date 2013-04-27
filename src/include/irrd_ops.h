@@ -1,7 +1,7 @@
 #ifndef _IRRD_OPS_H
 #define _IRRD_OPS_H
 
-#include <sys/socket.h>
+//#include <sys/socket.h>
 #include <trace2.h>
 #include <irr_notify.h>
 

@@ -8,15 +8,16 @@
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
-#include "mrt.h"
-#include "trace.h"
+#include <unistd.h>
 #include <time.h>
 #include <signal.h>
-#include "config_file.h"
 #include <fcntl.h>
-#include "irrd.h"
+#include <glib.h>
 
-extern trace_t *default_trace;
+#include "mrt.h"
+#include "trace.h"
+#include "config_file.h"
+#include "irrd.h"
 
 /* local functions */
 static int populate_keyhash (irr_database_t *database);
@@ -42,45 +43,46 @@ int dump_object_check (irr_object_t *object, enum STATES state, u_long mode,
  * need to be coordinated.  m_info [] and obj_template [] also depend
  * on 'enum IRR_OBJECTS'.  See scan.h for more information. */
 key_label_t key_info [] = {
-  {"aut-num:",      8, NAME_F|KEY_F, AUT_NUM_F},
-  {"as-set:",       7, NAME_F|KEY_F, AS_SET_F},
-  {"mntner:",       7, NAME_F|KEY_F, MNTNER_F},
-  {"route:",        6, NAME_F|KEY_F, ROUTE_F},
-  {"route6:",       7, NAME_F|KEY_F, ROUTE6_F},
-  {"route-set:",   10, NAME_F|KEY_F, ROUTE_SET_F},
-  {"inet-rtr:",     9, NAME_F|KEY_F, INET_RTR_F},
-  {"rtr-set:",      8, NAME_F|KEY_F, RTR_SET_F},
-  {"person:",       7, NAME_F|KEY_F, PERSON_F},
-  {"role:",         5, NAME_F|KEY_F, ROLE_F},
-  {"filter-set:",  11, NAME_F|KEY_F, FILTER_SET_F},
-  {"peering-set:", 12, NAME_F|KEY_F, PEERING_SET_F},
-  {"key-cert:",     9, NAME_F|KEY_F, KEY_CERT_F},
-  {"dictionary:",  11, NAME_F, DICTIONARY_F},
-  {"repository:",  11, NAME_F, REPOSITORY_F},
-  {"inetnum:",      8, NAME_F|KEY_F, INETNUM_F},
-  {"inet6num:",     9, NAME_F|KEY_F, INET6NUM_F},
-  {"as-block:",     9, NAME_F|KEY_F, AS_BLOCK_F},
-  {"domain:",       7, NAME_F, DOMAIN_F},
-  {"limerick:",     9, NAME_F, LIMERICK_F},
-  {"ipv6-site:",   10, NAME_F, IPV6_SITE_F},
+  {"aut-num:",      NAME_F|KEY_F, AUT_NUM_F},
+  {"as-set:",       NAME_F|KEY_F, AS_SET_F},
+  {"mntner:",       NAME_F|KEY_F, MNTNER_F},
+  {"route:",        NAME_F|KEY_F, ROUTE_F},
+  {"route6:",       NAME_F|KEY_F, ROUTE6_F},
+  {"route-set:",    NAME_F|KEY_F, ROUTE_SET_F},
+  {"inet-rtr:",     NAME_F|KEY_F, INET_RTR_F},
+  {"rtr-set:",      NAME_F|KEY_F, RTR_SET_F},
+  {"person:",       NAME_F|KEY_F, PERSON_F},
+  {"role:",         NAME_F|KEY_F, ROLE_F},
+  {"filter-set:",   NAME_F|KEY_F, FILTER_SET_F},
+  {"peering-set:",  NAME_F|KEY_F, PEERING_SET_F},
+  {"key-cert:",     NAME_F|KEY_F, KEY_CERT_F},
+  {"dictionary:",   NAME_F, DICTIONARY_F},
+  {"repository:",   NAME_F, REPOSITORY_F},
+  {"inetnum:",      NAME_F|KEY_F, INETNUM_F},
+  {"inet6num:",     NAME_F|KEY_F, INET6NUM_F},
+  {"as-block:",     NAME_F|KEY_F, AS_BLOCK_F},
+  {"domain:",       NAME_F, DOMAIN_F},
+  {"limerick:",     NAME_F, LIMERICK_F},
+  {"ipv6-site:",    NAME_F, IPV6_SITE_F},
 /* beginning of non-class attribute names */
-  {"origin:",       7, KEY_F|SECONDARY_F, XXX_F},
-  {"mnt-by:",       7, SECONDARY_F, XXX_F},
-  {"admin-c:",      8, NON_NAME_F, XXX_F},
-  {"tech-c:",       7, NON_NAME_F, XXX_F},
-  {"nic-hdl:",      8, KEY_F|SECONDARY_F, XXX_F},
-  {"mbrs-by-ref:", 12, SECONDARY_F, XXX_F},
-  {"member-of:",   10, SECONDARY_F, XXX_F},
-  {"members:",      8, KEY_F|SECONDARY_F, XXX_F},
-  {"mp-members:",  11, KEY_F, XXX_F},
-  {"withdrawn:",   10, SECONDARY_F, XXX_F},
-  {"*error*:",      8, NON_NAME_F, XXX_F},
-  {"warning:",      8, NON_NAME_F, XXX_F},
-  {"prefix:",       7, SECONDARY_F, XXX_F},
-  {"contact:",      8, NON_NAME_F, XXX_F},
-  {"auth:",         5, NON_NAME_F, XXX_F},
+  {"origin:",       KEY_F|SECONDARY_F, XXX_F},
+  {"mnt-by:",       SECONDARY_F, XXX_F},
+  {"admin-c:",      NON_NAME_F, XXX_F},
+  {"tech-c:",       NON_NAME_F, XXX_F},
+  {"nic-hdl:",      KEY_F|SECONDARY_F, XXX_F},
+  {"mbrs-by-ref:",  SECONDARY_F, XXX_F},
+  {"member-of:",    SECONDARY_F, XXX_F},
+  {"members:",      KEY_F|SECONDARY_F, XXX_F},
+  {"mp-members:",   KEY_F|SECONDARY_F, XXX_F},
+  {"withdrawn:",    SECONDARY_F, XXX_F},
+  {"*error*:",      NON_NAME_F, XXX_F},
+  {"warning:",      NON_NAME_F, XXX_F},
+  {"prefix:",       SECONDARY_F, XXX_F},
+  {"contact:",      NON_NAME_F, XXX_F},
+  {"auth:",         NON_NAME_F, XXX_F},
+  {"roa-status:",   NON_NAME_F, XXX_F},
   /* this should not change, add others before (ie, NO_FIELD row) */
-  {"",      1, NON_NAME_F, XXX_F},
+  {"",      NON_NAME_F, XXX_F},
 };
 
 #define MAX_RPSLNAME_LEN 32
@@ -278,7 +280,6 @@ void *scan_irr_file_main (FILE *fp, irr_database_t *database,
   irr_object_t *irr_object;
   enum IRR_OBJECTS curr_f;
   enum STATES save_state, state;
-  hash_spec_t hash_spec_item;
   long lineno = 0;
 
   /* init everything */
@@ -292,19 +293,8 @@ void *scan_irr_file_main (FILE *fp, irr_database_t *database,
   curr_f     = NO_FIELD;
   irr_object = NULL;
 
-  if (scan_scope == SCAN_FILE) {
-    int hashsize;
-
-    if (update_flag)
-      hashsize = SMALL_HASH_SIZE; /* only need a smallish hash for updates */
-    else
-      hashsize = DEF_HASH_SIZE;
-    
-    database->hash_spec_tmp = 
-      HASH_Create (hashsize, HASH_KeyOffset, 
-		   HASH_Offset (&hash_spec_item, &hash_spec_item.key), 
-		   HASH_DestroyFunction, Delete_hash_spec, 0);
-  }
+  if (scan_scope == SCAN_FILE)
+    database->hash_spec_tmp = g_hash_table_new_full(g_str_hash, g_str_equal, NULL, (GDestroyNotify)Delete_hash_spec);
 
   /* okay, here we go scanning the file */
   while (state != DB_EOF) { /* scan to end of file */
@@ -393,7 +383,7 @@ void *scan_irr_file_main (FILE *fp, irr_database_t *database,
       if (state == LINE_CONT)
         cp = buffer + 1; /* Ignore initial whitespace or '+' */
       else /* skip over attribute name label */
-        cp = buffer + key_info[curr_f].len;
+	cp = buffer + strlen(key_info[curr_f].name);
 
       /* NAME_F indicates object class name attribute */
       if (key_info[curr_f].f_type & NAME_F) {
@@ -442,7 +432,7 @@ void *scan_irr_file_main (FILE *fp, irr_database_t *database,
   if (scan_scope == SCAN_FILE) {
     if (p == NULL) 
       commit_spec_hash (database); /* commit if no critical errors */
-    HASH_Destroy (database->hash_spec_tmp);
+    g_hash_table_destroy(database->hash_spec_tmp);
   }
   return (void *) p;	/* return error string (if any) */
 }
@@ -495,6 +485,7 @@ void pick_off_secondary_fields (char *buffer, int curr_f,
     add_field_items (cp, &irr_object->ll_mbr_of);
     break;
   case MEMBERS:
+  case MP_MEMBERS:
   /* AS-SET, ROUTE-SET members: scanning */
     add_field_items (cp, &irr_object->ll_mbrs);
     break;
@@ -608,7 +599,7 @@ int get_state (char *buf, u_long len, enum STATES state, enum STATES *p_save_sta
   return OVRFLW_END;
 }
 
-/* get the current field and return it's index (eg, 'mnt-by:' or 'source:') */
+/* get the current field and return its index (eg, 'mnt-by:' or 'source:') */
 int get_curr_f (char *buf) {
   keystring_hash_t *keystring_item;
   char *src, *dst;
@@ -620,13 +611,13 @@ int get_curr_f (char *buf) {
   i = 0;
 
   while (i < MAX_RPSLNAME_LEN && *src != '\0') {
-   if ( (*dst++ = tolower(*src++)) == ':') /* convert to lowercase and check for colon */
+   if ( (*dst++ = tolower((int)*src++)) == ':') /* convert to lowercase and check for colon */
       break;
    i++;
   } 
   *dst = '\0';  /* write a null after the colon */
 
-  keystring_item = HASH_Lookup (IRR.key_string_hash, tmp);
+  keystring_item = g_hash_table_lookup(IRR.key_string_hash, tmp);
 
   if (keystring_item == NULL) {
     /* trace (NORM, default_trace,"Warning! Unrecognized attr: %s", buf); */
@@ -655,9 +646,9 @@ int find_blank_line (FILE *fp, char *buf, int buf_size,
      */
     if (state == START_F) {
       if (strncasecmp (key_info[WARNING].name, buf, 
-                  key_info[WARNING].len) &&
+		       strlen(key_info[WARNING].name)) &&
           strncasecmp (key_info[SYNTAX_ERR].name, buf, 
-                  key_info[SYNTAX_ERR].len)) {
+		       strlen(key_info[SYNTAX_ERR].name))) {
         trace (ERROR, default_trace,"find_blank_line(): Encountered ERROR or WARN line embedded within an object.  Abort scan at following line: %s", buf); 
         return (DB_EOF);
       }
@@ -701,7 +692,7 @@ int read_blank_line_input (FILE *fp, char *buf, int buf_size,
 /* Check for an 'ADD' or 'DEL' at the begining of the
  * mirror or update.  Also calls read_blank_line_input ()
  * to check for exactly one blank line and then start
- * of object.  Scans for protocol version 3 serial numbers
+ * of object. Scans for protocol version 3 serial numbers
  * Version 3 may skip serials
  *
  * Return:
@@ -735,13 +726,14 @@ int pick_off_mirror_hdr (FILE *fp, char *buf, int buf_size,
       state = DB_EOF;
     }
   }
-  
-  if (state != DB_EOF) { 
+
+  if (state != DB_EOF) {
     state = read_blank_line_input (fp, buf, buf_size, state, p_save_state, position, offset, db);
   } else {
     trace (ERROR, default_trace,"scan.c: pick_off_mirror_hdr(): abort scan\n");
     trace (ERROR, default_trace,"line (%s)\n", buf);
   }
+
   return (state);
 }
 
@@ -870,21 +862,44 @@ int dump_object_check (irr_object_t *object, enum STATES state, u_long mode,
 }
 
 static int populate_keyhash (irr_database_t *database) {
-  keystring_hash_t keystring_item;
   int i;
 
-  IRR.key_string_hash =
-    HASH_Create (100, HASH_KeyOffset, HASH_Offset (&keystring_item, &keystring_item.key), 0);
+  IRR.key_string_hash = g_hash_table_new(g_str_hash, g_str_equal);
 
   /* populate */
     for (i = 0; i < IRR_MAX_KEYS; i++) {
       keystring_hash_t *keystring_item;
 
       if (strlen (key_info[i].name) <= 0) continue;
-      keystring_item = New (keystring_hash_t);
+      keystring_item = irrd_malloc(sizeof(keystring_hash_t));
       keystring_item->key = strdup (key_info[i].name);
       keystring_item->num = i;
-      HASH_Insert (IRR.key_string_hash, keystring_item);
+      g_hash_table_insert(IRR.key_string_hash, keystring_item->key, keystring_item);
     }
     return (1);
+}
+
+/* Get maxlen field from roa-status attribute */
+int get_roamaxlen (char *buf, int *maxlen) {
+  char *p, *last;
+
+  if ( (p = strchr(buf, ':')) == NULL) /* advance to colon in attribute */
+    return -1;
+  p++;
+  whitespace_remove(p);
+  if (strncasecmp ("v=1", p, 3))
+    return -1;	/* should be version 1 */
+  strtok_r (p, ";", &last); 
+  while (p != NULL && *p != '\0') {
+    whitespace_remove (p);
+    if (*p == 'm') {
+      while (*p++ != '=' )  /* scan for equal sign */
+	;
+      whitespace_remove (p);
+      *maxlen = atoi(p);
+      return 0;
+    }
+    p = strtok_r (NULL, ";", &last);
+  }
+  return 0; /* no maxlen specified */
 }

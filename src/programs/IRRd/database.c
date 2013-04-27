@@ -3,21 +3,24 @@
  * originally Id: database.c,v 1.48 1998/07/30 20:48:29 labovit Exp 
  */
 
+#include <sys/types.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 #include <stdio.h>
 #include <string.h>
-#include "mrt.h"
-#include "trace.h"
+#include <unistd.h>
 #include <time.h>
 #include <signal.h>
-#include <sys/types.h>
 #include <dirent.h>
-#include "config_file.h"
 #include <fcntl.h>
-#include "irrd.h"
 #include <pipeline_defs.h>
 #include <atomic_ops.h>
+#include <glib.h>
 
-extern trace_t *default_trace;
+#include "mrt.h"
+#include "trace.h"
+#include "config_file.h"
+#include "irrd.h"
 
 /* !B/reload support functions */
 static int reopen_DB        (irr_database_t *, char *);
@@ -52,10 +55,10 @@ void database_clear (irr_database_t *db) {
   radix_flush (db->radix_v6);
 
   if (db->hash)
-    HASH_Clear (db->hash);
+    g_hash_table_remove_all(db->hash);
 
   if (db->hash_spec)
-    HASH_Clear (db->hash_spec);
+    g_hash_table_remove_all(db->hash_spec);
 
   db->radix_v4 = New_Radix (32);
   db->radix_v6 = New_Radix (128);
@@ -354,17 +357,17 @@ int irr_database_clean (irr_database_t *database) {
   database->radix_v4 = cleaned_db->radix_v4;
   database->radix_v6 = cleaned_db->radix_v6;
   if (database->hash)
-    HASH_Destroy(database->hash);
+    g_hash_table_destroy(database->hash);
   database->hash = cleaned_db->hash;
   if (database->hash_spec)
-    HASH_Destroy(database->hash_spec);
+    g_hash_table_destroy(database->hash_spec);
   database->hash_spec = cleaned_db->hash_spec;
 
   /* clean up temporary database */
-  Delete(cleaned_db->name);
+  irrd_free(cleaned_db->name);
   pthread_mutex_destroy (&cleaned_db->mutex_lock);
   pthread_mutex_destroy (&cleaned_db->mutex_clean_lock);
-  Delete(cleaned_db);
+  irrd_free(cleaned_db);
 
   fclose (clean_fp);
   fclose (database->db_fp);	/* close old database file */
@@ -688,7 +691,7 @@ int fetch_remote_db (irr_database_t *db, char *ftp_url) {
   int fetched = 0;
   char *p;
 
-  /* save db->remote_ftp_url and override it's value
+  /* save db->remote_ftp_url and override its value
    * if (ftp_url) is non-NULL */
   p = db->remote_ftp_url;
   if (ftp_url != NULL)

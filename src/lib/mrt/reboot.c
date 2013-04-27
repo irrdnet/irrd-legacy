@@ -1,6 +1,9 @@
 /* 
  * $Id: reboot.c,v 1.2 2001/07/13 18:02:44 ljb Exp $
  */
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>
 
 #include <mrt.h>
 

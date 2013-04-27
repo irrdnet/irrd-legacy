@@ -10,6 +10,7 @@
 #ifndef _PTHREADS_FAKE_H
 #define _PTHREADS_FAKE_H
 
+#ifndef HAVE_PTHREAD_H
 /* since SUNOS 5.6, pthread structures are defined in sys/types.h,
    which conflists with the following even when pthread is disabled */
 typedef	int	mrt_pthread_t;
@@ -55,5 +56,6 @@ int mrt_pthread_cond_signal (pthread_cond_t *cond, char *file, int line);
 int mrt_pthread_cond_destroy (pthread_cond_t *cond, char *file, int line);
 
 #define PTHREAD_MUTEX_INITIALIZER	{0, NULL, 0}
+#endif	/* HAVE_LIBPTHREAD */
 
 #endif /* _PTHREADS_FAKE_H */

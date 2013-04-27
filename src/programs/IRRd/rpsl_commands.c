@@ -3,23 +3,22 @@
  * originally Id: rpsl_commands.c,v 1.22 1998/07/31 15:42:39 gerald Exp
  */
 
+#include <sys/types.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 #include <stdio.h>
 #include <string.h>
-#include "mrt.h"
-#include "trace.h"
 #include <time.h>
 #include <signal.h>
-#include "config_file.h"
-#include <sys/types.h>
 #include <ctype.h>
-#include "hash.h"
-#include "stack.h"
-#include "array.h"
 #include <fcntl.h>
+#include <glib.h>
+
+#include "mrt.h"
+#include "trace.h"
+#include "config_file.h"
 #include "irrd.h"
 
-extern trace_t *default_trace;
-extern irr_t IRR;
 /* a list of prefix range types */
 enum EXPAND_TYPE { NO_EXPAND, ROUTE_SET_EXPAND, OTHER_EXPAND };
 typedef struct _member_examined_hash_t {
@@ -27,11 +26,13 @@ typedef struct _member_examined_hash_t {
 } member_examined_hash_t;
 
 /* local routines */
+
+int str_p_cmp(gconstpointer, gconstpointer);
 void update_members_list (irr_database_t *database, char *range_op,
 			enum EXPAND_TYPE expand_flag, 
-			HASH_TABLE  *hash_member_examined, 
+			GHashTable  *hash_member_examined, 
 			LINKED_LIST *ll_setlist, LINKED_LIST *ll_set_names, 
-			STACK *stack, irr_connection_t *irr);
+			GQueue *stack, irr_connection_t *irr);
 void mbrs_by_ref_set (irr_database_t *database, char *range_op,
 	enum EXPAND_TYPE expand_flag, LINKED_LIST *ll_setlist,
 	char *set_name, LINKED_LIST *ll_mbr_by_ref, irr_connection_t *irr);
@@ -42,22 +43,22 @@ int chk_set_name (char *);
 
 void HashMemberExaminedDestroy(member_examined_hash_t *h) {
   if (h == NULL) return;
-  if (h->key) Delete (h->key);
-  Delete(h);
+  if (h->key) irrd_free(h->key);
+  irrd_free(h);
 }
 
 /* as-set/route-set expansion !ias-bar */
 void irr_set_expand (irr_connection_t *irr, char *name) {
   irr_database_t *database;
   time_t start_time;
-  DATA_PTR *array;
-  STACK *stack;
-  HASH_TABLE *hash_member_examined;
-  member_examined_hash_t member_examined_item;
+  GArray *array;
+  GQueue *stack;
+  GHashTable *hash_member_examined;
   member_examined_hash_t *member_examined_ptr;
   LINKED_LIST *ll_setlist;
   char *set_name, *last_set_name, *mstr, *db;
-  char *lasts, *range_op, abuf[BUFSIZE];
+  char *range_op, abuf[BUFSIZE];
+  char *lasts = NULL;
   int i, first, dup, expand_flag = NO_EXPAND;
   hash_spec_t *hash_spec;
 
@@ -76,18 +77,16 @@ void irr_set_expand (irr_connection_t *irr, char *name) {
 
   start_time = time(NULL);
   convert_toupper (name);
-  stack = Create_STACK (1024);
-  hash_member_examined = HASH_Create(SMALL_HASH_SIZE, HASH_KeyOffset,
-       HASH_Offset(&member_examined_item, &member_examined_item.key),
-       HASH_DestroyFunction, HashMemberExaminedDestroy, 0);
+  stack = g_queue_new();
+  hash_member_examined = g_hash_table_new_full(g_str_hash, g_str_equal, NULL, (GDestroyNotify)HashMemberExaminedDestroy);
   ll_setlist = LL_Create (LL_DestroyFunction, free, NULL); 
   mstr = rpsl_macro_expand_add (" ", name, irr, NULL);
-  Push (stack, mstr);
-  member_examined_ptr = New(member_examined_hash_t);
+  g_queue_push_head(stack, mstr);
+  member_examined_ptr = irrd_malloc(sizeof(member_examined_hash_t));
   member_examined_ptr->key = strdup(name);
-  HASH_Insert(hash_member_examined, member_examined_ptr);
+  g_hash_table_insert(hash_member_examined, member_examined_ptr->key, member_examined_ptr);
 
-  while (Get_STACK_Count (stack) > 0) {
+  while (!g_queue_is_empty(stack)) {
     if ( IRR.expansion_timeout > 0 ) {
       if ( (time(NULL) - start_time) > IRR.expansion_timeout ) {
         trace (ERROR, default_trace, "irr_set_expand(): Set expansion timeout\n");
@@ -96,7 +95,7 @@ void irr_set_expand (irr_connection_t *irr, char *name) {
         goto getout;
       }
     }
-    mstr = (char *) Pop (stack);
+    mstr = (char *) g_queue_pop_head(stack);
     /* might want to check the examined list to see if this set name
        has been examined already */
     first = 1;
@@ -134,14 +133,14 @@ void irr_set_expand (irr_connection_t *irr, char *name) {
   dup = 0;
   i = 0;
   last_set_name = "";
-  array = NewArray(DATA_PTR, ll_setlist->count);
+  array = g_array_sized_new(FALSE, TRUE, sizeof(char*), ll_setlist->count);
   LL_ContIterate (ll_setlist, set_name) {
-    array[i++] = set_name;
+    g_array_append_val(array, set_name);
   }
-  ARRAY_Sort(array, ll_setlist->count, strcmp);
+  g_array_sort(array, (GCompareFunc)str_p_cmp);
   i = 0;
   while (i < ll_setlist->count) {
-    set_name = array[i++];
+    set_name = g_array_index(array, char*, i++);
     if (!first) {
        /* since list is sorted, any duplicates should be consecutive */
       if (strcmp (last_set_name, set_name) == 0)
@@ -156,12 +155,24 @@ void irr_set_expand (irr_connection_t *irr, char *name) {
       dup = 0;
     first = 0;
   }
-  Delete(array);
+  g_array_free(array, TRUE);
   irr_send_answer (irr);
 getout:
   LL_Destroy (ll_setlist);
-  HASH_Destroy (hash_member_examined);
-  Destroy_STACK (stack);
+  g_hash_table_destroy(hash_member_examined);
+  g_queue_free(stack);
+}
+
+/*
+ * Wrapper around strcmp for g_array_sort.
+ * Takes two gconstpointers to strings (char pointers) and compares them
+ */
+int str_p_cmp(gconstpointer g_aa, gconstpointer g_bb)
+{
+	char* aa = *((char**)g_aa);
+	char* bb = *((char**)g_bb);
+
+	return strcmp(aa, bb);
 }
 
 void mbrs_by_ref_set (irr_database_t *database, char *range_op,
@@ -195,9 +206,9 @@ void mbrs_by_ref_set (irr_database_t *database, char *range_op,
 }
 
 void update_members_list (irr_database_t *database, char *range_op, enum EXPAND_TYPE expand_flag, 
-			  HASH_TABLE *hash_member_examined, 
+			  GHashTable *hash_member_examined, 
 			  LINKED_LIST *ll_setlist, LINKED_LIST *ll_set_names, 
-			  STACK *stack, irr_connection_t *irr) {
+			  GQueue *stack, irr_connection_t *irr) {
   char *member, *p, *r;
   char buffer[BUFSIZE], range_buf[512];
   int len = 0;
@@ -207,10 +218,11 @@ void update_members_list (irr_database_t *database, char *range_op, enum EXPAND_
     return;
 
   LL_ContIterate (ll_set_names, member) {
+    convert_toupper(member);
     if ((expand_flag == NO_EXPAND) || !chk_set_name (member)) {
       SL_Add (ll_setlist, member, range_op, expand_flag, irr);
     } else { /* we have a set name */
-      if (!HASH_Lookup(hash_member_examined, member)) {
+      if (!g_hash_table_lookup(hash_member_examined, member)) {
 	strcpy(range_buf, " "); /* initialize to empty range */
 	r = member;
 	/* Need to seperate the range op from the set 
@@ -231,10 +243,10 @@ void update_members_list (irr_database_t *database, char *range_op, enum EXPAND_
           }
         }
         p = rpsl_macro_expand_add (range_buf, r, irr, database->name); 
-        Push (stack, p);
-        member_examined_ptr = New(member_examined_hash_t);
+        g_queue_push_head(stack, p);
+        member_examined_ptr = irrd_malloc(sizeof(member_examined_hash_t));
         member_examined_ptr->key = strdup(r);
-        HASH_Insert(hash_member_examined, member_examined_ptr);
+        g_hash_table_insert(hash_member_examined, member_examined_ptr->key, member_examined_ptr);
       }
     }
   } 
@@ -272,8 +284,10 @@ enum PREFIX_RANGE_TYPE prefix_range_parse( char *range, unsigned int *start, uns
  *
  */
 void SL_Add (LINKED_LIST *ll_setlist, char *member, char *range_op, enum EXPAND_TYPE expand_flag, irr_connection_t *irr) {
-  char buffer[BUFSIZE], rangestr[32];
-  char *q, *temp_ptr, *last, *range_ptr;
+  char buffer[BUFSIZE], buf2[BUFSIZE], rangestr[32];
+  char *q, *temp_ptr, *range_ptr;
+  char *last = NULL;
+  unsigned int biggest_range;
   hash_spec_t *hash_spec;
   irr_database_t *db;
   unsigned int bitlen;
@@ -283,8 +297,23 @@ void SL_Add (LINKED_LIST *ll_setlist, char *member, char *range_op, enum EXPAND_
   /* if performing a route-set expansion, check for AS numbers and lookup route prefixes which list the AS as their origin */
   if ( expand_flag == ROUTE_SET_EXPAND && !strncasecmp(member, "AS", 2)) {
     make_gas_key(buffer, member + 2);
+    make_6as_key(buf2, member + 2);
     LL_ContIterate (irr->ll_database, db) { /* search over all databases */
+	/* first check for IPv4 prefixes */
       if ((hash_spec = fetch_hash_spec(db, buffer, FAST)) != NULL) {
+        if (hash_spec->len1 > 0) {
+          q = strdup(hash_spec->gas_answer);
+          temp_ptr = strtok_r(q, " ", &last);
+	  while (temp_ptr != NULL && *temp_ptr != '\0') {
+	    SL_Add(ll_setlist, temp_ptr, range_op, expand_flag, irr);
+	    temp_ptr = strtok_r(NULL, " ", &last);
+	  }
+	  free(q);
+          Delete_hash_spec(hash_spec);
+        }
+      }
+	/* now check for IPv6 prefixes */
+      if ((hash_spec = fetch_hash_spec(db, buf2, FAST)) != NULL) {
         if (hash_spec->len1 > 0) {
           q = strdup(hash_spec->gas_answer);
           temp_ptr = strtok_r(q, " ", &last);
@@ -324,6 +353,10 @@ void SL_Add (LINKED_LIST *ll_setlist, char *member, char *range_op, enum EXPAND_
       return;
     }
 
+    if ( *buffer >= '0' && *buffer <= '9' && (strchr(buffer, ':') == NULL) ) /* check if IPv4 addr or IPv6 addr */
+      biggest_range = 32;
+    else
+      biggest_range = 128;
     if ( (temp_ptr = strchr(buffer, '^')) == NULL ) /* check for range on prefix */
       prefix_range_start = (prefix_range_end = bitlen);
     else {
@@ -336,19 +369,19 @@ void SL_Add (LINKED_LIST *ll_setlist, char *member, char *range_op, enum EXPAND_
       *temp_ptr = 0;	/* terminate string at range */
       if (prefix_range_type == EXCLUSIVE_RANGE) {
 	prefix_range_start = bitlen + 1;
-	prefix_range_end = 32;
+	prefix_range_end = biggest_range;
       } else if (prefix_range_type == INCLUSIVE_RANGE) {
 	prefix_range_start = bitlen;
-	prefix_range_end = 32;
+	prefix_range_end = biggest_range;
       }
     }
 
     if (range_op_type == INCLUSIVE_RANGE) {
 	range_op_start = prefix_range_start;
-	range_op_end = 32;
+	range_op_end = biggest_range;
     } else if (range_op_type == EXCLUSIVE_RANGE) {
 	range_op_start = prefix_range_start + 1;
-	range_op_end = 32;
+	range_op_end = biggest_range;
     } else if (range_op_type == VALUE_RANGE) {
 	if (range_op_end < prefix_range_start) {
           free(range_ptr);
@@ -366,9 +399,9 @@ void SL_Add (LINKED_LIST *ll_setlist, char *member, char *range_op, enum EXPAND_
 	strcpy(rangestr,"");
     else if (range_op_end == range_op_start)
 	sprintf(rangestr,"^%d", range_op_start);
-    else if (range_op_end == 32 && range_op_start == bitlen)
+    else if (range_op_end == biggest_range && range_op_start == bitlen)
 	strcpy(rangestr,"^+");
-    else if (range_op_end == 32 && range_op_start == (bitlen + 1))
+    else if (range_op_end == biggest_range && range_op_start == (bitlen + 1))
 	strcpy(rangestr,"^-");
     else
 	sprintf(rangestr,"^%d-%d",range_op_start, range_op_end);
@@ -389,7 +422,6 @@ char *rpsl_macro_expand_add (char *range, char *name, irr_connection_t *irr,
   strcpy (buffer, range);
   strcat (buffer, ",");
   strcat (buffer, name);
-  convert_toupper (buffer); /* canonicalize the key for hash lookups */
 
   if (dbname != NULL) {
     strcat (buffer, ",");
@@ -408,16 +440,20 @@ char *rpsl_macro_expand_add (char *range, char *name, irr_connection_t *irr,
 
 int chk_set_name (char *name) {
 
-  if (name == NULL)
+  if (name == NULL)  /* sanity check ? */
     return 0;
 
-  if (!strncasecmp (name, "as-", 3)   ||
-      !strncasecmp (name, "rs-", 3)   ||
-      !strncasecmp (name, "rtrs-", 5) ||
-      !strncasecmp (name, "fltr-", 5) ||
-      !strncasecmp (name, "prng-", 5) ||
-      strchr (name, ':'))
-    return 1;
+/* check for an IPv4 or IPv6 prefix */
+  if (*name >= '0' && *name <= '9')
+    return 0;
 
-  return 0;
+/* check AS number */
+  if (!strncasecmp (name, "as", 2) )  {
+      /* Check for ':' as it could be a hierarchical set name */
+    if ( *(name + 2) != '-' && !strchr(name,':'))
+      return 0;		/* Must be an AS number */
+  }
+
+/* assume anything else is a set name */
+  return 1;
 }

@@ -2,11 +2,16 @@
  * $Id: user.c,v 1.10 2002/10/17 19:43:22 ljb Exp $
  */
 
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+
 #include "mrt.h"
 #include "config_file.h"
 #include <sys/utsname.h>
 #include <netinet/tcp.h>
 #include <netdb.h>
+#include <irrdmem.h>
 
 static int uii_command_help (uii_connection_t * uii, int alone);
 static int uii_call_callback_fn (uii_connection_t * uii, uii_command_t * candidate);
@@ -307,7 +312,7 @@ uii_accept_connection (void)
 	    return;
 	}
     }
-    uii = New (uii_connection_t);
+    uii = irrd_malloc(sizeof(uii_connection_t));
     uii->state = (UII->initial_state >= 0)? UII->initial_state:
 		     ((UII->password) ? UII_UNPREV : 
 		         ((UII->enable_password) ? UII_NORMAL: UII_ENABLE));
@@ -372,7 +377,7 @@ listen_uii2 (char *portname)
     struct sockaddr *sa;
     struct servent *service;
     int len, optval = 1;
-    int port;
+    int family, port;
     int fd;
 
     struct sockaddr_in serv_addr;
@@ -406,25 +411,27 @@ listen_uii2 (char *portname)
 	}
     }
 
+    family = AF_INET;
     serv_addr.sin_port = port;
     sa = (struct sockaddr *) & serv_addr;
     len = sizeof (serv_addr);
 #ifdef HAVE_IPV6
     if (UII->prefix == NULL || UII->prefix->family == AF_INET6) {
+	family = AF_INET6;
 	serv_addr6.sin6_port = port;
 	sa = (struct sockaddr *) & serv_addr6;
 	len = sizeof (serv_addr6);
     }
 #endif	/* HAVE_IPV6 */
 
-    if ((fd = socket (sa->sa_family, SOCK_STREAM, 0)) < 0) {
+    if ((fd = socket (family, SOCK_STREAM, 0)) < 0) {
 #ifdef HAVE_IPV6
-	if (UII->prefix || sa->sa_family == AF_INET)
+	if (UII->prefix || family == AF_INET)
 	    goto error;
 	/* try with AF_INET */
 	sa = (struct sockaddr *) & serv_addr;
 	len = sizeof (serv_addr);
-	if ((fd = socket (sa->sa_family, SOCK_STREAM, 0)) < 0) {
+	if ((fd = socket (family, SOCK_STREAM, 0)) < 0) {
     error:
 #endif	/* HAVE_IPV6 */
 	    trace (TR_ERROR, UII->trace, "socket (%m)\n");
@@ -784,7 +791,7 @@ uii_read_command (uii_connection_t * uii)
 	if (uii->end > 0) {
 	    /* remove tailing spaces */
 	    data = cp = buffer_data (uii->buffer) + uii->end - 1;
-	    while (cp >= data && isspace (*cp)) {
+	    while (cp >= data && isspace((int)*cp)) {
 		uii->end--;
 		cp--;
 	    }
@@ -792,7 +799,7 @@ uii_read_command (uii_connection_t * uii)
 
 	    /* remove heading spaces */
 	    cp = data;
-	    while (*cp && isspace (*cp)) {
+	    while (*cp && isspace((int)*cp)) {
 		cp++;
 	    }
 	    if (data != cp) {
@@ -929,7 +936,7 @@ uii_process_command (uii_connection_t * uii)
     /* for the worst case */
 
     /* eat up initial white spaces */
-    while ((isspace (*uii->cp)) && *uii->cp)
+    while ((isspace((int)*uii->cp)) && *uii->cp)
 	uii->cp++;
 
     if (uii->state >= UII_NORMAL) {
@@ -991,7 +998,7 @@ uii_process_command (uii_connection_t * uii)
       }
     }
     bp = uii->cp + strlen (uii->cp) - 1;
-    while (bp >= uii->cp && *bp && isspace (*bp))
+    while (bp >= uii->cp && *bp && isspace((int)*bp))
 	*bp-- = '\0';
 
     if (uii->state == UII_UNPREV) {
@@ -1156,7 +1163,7 @@ uii_call_callback_fn (uii_connection_t * uii, uii_command_t * candidate)
     	        }
 	    }
 	    args[nargs++] = (save)? strdup (save): strdup (utoken);
-    	    Delete (buf);
+    	    irrd_free(buf);
 	}
 	else if (*cp == '%') {
 	    assert (utoken);
@@ -1167,7 +1174,7 @@ uii_call_callback_fn (uii_connection_t * uii, uii_command_t * candidate)
 	    else if (*(cp + 1) == 's' || *(cp + 1) == 'n')	/* string */
 		args[nargs++] = strdup (utoken);
 	    else if (*(cp + 1) == 'd' || *(cp + 1) == 'D')	/* integer */
-		args[nargs++] = (void *) atoi (utoken);
+		args[nargs++] = (void*) atoi(utoken); 
 	    else if (*(cp + 1) == 'm' || *(cp + 1) == 'M') {	/* ipv4 or ipv6 prefix */
 		if (strchr (utoken, ':'))
 		    args[nargs++] = ascii2prefix (AF_INET6, utoken);
@@ -1195,8 +1202,10 @@ uii_call_callback_fn (uii_connection_t * uii, uii_command_t * candidate)
      * insert the number of optional arguments before any of the optional
      * arguments
      */
+    //char optional_str[64];
+    //snprintf(optional_str, 64, "%d", optional);
     if (optional_arg >= 0)
-	args[optional_arg] = (void *) optional;
+	args[optional_arg] = (void*) optional;
 
     assert (candidate->call_fn);
     assert (nargs <= 10);	/* XXX */
@@ -1441,7 +1450,7 @@ uii_add_command_schedule_i (int state, int flag, char *string,
     uii_command_t *command;
     char *token;
 
-    command = New (uii_command_t);
+    command = irrd_malloc(sizeof(uii_command_t));
     command->string = string;
     command->call_fn = call_fn;
     command->state = state;
@@ -1580,7 +1589,7 @@ uii_destroy_connection (uii_connection_t * uii)
 #endif	/* HAVE_LIBPTHREAD */
     if (uii->ll_tokens != NULL)
 	LL_Destroy (uii->ll_tokens);
-    Delete (uii);
+    irrd_free(uii);
 
     mrt_thread_exit ();
     return (1);
@@ -1622,7 +1631,7 @@ set_uii (uii_t * tmp, int first,...)
 	    }
 	    len = strlen (strarg);
 	    if (tmp->prompts[state])
-		Delete (tmp->prompts[state]);
+		irrd_free(tmp->prompts[state]);
 
 	    if (UII->hostname) {
 		char *strbuf;
@@ -1630,7 +1639,7 @@ set_uii (uii_t * tmp, int first,...)
 		hostname = strdup (UII->hostname);
 		if ((cp = strchr (hostname, '.')) != NULL)
 		    *cp = '\0';
-		strbuf = NewArray (char, strlen (hostname) + 1 + len + 1);
+		strbuf = irrd_malloc(sizeof(char) * (strlen (hostname) + 1 + len + 1));
 		sprintf (strbuf, "%s %s", hostname, strarg);
 		free (hostname);
 		tmp->prompts[state] = strbuf;
@@ -1651,7 +1660,7 @@ set_uii (uii_t * tmp, int first,...)
 	    break;
 	case UII_PASSWORD:
 	    if (UII->password)
-		Delete (UII->password);
+		irrd_free(UII->password);
 	    UII->password = va_arg (ap, char *);
 	    if (UII->password)
 		UII->password = strdup (UII->password);
@@ -1665,7 +1674,7 @@ set_uii (uii_t * tmp, int first,...)
 	    break;
 	case UII_ENABLE_PASSWORD:
 	    if (UII->enable_password)
-		Delete (UII->enable_password);
+		irrd_free(UII->enable_password);
 	    UII->enable_password = va_arg (ap, char *);
 	    if (UII->enable_password)
 		UII->enable_password = strdup (UII->enable_password);
@@ -1879,11 +1888,11 @@ char *
 strip_spaces (char *tmp)
 {
     char *cp = tmp, *pp;
-    while (*cp && isspace (*cp))
+    while (*cp && isspace((int)*cp))
 	cp++;
     if (*cp) {
 	pp = cp + strlen (cp) - 1;
-	while (pp > cp && isspace (*pp))
+	while (pp > cp && isspace((int)*pp))
 	    pp--;
 	pp[1] = '\0';
     }
@@ -2036,7 +2045,7 @@ if (LL_GetCount (ll_match) > 1) {
 	if (state > UII_CONFIG &&
 	    level >= 0 && uii->previous[level] >= UII_CONFIG) {
 	    state = uii->previous[level--];
-	    Delete (ll_match);
+	    irrd_free(ll_match);
 	    goto again;
 	}
 	config_notice (TR_INFO, uii,
@@ -2214,7 +2223,7 @@ uii_command_tab_complete (uii_connection_t * uii, int alone)
 	LL_Destroy (ll_last_tokens);
 	LL_Destroy (ll_match);
 	if (completion)
-	    Delete (completion);
+	    irrd_free(completion);
 	return;
     }
     if (alone) {
@@ -2237,7 +2246,7 @@ uii_command_tab_complete (uii_connection_t * uii, int alone)
     LL_Destroy (ll_last_tokens);
     LL_Destroy (ll_match);
     if (completion)
-	Delete (completion);
+	irrd_free(completion);
 }
 
 /*
@@ -2396,7 +2405,7 @@ uii_command_help (uii_connection_t * uii, int alone)
 		    }
 		}
 		if (!found) {
-		    pp = New (pair_string_t);
+		    pp = irrd_malloc(sizeof(pair_string_t));
 		    pp->a = strdup (cp2);
 		    if (LL_GetCount (command->ll_tokens) <= (LL_GetCount (ll_tokens) + 1))
 			pp->b = command->explanation;
@@ -2416,7 +2425,7 @@ uii_command_help (uii_connection_t * uii, int alone)
 	    uii_send_data (uii, "  %s\n", pp->b);
 	else
 	    uii_send_data (uii, "  \n");
-	Delete (pp->a);
+	irrd_free(pp->a);
     }
 
     /* clean up memory used */
@@ -2571,7 +2580,7 @@ init_uii (trace_t * ltrace)
     int i;
 
     assert (UII == NULL);
-    UII = New (uii_t);
+    UII = irrd_malloc(sizeof(uii_t));
     UII->ll_uii_commands = LL_Create (LL_CompareFunction, commands_compare,
 				      LL_AutoSort, True, 0);
     UII->ll_uii_connections = LL_Create (0);

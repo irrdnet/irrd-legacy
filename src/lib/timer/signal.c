@@ -1,20 +1,14 @@
 /*
  * $Id: signal.c,v 1.1.1.1 2000/02/29 22:28:54 labovit Exp $
  */
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 #include <mrt.h>
 #include <timer.h>
+#include "timer.h"
 
-#if defined(__linux__) && defined(HAVE_LIBPTHREAD)
-/* Linux pthread is different from Posix Pthread on asynchronous
-   signal handling of SIGALRM that is used to run timers in MRT.
-   The signal is delivered to the thread having called alarm().
-   The alarm value may be wanted to change from other running threrads, but
-   it's not easy to change the alarm value while waiting sigwait() by
-   the thread waiting on.  So, with linux pthread, the signal handler 
-   just sets a flag as if there is no thread support. All threads
-   may be interrupted by the alarm signal. Don't block SIGALRM. */
-#endif
+static char *_my_strftime (char *tmp, long in_time, char *fmt);
 
 void
 init_mrt_thread_signals ()
@@ -23,9 +17,6 @@ init_mrt_thread_signals ()
     sigset_t set;
 
     sigemptyset (&set);
-#ifndef __linux__
-    sigaddset (&set, SIGALRM);
-#endif /* __linux__ */
     sigaddset (&set, SIGHUP);
     sigaddset (&set, SIGINT);
     sigaddset (&set, SIGPIPE);
@@ -38,10 +29,39 @@ init_mrt_thread_signals ()
  * invoke registered handler routines, and exit on sigint
  */
 void mrt_process_signal (int sig) {
+  char *type;
+  char ptime[32];
+  char message_buf[128];
 
   /* this may happen during trace(), so don't use trace() again. */
-  /* trace (TR_WARN, MRT->trace, "MRT signal (%d) received\n", sig); */
   if (sig == SIGINT) MRT->force_exit_flag = sig;
+  if (sig == SIGHUP)  {
+    /* check that trace is not open -- blocks until it can get lock */
+    if (MRT->trace->logfile->thread_id != pthread_self ()) {
+      pthread_mutex_lock (&MRT->trace->logfile->mutex_lock);
+    }
+    if (MRT->trace->logfile->logfd != stdout && MRT->trace->logfile->logfd != stderr) {
+    _my_strftime (ptime, 0, "%h %e %T");
+    sprintf (message_buf, "%s [%lu] IRRD HUP received - Reopening default trace file\n", ptime, (unsigned long) pthread_self ());
+    fputs (message_buf, MRT->trace->logfile->logfd);
+    fclose (MRT->trace->logfile->logfd);
+    if (MRT->trace->logfile->append_flag)
+      type = "a";
+    else
+      type = "w";
+    if ((MRT->trace->logfile->logfd = fopen (MRT->trace->logfile->logfile_name, type))) {
+
+          MRT->trace->logfile->logsize = ftell(MRT->trace->logfile->logfd);
+          MRT->trace->logfile->bytes_since_open = 0;
+
+     } /*else
+          fprintf(stderr, "fopen %s:  %s\n", tr->logfile->logfile_name,
+                strerror(errno));*/
+    }
+    if (MRT->trace->logfile->thread_id != pthread_self ()) {
+      pthread_mutex_unlock (&MRT->trace->logfile->mutex_lock);
+    }
+  }
   /* Should we exit in all cases? */
   signal (sig, mrt_process_signal);
 }
@@ -50,13 +70,10 @@ void mrt_process_signal (int sig) {
 /* function where alarm is delivered */
 static void_fn_t timer_fire_fn = NULL;
 
-#if !defined(HAVE_LIBPTHREAD) || defined (__linux__)
+#if !defined(HAVE_LIBPTHREAD)
 /* Thread uses sigwait(), instead */
 
 static int alarm_pending = 0;
-#ifdef HAVE_LIBPTHREAD
-static int thread_id = 0;
-#endif /* HAVE_LIBPTHREAD */
 
 /* This is the only function that's invoked by asynchronous signal.
    most functions are not asynchronous signal safe, so don't call
@@ -66,9 +83,6 @@ void
 alarm_interrupt (/* void */)
 {
     alarm_pending++;
-#ifdef HAVE_LIBPTHREAD
-    thread_id = pthread_self ();
-#endif
 }
 #endif /* HAVE_LIBPTHREAD */
 
@@ -77,7 +91,7 @@ alarm_interrupt (/* void */)
 void
 mrt_alarm (void)
 {
-#if defined(HAVE_LIBPTHREAD) && !defined(__linux__)
+#if defined(HAVE_LIBPTHREAD)
     int sig;
     sigset_t set;
 
@@ -102,18 +116,11 @@ mrt_alarm (void)
     }
 #else
     if (alarm_pending) {
-#ifdef HAVE_LIBPTHREAD
-       trace (TR_TIMER, TIMER_MASTER->trace, "ALRM caught by thread %d\n", 
-	      thread_id);
-#endif
-	alarm_pending = 0;
-	if (timer_fire_fn)
-	    timer_fire_fn ();
+        alarm_pending = 0;
+        if (timer_fire_fn)
+            timer_fire_fn ();
     }
-#ifdef HAVE_LIBPTHREAD
-    /* blocking is OK since this thread is idling */
-    pause ();
-#endif
+
 #endif /* HAVE_LIBPTHREAD */
 }
 
@@ -151,7 +158,7 @@ init_signal (trace_t *tr, void_fn_t fn)
 {
     sigset_t set;
 
-#if !defined(HAVE_LIBPTHREAD) || defined(__linux__)
+#if !defined(HAVE_LIBPTHREAD)
 #ifdef HAVE_SIGACTION /* POSIX actually */
     {
     	struct sigaction act;
@@ -176,7 +183,7 @@ init_signal (trace_t *tr, void_fn_t fn)
       that handles alarm interrupts before creations of threads */
     sigemptyset (&set);
     sigaddset (&set, SIGALRM);
-#if defined(HAVE_LIBPTHREAD) && !defined(__linux__)
+#if defined(HAVE_LIBPTHREAD)
     /* sigwait() will be used so that ALARM must be blocked 
        even in the main thread */
     pthread_sigmask (SIG_BLOCK, &set, NULL);
@@ -186,3 +193,33 @@ init_signal (trace_t *tr, void_fn_t fn)
 #endif /* HAVE_LIBPTHREAD */
     timer_fire_fn = fn;
 }
+
+
+/* my_strftime
+ * Given a time long and format, return string. 
+ * If time <=0, use current time of day
+ */
+static
+char *
+_my_strftime (char *tmp, long in_time, char *fmt)
+{
+    time_t t;
+#if defined(_REENTRANT) && defined(HAVE_LOCALTIME_R)
+    struct tm tms;
+#endif /* HAVE_LOCALTIME_R */
+
+    if (in_time <= 0)
+        t = time (NULL);
+    else
+        t = in_time;
+
+#if defined(_REENTRANT) && defined(HAVE_LOCALTIME_R)
+    localtime_r (&t, &tms);
+    strftime (tmp, BUFSIZE, fmt, &tms);
+#else
+    strftime (tmp, BUFSIZE, fmt, localtime (&t));
+#endif /* HAVE_LOCALTIME_R */
+
+    return (tmp);
+}
+

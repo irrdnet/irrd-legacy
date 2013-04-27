@@ -153,7 +153,7 @@ int rpsl_word_check (parse_info_t *pi, char *rp_name, predef_t *p, int show_emsg
 
  fprintf(dfile, "rpsl_word_check() arg=(%s)\n", parm);
 
-  if( !isalpha(*t) ){  /* check first letter */
+  if( !isalpha((int)*t) ){  /* check first letter */
     if(show_emsg){
       snprintf(ebuf, 2048, "Invalid rpsl_word: %s must start with a letter", parm);
       error_msg_queue (pi, ebuf, ERROR_MSG); 
@@ -161,7 +161,7 @@ int rpsl_word_check (parse_info_t *pi, char *rp_name, predef_t *p, int show_emsg
     return 1;
   }
 
-  if ( !isalpha(  *(t+strlen(t)-1) ) &&  !isdigit( *(t+strlen(t)-1) ) ){/* check last letter, maybe save us */
+  if ( !isalpha((int)*(t+strlen(t)-1) ) && !isdigit((int)*(t+strlen(t)-1) ) ){/* check last letter, maybe save us */
     if(show_emsg){
       snprintf(ebuf, 2048, "Invalid rpsl_word: %s must end in a letter or digit", parm);
       error_msg_queue (pi, ebuf, ERROR_MSG); 
@@ -170,7 +170,7 @@ int rpsl_word_check (parse_info_t *pi, char *rp_name, predef_t *p, int show_emsg
   }
 
   while(*++t){
-    if(!isalpha(*t) && !isdigit(*t) && *t != '-' && *t != '_' ){
+    if(!isalpha((int)*t) && !isdigit((int)*t) && *t != '-' && *t != '_' ){
       if(show_emsg){
         sprintf(ebuf, "Invalid rpsl_word: cannot contain character %c", *t);
         error_msg_queue (pi, ebuf, ERROR_MSG); 
@@ -259,7 +259,7 @@ int free_text_check (parse_info_t *pi, char *rp_name, predef_t *p,
 
 int empty_string (char *s) {
   
-  for (; *s && !isgraph (*s); s++);
+  for (; *s && !isgraph((int)*s); s++);
   return (*s == '\0');
 }
 
@@ -912,13 +912,13 @@ char *find_list_arg (char *s, char **ret) {
     *q = '\0';
     elem = strdup (s);
     /* pass over any spaces */
-    for (q++; *q && isspace (*q); q++);
+    for (q++; *q && isspace((int)*q); q++);
     *ret  = strdup (q);
   }
   else {
     /* pass over any spaces */
-    for (; *s && isspace (*s); s++);
-    for (q = s + strlen (s) - 1; *q && isspace (*q); *q-- = '\0');
+    for (; *s && isspace((int)*s); s++);
+    for (q = s + strlen (s) - 1; *q && isspace((int)*q); *q-- = '\0');
     elem = strdup (s);
     *ret  = strdup ("");
   }
@@ -936,7 +936,7 @@ char *find_arg (char **s, int list) {
     elem = find_list_arg (*s, &ret);
   else {
     /* pass over any spaces */
-    for (; **s && isspace (**s); (*s)++);
+    for (; **s && isspace((int)**s); (*s)++);
 
     /* remove right-end surrounding brace */
     c = strlen (*s) - 1;
@@ -1029,7 +1029,7 @@ int get_int (parse_info_t *pi, char *rp_name,
   char *q;
   unsigned long ival;
 
-  for (q = parm; *q != '\0' && isdigit (*q); q++);
+  for (q = parm; *q != '\0' && isdigit((int)*q); q++);
 
   if (*q != '\0') {
     if (show_emsg) {

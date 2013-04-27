@@ -5,27 +5,31 @@
 
 /* routines for handling special indicies in hashes  */
 
+#include <netinet/in.h>
+#include <arpa/inet.h>
 #include <stdio.h>
 #include <string.h>
-#include "mrt.h"
-#include "trace.h"
 #include <time.h>
 #include <signal.h>
-#include "config_file.h"
 #include <fcntl.h>
 #include <ctype.h>
+#include <glib.h>
+
+#include "mrt.h"
+#include "trace.h"
+#include "config_file.h"
 #include "irrd.h"
 
-extern trace_t *default_trace;
+void commit_spec_hash_process(gpointer key, hash_spec_t *hash_tval, irr_database_t *db);
 
 /* called when indexes are stored in main memory hash */
 int irr_spec_hash_store (irr_database_t *database, char *key, char *value) {
   hash_item_t *hash_item;
 
-  hash_item = New (hash_item_t);
+  hash_item = irrd_malloc(sizeof(hash_item_t));
   hash_item->key = strdup (key);
   hash_item->value = value;
-  HASH_Insert (database->hash_spec, hash_item);
+  g_hash_table_insert(database->hash_spec, hash_item->key, hash_item);
   return (1);
 }
   
@@ -67,7 +71,7 @@ void util_get_ll_objs (LINKED_LIST **ll, u_long items, char **cp) {
   (*ll) = LL_Create (LL_DestroyFunction, free, 0);
 
   while (items > 0) {
-    obj_p = New(objlist_t);
+    obj_p = irrd_malloc(sizeof(objlist_t));
     UTIL_GET_NETLONG (obj_p->offset, c);
     UTIL_GET_NETLONG (obj_p->len, c);
     UTIL_GET_NETSHORT (_type, c);
@@ -159,14 +163,14 @@ void store_hash_spec (irr_database_t *database, hash_spec_t *hash_sval) {
     }
   }
 
-  hash_x = HASH_Lookup (database->hash_spec, hash_sval->key);
-  if (hash_x != NULL) HASH_Remove (database->hash_spec, hash_x);
+  hash_x = g_hash_table_lookup(database->hash_spec, hash_sval->key);
+  if (hash_x != NULL) g_hash_table_remove(database->hash_spec, hash_x->key);
   irr_spec_hash_store (database, hash_sval->key, buf);
 }
 
 void remove_hash_spec (irr_database_t *db, char *key) {
   /* printf("enter remove_hash_spec( key-(%s))\n",key); */
-  HASH_RemoveByKey (db->hash_spec, key);
+  g_hash_table_remove(db->hash_spec, key);
 }
 
 hash_spec_t *fetch_hash_spec (irr_database_t *database, char *key, 
@@ -176,11 +180,11 @@ hash_spec_t *fetch_hash_spec (irr_database_t *database, char *key,
   hash_item_t *hash_item = NULL;
   hash_spec_t *hash_sval = NULL;
 
-  hash_item = HASH_Lookup (database->hash_spec, key);
+  hash_item = g_hash_table_lookup(database->hash_spec, key);
 
   if (hash_item) {
     cp = hash_item->value;
-    hash_sval = New (hash_spec_t);
+    hash_sval = irrd_malloc(sizeof(hash_spec_t));
     hash_sval->key = strdup (key);
     UTIL_GET_NETSHORT (_id, cp);
     hash_sval->id = _id;
@@ -266,7 +270,7 @@ hash_spec_t *memory_hash_spec_create (char *key, enum SPEC_KEYS id) {
   hash_spec_t *hash_value;
   irr_hash_string_t hash_str;
 
-  hash_value = New (hash_spec_t);
+  hash_value = irrd_malloc(sizeof(hash_spec_t));
   hash_value->id = id;
   hash_value->key = strdup (key);
 
@@ -297,14 +301,14 @@ int memory_hash_spec_remove (irr_database_t *db, char *key, enum SPEC_KEYS id,
   hash_spec_t *hash_sval;
 
   convert_toupper(key);
-  hash_sval = HASH_Lookup (db->hash_spec_tmp, key);
+  hash_sval = g_hash_table_lookup(db->hash_spec_tmp, key);
 
   if (hash_sval == NULL) { /* might be in the mem hash index */
 				    
     if ((hash_sval = fetch_hash_spec (db, key, UNPACK)) == NULL)
       return (-1); /* item not found, can't delete */
 
-    HASH_Insert (db->hash_spec_tmp, hash_sval);
+    g_hash_table_insert(db->hash_spec_tmp, hash_sval->key, hash_sval);
   }
 
   memory_hash_spec_del (hash_sval, id, irr_object);
@@ -321,14 +325,14 @@ int memory_hash_spec_store (irr_database_t *db, char *key, enum SPEC_KEYS id,
   int retval = 1;
 
   convert_toupper(key);
-  hash_sval = HASH_Lookup (db->hash_spec_tmp, key);
+  hash_sval = g_hash_table_lookup(db->hash_spec_tmp, key);
 
   if (hash_sval == NULL) { /* might be in the mem hash index */
 				    
     if ((hash_sval = fetch_hash_spec (db, key, UNPACK)) == NULL)
       hash_sval = memory_hash_spec_create (key, id);
 
-    HASH_Insert (db->hash_spec_tmp, hash_sval);
+    g_hash_table_insert(db->hash_spec_tmp, hash_sval->key, hash_sval);
   }
 
 if (id == GASX6)
@@ -389,7 +393,7 @@ if (id == GASX6)
       }
       /* fall through */
     case MNTOBJS:
-      obj_p = New(objlist_t);
+      obj_p = irrd_malloc(sizeof(objlist_t));
       obj_p->offset = irr_object->offset;
       obj_p->len = irr_object->len;
       obj_p->type = irr_object->type;
@@ -408,7 +412,7 @@ void Delete_hash_spec (hash_spec_t *hash_sval) {
     return;
 
   if (hash_sval->key)
-    Delete (hash_sval->key);
+    irrd_free(hash_sval->key);
 
   if (hash_sval->ll_1)
     LL_Destroy (hash_sval->ll_1);
@@ -416,20 +420,23 @@ void Delete_hash_spec (hash_spec_t *hash_sval) {
   if (hash_sval->ll_2)
     LL_Destroy (hash_sval->ll_2);
 
-  Delete (hash_sval);
+  irrd_free(hash_sval);
 }
 
 /* commit updated index
  */
 void commit_spec_hash (irr_database_t *db) {
-  hash_spec_t *hash_tval;
+  g_hash_table_foreach(db->hash_spec_tmp, (GHFunc)commit_spec_hash_process, db);
+}
 
-  HASH_Iterate (db->hash_spec_tmp, hash_tval) {
+/* This is needed for older versions of glib (before 2.6) that
+ * don't support iteration in hash tables 
+ */
+void commit_spec_hash_process(gpointer key, hash_spec_t *hash_tval, irr_database_t *db) {
     if (hash_tval->items1 == 0 && hash_tval->items2 == 0)
       remove_hash_spec (db, hash_tval->key); 
     else 
       store_hash_spec (db, hash_tval); 
-  }
 }
 
 /* makes the keys for the mbrs-by-ref hash 

@@ -53,9 +53,6 @@
 /* Define if you have u_char, u_int, u_short, and u_long */
 #undef HAVE_U_TYPES
 
-/* Define if socklen_t absent */
-#undef socklen_t
-
 #undef HAVE_MAIL
 
 #undef HAVE_SENDMAIL

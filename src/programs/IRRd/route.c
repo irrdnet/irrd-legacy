@@ -5,18 +5,19 @@
 
 /* routines for dealing with prefixes based objects */
 
+#include <netinet/in.h>
+#include <arpa/inet.h>
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
-#include "mrt.h"
-#include "trace.h"
 #include <time.h>
 #include <signal.h>
-#include "config_file.h"
 #include <fcntl.h>
-#include "irrd.h"
 
-extern trace_t *default_trace;
+#include "mrt.h"
+#include "trace.h"
+#include "config_file.h"
+#include "irrd.h"
 
 /* add_irr_prefix
  * Add a prefix to the radix tree
@@ -40,7 +41,7 @@ void add_irr_prefix (irr_database_t *database, prefix_t *prefix,
   node = radix_lookup (radix, prefix);
   Deref_Prefix (prefix);
 
-  prefix_object = New (irr_prefix_object_t);
+  prefix_object = irrd_malloc(sizeof(irr_prefix_object_t));
   prefix_object->next    = NULL;
   prefix_object->offset  = object->offset;
   prefix_object->len     = object->len;

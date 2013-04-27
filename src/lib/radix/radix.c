@@ -2,9 +2,12 @@
  * $Id: radix.c,v 1.2 2001/07/27 16:59:50 ljb Exp $
  * originally Id: radix.c,v 1.6 1998/05/14 18:50:40 masaki Exp 
  */
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 #include <mrt.h>
 #include <radix.h>
+#include <irrdmem.h>
 
 /* #define RADIX_DEBUG 1 */
 static int num_active_radix = 0;
@@ -14,7 +17,7 @@ static int num_active_radix = 0;
 radix_tree_t *
 New_Radix (int maxbits)
 {
-    radix_tree_t *radix = New (radix_tree_t);
+    radix_tree_t *radix = irrd_malloc(sizeof(radix_tree_t));
 
     radix->maxbits = maxbits;
     radix->head = NULL;
@@ -46,7 +49,7 @@ Destroy_Radix (radix_tree_t *radix, void_fn_t func)
 		if (Xrn->data && func)
 	    	func (Xrn->data);
     	    }
-    	    Delete (Xrn);
+    	    irrd_free(Xrn);
 	    Xrn = NULL;
 	    radix->num_active_node--;
 
@@ -64,7 +67,7 @@ Destroy_Radix (radix_tree_t *radix, void_fn_t func)
             }
         }
     }
-    Delete (radix);
+    irrd_free(radix);
     num_active_radix--;
 }
 
@@ -243,7 +246,7 @@ radix_lookup (radix_tree_t *radix, prefix_t *prefix)
     int i, j, r;
 
     if (radix->head == NULL) {
-	node = New (radix_node_t);
+	node = irrd_malloc(sizeof(radix_node_t));
 	node->bit = prefix->bitlen;
 	node->prefix = Ref_Prefix (prefix);
 	node->parent = NULL;
@@ -349,7 +352,7 @@ radix_lookup (radix_tree_t *radix, prefix_t *prefix)
 	return (node);
     }
 
-    new_node = New (radix_node_t);
+    new_node = irrd_malloc(sizeof(radix_node_t));
     new_node->bit = prefix->bitlen;
     new_node->prefix = Ref_Prefix (prefix);
     new_node->parent = NULL;
@@ -398,7 +401,7 @@ radix_lookup (radix_tree_t *radix, prefix_t *prefix)
 #endif /* RADIX_DEBUG */
     }
     else {
-        glue = New (radix_node_t);
+        glue = irrd_malloc(sizeof(radix_node_t));
         glue->bit = differ_bit;
         glue->prefix = NULL;
         glue->parent = node->parent;
@@ -465,7 +468,7 @@ radix_remove (radix_tree_t *radix, radix_node_t *node)
 
 	if (parent == NULL) {
 	  radix->head = NULL;
-	  Delete (node);
+	  irrd_free(node);
 	  node = NULL;
 	  return;
 	}
@@ -480,7 +483,7 @@ radix_remove (radix_tree_t *radix, radix_node_t *node)
 	}
 
 	/* bug fix -- we need to cleanup memory AFTER testing conditions */
-	Delete (node);
+	irrd_free(node);
 	node = NULL;
 
 	if (parent->prefix)
@@ -498,7 +501,7 @@ radix_remove (radix_tree_t *radix, radix_node_t *node)
 	    parent->parent->l = child;
 	}
 	child->parent = parent->parent;
-	Delete (parent);
+	irrd_free(parent);
 	/*a	Child->parent = NULL;*/
         radix->num_active_node--;
 	return;
@@ -522,7 +525,7 @@ radix_remove (radix_tree_t *radix, radix_node_t *node)
 
     if (parent == NULL) {
 	radix->head = child;
-	Delete (node);
+	irrd_free(node);
 	node = NULL;
 	return;
     }
@@ -534,7 +537,7 @@ radix_remove (radix_tree_t *radix, radix_node_t *node)
 	parent->l = child;
     }
 
-    Delete (node);
+    irrd_free(node);
     node = NULL;
 }
 

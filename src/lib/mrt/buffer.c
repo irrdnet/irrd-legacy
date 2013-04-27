@@ -2,9 +2,13 @@
  * $Id: buffer.c,v 1.3 2001/07/13 18:02:41 ljb Exp $
  */
 
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
 #include "mrt.h"
 #include "buffer.h"
 #include <sys/utsname.h>
+#include <irrdmem.h>
 
 /* these functions may be called from trace() so that we have to 
    avoid from calling high-level functions that may call trace() */
@@ -12,7 +16,7 @@
 buffer_t *
 New_Buffer_Stream (FILE *stream)
 {
-   buffer_t *buffer = New (buffer_t);
+   buffer_t *buffer = irrd_malloc(sizeof(buffer_t));
 
    buffer->type = BUFFER_TYPE_STREAM;
    buffer->stream = stream;
@@ -23,7 +27,7 @@ New_Buffer_Stream (FILE *stream)
 buffer_t *
 New_Buffer (int len)
 {
-   buffer_t *buffer = New (buffer_t);
+   buffer_t *buffer = irrd_malloc(sizeof(buffer_t));
 
 #define INITIAL_BUFFER_ALLOC 255
    if (len == 0)
@@ -39,7 +43,7 @@ New_Buffer (int len)
 buffer_t *
 Copy_Buffer (buffer_t *origbuff)
 {
-   buffer_t *buffer = New (buffer_t);
+   buffer_t *buffer = irrd_malloc(sizeof(buffer_t));
    /* copy the space really occupied */
    buffer->type = origbuff->type;
    buffer->data_len = origbuff->data_len;
@@ -216,8 +220,8 @@ void
 Delete_Buffer (buffer_t *buffer)
 {
    if (buffer->data != NULL)
-       Delete (buffer->data);
-   Delete (buffer);
+       irrd_free(buffer->data);
+   irrd_free(buffer);
 }
 
 /*
@@ -301,7 +305,7 @@ buffer_vprintf (buffer_t *buffer, char *fmt, va_list ap)
 		n = va_arg (ap, int);
 	    else {
 		n = 0;
-		while (isdigit (*fmt))
+		while (isdigit((int)*fmt))
 		    n = n * 10 + *fmt++ - '0';
 		fmt--;
 	    }
@@ -324,7 +328,7 @@ buffer_vprintf (buffer_t *buffer, char *fmt, va_list ap)
 	    n = 0;
 	    do {
 		n = 10 * n + *fmt - '0';
-	    } while (isdigit (*++fmt));
+	    } while (isdigit((int)*++fmt));
 	    fmt--;
 	    width = n;
 	    goto again;

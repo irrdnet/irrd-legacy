@@ -2,8 +2,12 @@
  * $Id: user_util.c,v 1.7 2001/08/07 20:04:29 ljb Exp $
  */
 
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
 #include <mrt.h>
 #include <user.h>
+#include <irrdmem.h>
 
 #if 0
 static void add_last_token (char *ctoken, char *last_ctoken, char *last_utoken,
@@ -45,7 +49,7 @@ LINKED_LIST *uii_tokenize (char *buffer, int len) {
 
   save = cp = command;
   while (*cp != '\0') {
-    while ((in_quote || !isspace (*cp)) && (*cp != '\0') && (*cp != '\n')) {
+    while ((in_quote || !isspace((int)*cp)) && (*cp != '\0') && (*cp != '\n')) {
       if (*cp == '\"') {
 	if (in_quote == 0) 
 	  in_quote = 1;
@@ -73,7 +77,7 @@ LINKED_LIST *uii_tokenize (char *buffer, int len) {
   }
 
 
-  /*Delete (command);*/
+  /*irrd_free(command);*/
   return (ll);
 }
 
@@ -134,7 +138,7 @@ int uii_token_match (char *ctoken, char *user_token) {
 	*cp++ = '\0';
     
     ret = uii_token_match (buf, user_token);
-    Delete (buf);
+    irrd_free(buf);
     return (ret);
   }
 
@@ -157,7 +161,7 @@ int uii_token_match (char *ctoken, char *user_token) {
       cp = strtok_r (NULL, "|", &last);
     }
 
-    Delete (buf);
+    irrd_free(buf);
     return (ret);
   }
 
@@ -193,10 +197,10 @@ int uii_token_match (char *ctoken, char *user_token) {
 	return (ret);
       break;
     case 'n': /* name */
-      if (!isalpha (user_token[0]))
+      if (!isalpha((int)user_token[0]))
 	return (0);
       for (i = 1; user_token[i]; i++) {
-        if (!isalnum (user_token[i]))
+        if (!isalnum((int)user_token[i]))
 	    return (0);
       }
       return (ret);
@@ -204,7 +208,7 @@ int uii_token_match (char *ctoken, char *user_token) {
       return (1); /* not exact matching? */
     case 'D': /* integer (1..MAX_ALIST) */
       for (i = 0; user_token[i]; i++) {
-        if (!isdigit (user_token[i]))
+        if (!isdigit((int)user_token[i]))
 	    return (0);
       }
       i = atoi (user_token);
@@ -213,7 +217,7 @@ int uii_token_match (char *ctoken, char *user_token) {
       break;
     case 'd': /* integer */
       for (i = 0; user_token[i]; i++) {
-        if (!isdigit (user_token[i]))
+        if (!isdigit((int)user_token[i]))
 	    return (0);
       }
       return (ret);
@@ -371,7 +375,7 @@ LINKED_LIST *find_matching_commands (int state, LINKED_LIST *ll_tokens,
 		total += strlen (str);
 	    }
 
-	    concat = NewArray (char, total + 2 + 1 +40);
+	    concat = irrd_malloc(sizeof(char) * (total + 2 + 1 +40));
 	    total = 0;
 	    concat[total++] = '(';
 	    LL_Iterate (ll, str) {
