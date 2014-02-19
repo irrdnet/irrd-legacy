@@ -14,14 +14,14 @@ IRRD_LIBS = -L../atomic_ops -latomic_ops
 all:  $(GOAL) 
 
 irrd: $(OBJS)
-	@echo "Linking: $(LD) $(LDFLAGS) $(OBJS) -o $@"
-	@$(LD) $(LDFLAGS) $(OBJS) -o $@ $(SYS_LIBS) $(IRRD_LIBS)
+	@echo "Linking: $(LD) $(OBJS) $(LDFLAGS) -o $@"
+	@$(LD) $(OBJS) $(LDFLAGS) -o $@ $(SYS_LIBS) $(IRRD_LIBS)
 
 $(GOAL).purify:	$(OBJS) 
-	$(PURIFY) -follow-child-processes $(LD) $(LDFLAGS) $(OBJS) -o $@ $(SYS_LIBS) $(IRRD_LIBS)
+	$(PURIFY) -follow-child-processes $(LD) $(OBJS) $(LDFLAGS) -o $@ $(SYS_LIBS) $(IRRD_LIBS)
 
 $(GOAL).quantify: $(OBJS) 
-	$(QUANTIFY) $(LD) $(LDFLAGS) $(OBJS) -o $@ $(SYS_LIBS) $(KVM_LIB) $(IRRD_LIBS)
+	$(QUANTIFY) $(LD) $(OBJS) $(LDFLAGS) -o $@ $(SYS_LIBS) $(KVM_LIB) $(IRRD_LIBS)
 
 $(GOAL).lint:
 	lint $(CPPFLAGS) `echo $(OBJS) | sed -e 's,\.o,.c,g'`

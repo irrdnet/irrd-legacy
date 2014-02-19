@@ -1,11 +1,18 @@
+/* AUTOMATICALLY GENERATED - DO NOT EDIT - see ../irr_util/README */
+
+#include "scan.h"
+
+char *obj_template[IRR_MAX_CLASS_KEYS] = {
 "aut-num:      [mandatory]   [single]     [primary/look-up key]\n"
 "as-name:      [mandatory]   [single]     [ ]\n"
 "descr:        [mandatory]   [single]     [ ]\n"
 "member-of:    [optional]    [multiple]   [ ]\n"
 "import:       [optional]    [multiple]   [ ]\n"
 "mp-import:    [optional]    [multiple]   [ ]\n"
+"import-via:   [optional]    [multiple]   [ ]\n"
 "export:       [optional]    [multiple]   [ ]\n"
 "mp-export:    [optional]    [multiple]   [ ]\n"
+"export-via:   [optional]    [multiple]   [ ]\n"
 "default:      [optional]    [multiple]   [ ]\n"
 "mp-default:   [optional]    [multiple]   [ ]\n"
 "admin-c:      [mandatory]   [multiple]   [ ]\n"
@@ -53,6 +60,8 @@
 "components:     [optional]    [single]     [ ]\n"
 "admin-c:        [optional]    [multiple]   [ ]\n"
 "tech-c:         [optional]    [multiple]   [ ]\n"
+"geoidx:         [optional]    [multiple]   [ ]\n"
+"roa-uri:        [optional]    [single]     [ ]\n"
 "remarks:        [optional]    [multiple]   [ ]\n"
 "notify:         [optional]    [multiple]   [ ]\n"
 "mnt-by:         [mandatory]   [multiple]   [ ]\n"
@@ -71,6 +80,8 @@
 "components:     [optional]    [single]     [ ]\n"
 "admin-c:        [optional]    [multiple]   [ ]\n"
 "tech-c:         [optional]    [multiple]   [ ]\n"
+"geoidx:         [optional]    [multiple]   [ ]\n"
+"roa-uri:        [optional]    [single]     [ ]\n"
 "remarks:        [optional]    [multiple]   [ ]\n"
 "notify:         [optional]    [multiple]   [ ]\n"
 "mnt-by:         [mandatory]   [multiple]   [ ]\n"
@@ -295,4 +306,5 @@
 "changed:       [mandatory]   [multiple]   [ ]\n"
 "source:        [mandatory]   [single]     [ ]\n",
 
-number of objects (21)
+};
+/* number of objects (21) */

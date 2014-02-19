@@ -2,10 +2,10 @@
 
 <book>
 <title>IRRd - Internet Routing Registry Daemon
-User/Configuration Guide</title>
+ User/Configuration Guide</title>
 <bookinfo>
 <edition>IRRd User/Configuration Guide</edition>
-<pubdate>April 2013</pubdate>
+<pubdate>February 2014</pubdate>
 <corpauthor>Merit Network, Inc.</corpauthor>
 <revhistory>
    <revision>
@@ -95,6 +95,14 @@ User/Configuration Guide</title>
        <authorinitials>ljb</authorinitials>
        <revremark>
 	  Document new commands to support roa-status attribute.
+       </revremark>
+   </revision>
+   <revision>
+     <revnumber>3.0.7</revnumber>
+       <date>2014-02-18</date>
+       <authorinitials>ljb</authorinitials>
+       <revremark>
+	  Add jwjs docs for import-via/export-via
        </revremark>
    </revision>
 </revhistory>
@@ -1262,6 +1270,22 @@ RFC-2769: Routing Policy System Replication
      mechanism of distributing data  from registry to registry.
      Status: IRRd does not yet support this RFC.
 </literallayout></para>
+<para>
+RFC-4012: Routing Policy Specification Language next generation (RPSLng)
+<literallayout>
+    This memo introduces a new set of simple extensions to the Routing
+    Policy Specification Language (RPSL), enabling the language to
+    document routing policies for the IPv6 and multicast address families
+    currently used in the Internet.
+</literallayout></para>
+<para>
+I-D draft-snijders-rpsl-via: The "import-via" and "export-via" attributes in RPSL Policy Specifications
+<literallayout>
+    This document defines two attributes in the aut-num Class which can
+    be used in RPSL policy specifications to publish desired routing
+    policy regarding non-adjacent networks.
+</literallayout></para>
+
 </chapter>
 <appendix>
 <title>IRRdCacher</title>

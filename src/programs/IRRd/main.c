@@ -75,7 +75,7 @@ int main (int argc, char *argv[])
     char *config_file = "/etc/irrd.conf";
     int UNPRIV_FLAG = 0;
 
-#ifdef HAVE_LIBPTHREAD
+#if defined(HAVE_LIBPTHREAD) && (GLIB_MINOR_VERSION < 32)
     g_thread_init(NULL);  /* This is required to make GLIB thread-safe */
 #endif
 

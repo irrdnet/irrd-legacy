@@ -26,7 +26,7 @@ extern FILE *dfile;
 extern int ERROR_STATE;
 extern u_int ri_opts;
 char *p, *q;
-static int i, mp_attr, filter_count, import_errors, all, none;
+static int i, mp_attr, via_attr, filter_count, import_errors, all, none;
 extern int lncont;
 
 /* defined in lexer rpsl.fl */
@@ -158,15 +158,15 @@ proto_t    *pr;
 %token  T_MH_KEY T_OW_KEY T_FP_KEY T_CE_KEY T_DC_KEY T_TD_KEY T_RP_KEY
 %token  T_PL_KEY T_AF_KEY T_RT_KEY T_R6_KEY T_HO_KEY T_IJ_KEY T_MO_KEY
 %token  T_CO_KEY T_AB_KEY T_AG_KEY T_EC_KEY T_CU_KEY T_GX_KEY T_AN_KEY
-%token  T_AA_KEY T_IP_KEY T_MI_KEY T_EX_KEY T_MX_KEY T_DF_KEY T_MD_KEY
-%token  T_MA_KEY T_AK_KEY T_IR_KEY T_AZ_KEY T_LA_KEY T_IF_KEY T_PE_KEY
-%token  T_MZ_KEY T_PM_KEY T_IE_KEY T_RI_KEY T_RX_KEY T_MY_KEY T_AS_KEY
-%token  T_MS_KEY T_RS_KEY T_ME_KEY T_MM_KEY T_IS_KEY T_MG_KEY T_MJ_KEY
-%token  T_PS_KEY T_PG_KEY T_MP_KEY T_FS_KEY T_FI_KEY T_MF_KEY T_PN_KEY
-%token  T_AD_KEY T_RO_KEY T_TB_KEY T_MT_KEY T_DT_KEY T_MN_KEY T_AT_KEY
-%token  T_S6_KEY T_LO_KEY T_PR_KEY T_AP_KEY T_TU_KEY T_CT_KEY T_UL_KEY
-%token  T_LI_KEY T_TE_KEY T_AU_KEY T_UD_KEY T_UO_KEY T_UP_KEY T_UC_KEY
-
+%token  T_AA_KEY T_IP_KEY T_MI_KEY T_IV_KEY T_EX_KEY T_MX_KEY T_EV_KEY
+%token  T_DF_KEY T_MD_KEY T_MA_KEY T_AK_KEY T_IR_KEY T_AZ_KEY T_LA_KEY
+%token  T_IF_KEY T_PE_KEY T_MZ_KEY T_PM_KEY T_IE_KEY T_RI_KEY T_RX_KEY
+%token  T_MY_KEY T_AS_KEY T_MS_KEY T_RS_KEY T_ME_KEY T_MM_KEY T_IS_KEY
+%token  T_MG_KEY T_MJ_KEY T_PS_KEY T_PG_KEY T_MP_KEY T_FS_KEY T_FI_KEY
+%token  T_MF_KEY T_PN_KEY T_AD_KEY T_RO_KEY T_TB_KEY T_MT_KEY T_DT_KEY
+%token  T_MN_KEY T_AT_KEY T_S6_KEY T_LO_KEY T_PR_KEY T_AP_KEY T_TU_KEY
+%token  T_CT_KEY T_UL_KEY T_LI_KEY T_TE_KEY T_AU_KEY T_UD_KEY T_UO_KEY
+%token  T_UP_KEY T_UC_KEY
 
 /* RPSL reserved words */
 
@@ -235,8 +235,10 @@ proto_t    *pr;
 %type <string> attr_autnum
 %type <string> attr_import
 %type <string> attr_mp_import
+%type <string> attr_import_via
 %type <string> attr_export
 %type <string> attr_mp_export
+%type <string> attr_export_via
 %type <string> attr_default
 %type <string> attr_mp_default
 %type <string> attr_member_of_an
@@ -554,8 +556,10 @@ line_rtr_set: attr_rtr_set { $$ = $1; }
 line_autnum: attr_autnum { $$ = $1; }
   | attr_import          { $$ = $1; }
   | attr_mp_import       { $$ = $1; }
+  | attr_import_via      { $$ = $1; }
   | attr_export          { $$ = $1; }
   | attr_mp_export       { $$ = $1; }
+  | attr_export_via      { $$ = $1; }
   | attr_default         { $$ = $1; }
   | attr_mp_default      { $$ = $1; }
   | attr_member_of_an    { $$ = $1; }
@@ -1084,18 +1088,22 @@ attr_autnum: T_AN_KEY T_AS { asnum_syntax ($2, &curr_obj); $$ = $2; };
 
 attr_asname: T_AA_KEY T_WORD { $$ = $2; };
 
-attr_import: T_IP_KEY {mp_attr = 0;} attr_import_syntax { $$ = $3; };
+attr_import: T_IP_KEY {mp_attr = 0; via_attr = 0;} attr_import_syntax { $$ = $3; };
 
-attr_mp_import: T_MI_KEY {mp_attr = 1;} attr_import_syntax { $$ = $3; };
+attr_mp_import: T_MI_KEY {mp_attr = 1; via_attr = 0;} attr_import_syntax { $$ = $3; };
+
+attr_import_via: T_IV_KEY {mp_attr = 1; via_attr = 1;} attr_import_syntax { $$ = $3; };
 
 attr_import_syntax: opt_protocol_from opt_protocol_into import_simple
            { $$ = my_strcat (&curr_obj, 5, 02|010, $1, " ", $2, " ", $3); }
    | opt_protocol_from opt_protocol_into afi_import_exp
            { $$ = my_strcat (&curr_obj, 5, 02|010, $1, " ", $2, " ", $3); };
 
-attr_export: T_EX_KEY {mp_attr = 0;} attr_export_syntax { $$ = $3; };
+attr_export: T_EX_KEY {mp_attr = 0; via_attr=0;} attr_export_syntax { $$ = $3; };
 
-attr_mp_export: T_MX_KEY {mp_attr = 1;} attr_export_syntax { $$ = $3; };
+attr_mp_export: T_MX_KEY {mp_attr = 1; via_attr=0;} attr_export_syntax { $$ = $3; };
+
+attr_export_via: T_EV_KEY {mp_attr = 1; via_attr = 1;} attr_export_syntax { $$ = $3; };
 
 attr_export_syntax: opt_protocol_from opt_protocol_into export_simple
            { $$ = my_strcat (&curr_obj, 5, 02|010, $1, " ", $2, " ", $3); }
@@ -1215,14 +1223,38 @@ export_factor: export_peering_action_list T_ANNOUNCE filter
 /* peering action pair */
 
 import_peering_action_list: T_FROM peering opt_action
-            { $$ = my_strcat (&curr_obj, 5, 02|010, $1, " ", $2, " ", $3); }
+            { if ( via_attr == 1 )
+                error_msg_queue (&curr_obj, "illegal syntax clause i-1", ERROR_MSG); 
+              $$ = my_strcat (&curr_obj, 5, 02|010, $1, " ", $2, " ", $3); }
+        | peering T_FROM peering opt_action 
+            { if ( via_attr == 0 )
+                error_msg_queue (&curr_obj, "illegal syntax clause i-2", ERROR_MSG); 
+              $$ = my_strcat (&curr_obj, 5, 02|010, $1, " ", $2, " ", $3); }
         | import_peering_action_list T_FROM peering opt_action 
-            { $$ = my_strcat (&curr_obj, 5, 02|010, $1, " ", $2, " ", $3); };
+            { if ( via_attr == 1 )
+                error_msg_queue (&curr_obj, "illegal syntax clause i-3", ERROR_MSG); 
+              $$ = my_strcat (&curr_obj, 5, 02|010, $1, " ", $2, " ", $3); }
+        | import_peering_action_list peering T_FROM peering opt_action 
+            { if ( via_attr == 0 )
+                error_msg_queue (&curr_obj, "illegal syntax clause i-4", ERROR_MSG); 
+              $$ = my_strcat (&curr_obj, 5, 02|010, $1, " ", $2, " ", $3); };
 
 export_peering_action_list: T_TO peering opt_action
-            { $$ = my_strcat (&curr_obj, 5, 02|010, $1, " ", $2, " ", $3); }
+            { if ( via_attr == 1 )
+                error_msg_queue (&curr_obj, "illegal syntax clause e-1", ERROR_MSG); 
+              $$ = my_strcat (&curr_obj, 5, 02|010, $1, " ", $2, " ", $3); }
+        | peering T_TO peering opt_action
+            { if ( via_attr == 0 )
+                error_msg_queue (&curr_obj, "illegal syntax clause e-2", ERROR_MSG); 
+              $$ = my_strcat (&curr_obj, 5, 02|010, $1, " ", $2, " ", $3); }
         | export_peering_action_list T_TO peering opt_action
-            { $$ = my_strcat (&curr_obj, 5, 02|010, $1, " ", $2, " ", $3); };
+            { if ( via_attr == 1 )
+                error_msg_queue (&curr_obj, "illegal syntax clause e-3", ERROR_MSG); 
+              $$ = my_strcat (&curr_obj, 5, 02|010, $1, " ", $2, " ", $3); }
+        | export_peering_action_list peering T_TO peering opt_action 
+            { if ( via_attr == 0 )
+                error_msg_queue (&curr_obj, "illegal syntax clause e-4", ERROR_MSG); 
+              $$ = my_strcat (&curr_obj, 5, 02|010, $1, " ", $2, " ", $3); };
 
 peering: as_expression opt_router_expression opt_router_expression_with_at
             { $$ = my_strcat (&curr_obj, 5, 02|010, $1, " ", $2, " ", $3); }

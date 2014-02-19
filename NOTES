@@ -1,9 +1,16 @@
+ Feb 18, 2014      IRRd 3.0.7   Release notes
+  Added support for IETF Internet Draft draft-snijders-rpsl-via
+   which allows networks to express desired policy regarding
+   non-adjacent networks. IRRd and irr_rpsl_check have been patched.
+   Added by Job Snijders <job.snijders@atrato.com>
+
  Apr 26, 2013      IRRd 3.0.6   Release notes
    This the first public release since IRRd 2.3.10.  IRRd now uses the
    hashing support from Glib instead of an internal version.  This
-   version has been updated to support the roa-status attribute.  Support
-   for the geoidx attribute has also been incorporated.  IRRd now supports
-   the RIPE version 2 and 3 mirroring protocols as well.
+   version has been updated to support the roa-status attribute. This is
+   an internally generated attribute and available for user submission.
+   Support for the geoidx attribute has also been incorporated.
+   IRRd now supports the RIPE version 2 and 3 mirroring protocols as well.
 
  Nov 17, 2010      IRRd 2.3.10  Release notes
    Expand stack size to 1024 entries in rpsl-commands.c (stack overflow issues)

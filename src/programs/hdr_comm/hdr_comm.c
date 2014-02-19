@@ -389,7 +389,6 @@ void free_ti_mem (trans_info_t *ti) {
 }
     
 void print_hdr_struct (FILE *fout, trans_info_t *ti) {
-  char *p;
   
   fprintf (fout, "%s\n", HDR_START);
   
@@ -487,6 +486,8 @@ void print_hdr_struct (FILE *fout, trans_info_t *ti) {
 
 /* debugging stuff */
 #ifdef notdef
+  char *p;
+
   fprintf (fout, "NOTIFY---\n");
   if (ti->nnext != ti->notify_addrs) {
     p = ti->notify_addrs;
