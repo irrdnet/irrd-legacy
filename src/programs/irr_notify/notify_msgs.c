@@ -252,8 +252,11 @@ void init_response_header (trace_t *tr, FILE *fp, char *from, char *to, enum NOT
 
 #ifdef HAVE_SENDMAIL
   if (ti->web_origin_str == NULL || response_type != SENDER_RESPONSE) {
-    if (db_admin != NULL)
+    if (ci.reply_from != NULL) {
+      fprintf (fp, "From: %s\nReply-To: %s\n", ci.reply_from, ci.reply_from);
+    } else if (db_admin != NULL) {
       fprintf (fp, "From: %s\nReply-To: %s\n", db_admin, db_admin);
+    }
     fprintf (fp, "To: %s\nSubject: %s\n", to, ti->subject);
   }
 #endif
@@ -500,15 +503,11 @@ void sender_response (trace_t *tr, FILE *fin, long obj_pos, trans_info_t *ti,
     fprintf (msg_fp, "%s%s", ERROR_TAG, AUTHFAIL_MSG);
     fprintf (msg_fp, "\n");
     if (!strcmp (ti->op, REPLACE_OP)) {
-      char *notify_str;
 
       fprintf (msg_fp, EXIST_OBJ_MSG);
       dump_old_obj (tr, msg_fp, fin, ti->old_obj_fname, max_obj_line_size);
-      if (db_admin == NULL)
-	notify_str = "the existing maintainer";
-      else
-	notify_str = db_admin;
-      fprintf (msg_fp, REPLACE_FAIL_NOTE, db_admin);
+      if (ci.replace_msg != NULL)
+        fprintf (msg_fp, ci.replace_msg);
     }
     trace (NORM, tr, "%s%s", ERROR_TAG, AUTHFAIL_MSG);
     return;

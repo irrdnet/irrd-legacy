@@ -613,6 +613,10 @@ The directory path of the PGP ring files.  The default is ~/.pgp</para>
 <para>
 The email address of the DB administrators.  The default is db-admin@localhost.</para>
 <para>
+<command>reply_from &lt;email address></command></para>
+<para>
+The email address to be used in the From: and Reply-to: fields in responses.</para>
+<para>
 Database submissions will be sent to 'irr_port' and 'irr_server'. The defaults are host 'localhost' and port 43.  The 'override_cryptpw' command sets the system password and is typically used by an administrator to enter new maintainer objects into the system.  Two log files are created:  a submission log 'trans.log' and an acknowledgement log 'ack.log'.  The log files will be created by default in the directory specified by 'irr_directory' (i.e., the IRRd cache directory).   The default can be overridden with the 'submission_log_dir' configuration command.</para>
 <para>
 The 'pgp_dir' configuration command specifies the directory location of the public and secret PGP ring files.  The default is the normal PGP default, ~/.pgp from the UID of the invoking process.  The 'pgp_dir' command is useful, for example, when sendmail invokes the DB submission process from /etc/aliases running under user 'daemon'.  Note that the PGP directory will need to be permitted properly to allow access from the irr_rpsl_submit process.  Alternatively, one may want to install the irr_rpsl_submit binary as set-uid to a particular ID which has access to the PGP directory.</para>

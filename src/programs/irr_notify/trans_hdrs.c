@@ -34,8 +34,11 @@ const char MAIL_HEADERS[] =
 const char WEB_UPDATE[] =
 "\nThe Web submission originated from IP address:\n-   %s\n";
 
+
+/*
 const char REPLACE_FAIL_NOTE[] =
 "\nThe existing object has not been replaced.  Please verify that you\nare the authorized maintainer for the existing object as indicated by\nthe mnt-by attribute.  It is common for internet service providers\nto \"proxy\" register their customer routes.  If the mnt-by attributes\ndiffer and you consider yourself to be the rightful maintainer for this\nobject, please contact %s in order to replace\nthe existing object.\n";
+*/
 
 /*
  * <OPERATION> FAILED: [<obj type>] <obj key>

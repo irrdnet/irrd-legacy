@@ -266,11 +266,13 @@ typedef struct _irr_t {
  /* stuff just to keep track of pipeline */
   trace_t		*submit_trace;
   char			*db_admin;
+  char			*reply_from;
   char			*pgp_dir;
   char			*override_password;
   char			*irr_host;
   LINKED_LIST		*ll_response_footer;
   LINKED_LIST		*ll_response_notify_header;
+  LINKED_LIST		*ll_response_replace;
   LINKED_LIST		*ll_response_forward_header;
   /* end stuff just to keep track of pipeline */
 } irr_t;

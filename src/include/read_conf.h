@@ -37,6 +37,8 @@ typedef struct _config_info_t {
   char     *db_dir;       /* path to the database dir */
   char     *pgp_dir;      /* pgp dir */
   char     *db_admin;     /* db admin email addr */
+  char     *reply_from;	/* email addr to use for From: address */
+  char     *replace_msg;   /* msg to include on failed replacements */ 
   char     *footer_msg;   /* submission footer msg's */
   char     *notify_header_msg;   /* header on submissions msgs */ 
   char     *forward_header_msg;   

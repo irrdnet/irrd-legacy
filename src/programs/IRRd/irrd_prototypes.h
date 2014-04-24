@@ -40,6 +40,7 @@ int config_irr_directory (uii_connection_t *uii, char *directory);
 int config_irr_database_mirror (uii_connection_t *uii, char *name,
 				char *host, int port);
 int config_dbadmin (uii_connection_t *uii, char *email);
+int config_replyfrom (uii_connection_t *uii, char *email);
 int config_debug_server_syslog (uii_connection_t *uii);
 int config_irr_database (uii_connection_t *uii, char *name);
 int config_irr_database_authoritative (uii_connection_t *uii, char *name);
@@ -60,6 +61,7 @@ int config_irr_dbclean (uii_connection_t *uii);
 int config_irr_database_filter (uii_connection_t *uii, char *name, char *object);
 int config_db_ignore (uii_connection_t *uii, char *str);
 int config_response_footer (uii_connection_t *uii, char *line);
+int config_response_replace (uii_connection_t *uii, char *line);
 int config_response_notify_header (uii_connection_t *uii, char *line);
 int config_response_forward_header (uii_connection_t *uii, char *line);
 int config_irr_remote_ftp_url (uii_connection_t *uii, char *name, char *dir);

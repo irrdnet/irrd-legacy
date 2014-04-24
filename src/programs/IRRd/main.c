@@ -732,10 +732,15 @@ void init_irrd_commands (int UNPRIV_FLAG) {
   uii_add_command2 (UII_CONFIG, COMMAND_NORM, "db_admin %s",
 		    (int (*)()) config_dbadmin,
 		    "DB-admin email address");
+  uii_add_command2 (UII_CONFIG, COMMAND_NORM, "reply_from %s",
+		    (int (*)()) config_replyfrom,
+		    "From: email address");
   uii_add_command2 (UII_CONFIG, COMMAND_NORM, "response_footer %S",
 		    (int (*)()) config_response_footer,
 		    "Text at bottom of email responses");
-
+  uii_add_command2 (UII_CONFIG, COMMAND_NORM, "response_replace %S",
+		    (int (*)()) config_response_replace,
+		    "Text for object replacement failures");
   uii_add_command2 (UII_CONFIG, COMMAND_NORM, "response_notify_header %S",
 		    (int (*)()) config_response_notify_header,
 		    "Text at top of email responses");

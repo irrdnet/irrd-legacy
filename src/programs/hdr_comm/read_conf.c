@@ -44,7 +44,8 @@ static int      add_acl          (char *, char *, acl **);
  *                      log_dir == NULL means no logging
  * irr_directory        DEF_DBCACHE see irr_defs.h
  * pgp_dir              NULL ie, user's ~/.pgp is assumed
- * db_admin             NULL ie, do not email new maintainer requests
+ * db_admin             email for new maintainer requests
+ * reply_from		email to use as reply from address.
  * 'ci' (sources struc) empty list
  *
  * Function assumes 'ci' has bee set to all 0's.  Command line options
@@ -90,7 +91,8 @@ int parse_irrd_conf_file (char *config_fname, trace_t *tr) {
   temp_ci.log_dir = NULL;  /* default is 'irr_directory' value */
   temp_ci.db_dir  = strdup (DEF_DBCACHE);
   temp_ci.pgp_dir = NULL;
-  temp_ci.db_admin = NULL; /* email addr to send new maintainer req's */
+  temp_ci.db_admin = NULL; /* email addr to send maintainer req's */
+  temp_ci.reply_from = NULL; /* email addr to use for From:/Reply-To: */
   temp_ci.footer_msg = NULL; /* footer text */
   if (ci.footer_msg != NULL) {
     if (ci.footer_msg[0] != (char ) '"') {
@@ -185,6 +187,8 @@ int parse_irrd_conf_file (char *config_fname, trace_t *tr) {
 	irr_dir = char_line (q, irr_dir);
       else if (len > 3 && !strncmp (p, "db_admin", len))
 	temp_ci.db_admin = char_line (q, temp_ci.db_admin);
+      else if (len > 5 && !strncmp (p, "reply_from", len))
+	temp_ci.reply_from = char_line (q, temp_ci.reply_from);
       else if (len > 4  && !strncmp (p, "debug", len)) 
 	config_trace_local (tr, q);
       else if (len > 10 && ci.footer_msg == NULL &&
@@ -193,7 +197,11 @@ int parse_irrd_conf_file (char *config_fname, trace_t *tr) {
       else if (len > 10 && ci.notify_header_msg == NULL &&
 	       !strncmp (p, "response_notify_header", len))
 	temp_ci.notify_header_msg =
-	  myconcat_nospace (temp_ci.notify_header_msg, get_footer_msg (q));
+	  myconcat_nospace (temp_ci.replace_msg, get_footer_msg (q));
+      else if (len > 10 && ci.replace_msg == NULL &&
+	       !strncmp (p, "response_replace", len))
+	temp_ci.replace_msg =
+	  myconcat_nospace (temp_ci.replace_msg, get_footer_msg (q));
       else if (len > 10 && ci.forward_header_msg == NULL &&
 	       !strncmp (p, "response_forward_header", len))
 	temp_ci.forward_header_msg = 
@@ -234,6 +242,13 @@ int parse_irrd_conf_file (char *config_fname, trace_t *tr) {
     if (temp_ci.notify_header_msg != NULL) {
         ci.notify_header_msg = strdup (temp_ci.notify_header_msg);
   	free_mem (temp_ci.notify_header_msg);
+    }
+  } 
+
+  if (ci.replace_msg == NULL) {
+    if (temp_ci.replace_msg != NULL) {
+        ci.replace_msg = strdup (temp_ci.replace_msg);
+  	free_mem (temp_ci.replace_msg);
     }
   } 
 
@@ -298,6 +313,11 @@ int parse_irrd_conf_file (char *config_fname, trace_t *tr) {
     ci.db_admin = temp_ci.db_admin;
   else
     free_mem (temp_ci.db_admin);
+
+  if (ci.reply_from == NULL)
+    ci.reply_from = temp_ci.reply_from;
+  else
+    free_mem (temp_ci.reply_from);
 
   fclose  (fin);
   regfree (&re_accept);

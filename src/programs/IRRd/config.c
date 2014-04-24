@@ -1275,7 +1275,7 @@ int config_debug_submission_syslog (uii_connection_t *uii) {
   return (1);
 }
 
-/* db_admin % s */
+/* db_admin %s  */
 void get_config_dbadmin () {
   config_add_output ("db_admin %s\r\n", IRR.db_admin);
 }
@@ -1283,6 +1283,17 @@ void get_config_dbadmin () {
 int config_dbadmin (uii_connection_t *uii, char *email) {
   IRR.db_admin = email;
   config_add_module (0, "dbadmin", get_config_dbadmin, NULL);
+  return (1);
+}
+
+/* reply_from %s */
+void get_config_replyfrom () {
+  config_add_output ("reply_from %s\r\n", IRR.reply_from);
+}
+
+int config_replyfrom (uii_connection_t *uii, char *email) {
+  IRR.reply_from = email;
+  config_add_module (0, "replyfrom", get_config_replyfrom, NULL);
   return (1);
 }
 
@@ -1303,6 +1314,26 @@ int config_response_footer (uii_connection_t *uii, char *st) {
     st = " ";
   LL_Add (IRR.ll_response_footer, strdup (st));
   config_add_module (0, "responsefooter", get_config_responsefooter, NULL);
+  return (1);
+}
+
+void get_config_responsereplace () {
+  char *st;
+
+  LL_Iterate (IRR.ll_response_replace, st) {
+    config_add_output ("response_replace %s\r\n", st);
+  }
+}
+
+/* response_replace %s */
+int config_response_replace (uii_connection_t *uii, char *st) {
+
+  if (IRR.ll_response_replace == NULL)
+    IRR.ll_response_replace = LL_Create (0);
+  if (st == NULL) 
+    st = " ";
+  LL_Add (IRR.ll_response_replace, strdup (st));
+  config_add_module (0, "responsereplace", get_config_responsereplace, NULL);
   return (1);
 }
 

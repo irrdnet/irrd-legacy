@@ -1,5 +1,11 @@
+ Apr 25, 2014	   IRRd 3.0.8   Release notes
+   Add "reply_from" config option to allow setting of "From:" and
+   "Reply-to" email address in repsonses from irr_rpsl_submit.
+   Add "response_replace" config option for irr_rpsl_submit response
+   to failed attmpts to replace existing objects.
+  
  Feb 18, 2014      IRRd 3.0.7   Release notes
-  Added support for IETF Internet Draft draft-snijders-rpsl-via
+   Added support for IETF Internet Draft draft-snijders-rpsl-via
    which allows networks to express desired policy regarding
    non-adjacent networks. IRRd and irr_rpsl_check have been patched.
    Added by Job Snijders <job.snijders@atrato.com>
