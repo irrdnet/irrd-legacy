@@ -1,0 +1,27 @@
+From test_006@localhost Sat Sep  6 14:29:35 2014
+Return-Path: <test_006@localhost>
+X-Original-To: auto-dbm@localhost
+Delivered-To: auto-dbm@localhost
+Received: by irime.6core.net (Postfix, from userid 1000)
+    id 8516168379; Sat,  6 Sep 2014 14:29:35 +0000 (UTC)
+To: auto-dbm@localhost
+Subject: test_006
+Message-Id: <20140906142935.8516168379@irime.6core.net>
+Date: Sat,  6 Sep 2014 14:29:35 +0000 (UTC)
+From: test_007@localhost (Ubuntu)
+
+password: md5_citesting
+
+mntner:     MAINT-TEST
+descr:      Example
+admin-c:    TESTPERSON-sampledb
+tech-c:     TESTPERSON-sampledb
+auth:       CRYPT-PW HIDDENCRYPTPW
+auth:       MD5-PW $1$SaltSalt$DummifiedMD5HashValue.
+auth:       PGPKEY-8BFE94A9
+remarks:    remark submitted with hidden md5, should be left un-hidden
+mnt-by:     MAINT-TEST
+upd-to:     test_001@localhost
+changed:    test_007@localhost 20140906
+source:     sampledb
+

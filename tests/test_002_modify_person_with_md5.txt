@@ -1,0 +1,25 @@
+From test_002@localhost Sat Sep  6 14:29:35 2014
+Return-Path: <test_002@localhost>
+X-Original-To: auto-dbm@localhost
+Delivered-To: auto-dbm@localhost
+Received: by irime.6core.net (Postfix, from userid 1000)
+    id 8516168379; Sat,  6 Sep 2014 14:29:35 +0000 (UTC)
+To: auto-dbm@localhost
+Subject: test_002
+Message-Id: <20140906142935.8516168379@irime.6core.net>
+Date: Sat,  6 Sep 2014 14:29:35 +0000 (UTC)
+From: test_002@localhost (Ubuntu)
+
+password: md5_citesting
+
+person:     Test User
+address:    Smoke Avenue 4
+remarks:    remark
+remarks:    now the update was done through the md5 crypt
+phone:      +31-6-123456789
+e-mail:     test_002@localhost
+nic-hdl:    TESTUSER-sampledb
+mnt-by:     MAINT-TEST
+changed:    test002@localhost 20140901
+source:     sampledb
+

@@ -1,0 +1,42 @@
+From test_003@localhost Sat Sep  6 14:29:35 2014
+Return-Path: <test_003@localhost>
+X-Original-To: auto-dbm@localhost
+Delivered-To: auto-dbm@localhost
+Received: by irime.6core.net (Postfix, from userid 1000)
+    id 8516168379; Sat,  6 Sep 2014 14:29:35 +0000 (UTC)
+To: auto-dbm@localhost
+Subject: test_003
+Message-Id: <20140906142935.8516168379@irime.6core.net>
+Date: Sat,  6 Sep 2014 14:29:35 +0000 (UTC)
+From: test_003@localhost (Ubuntu)
+
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA1
+
+person:     Test User
+address:    Smoke Avenue 4
+remarks:    remark
+remarks:    now the update was done through the GPG authentication
+phone:      +31-6-123456789
+e-mail:     test_002@localhost
+nic-hdl:    TESTUSER-sampledb
+mnt-by:     MAINT-TEST
+changed:    test002@localhost 20140901
+source:     sampledb
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
+
+iQIcBAEBAgAGBQJUCz2HAAoJELRYW6uL/pSpkpgP/06i2dlMp5QpBqX2aswsY71q
+kOFRmVrWSIy1wztesrVDzwQnKv0vWG+wonUFwRXvmZlPQg+38Ca9HCRFd8O7rD3/
+8it3hVYiJozQN1jaTS7B5+5I927r4dUpH1cV2RVvqVL/HyHTMA0Ucvxbml4tgii9
+YMXjPCcFywbeCTzpgQW1KB6X+KP03qxRAAy5k4l+ExTW7z7hiyfON5DBcRoKzGQM
+kR96qw4HI6V4W/Od6QTr/q2XIlopj49pEqqbbLsF9+ySoNPKn+g8DR6nKYlW1M+h
+AJ3D5+G0woVCYBTz3qrCRYju24i5438LVERT2KAtXyuWbS98dvPXQmNKsWfwShzg
+pWnMKxMWm1G51Csoa6pjMX7eJvMNAmkmUKCuixZvOE8DJJDXAvRGbotvtvkVszBq
+In4FIMCFDvtfsQXD4yMstZBxy9zL+G4pR8C5TSb674Oowux9HcKCjPM7lxCvvWCI
+1rUF6qLoWcIrtZRHXx0/kWm4l+QH0bMf+GDcPeOb3kne6A5blsBjtxPpNukDzDLJ
+MGbuAUUyLa7/WSvwqnz1qh4BoagUIDbC1bRZeYoreyYh67HB9V+oilyI7qfI17il
+Gl+TyKISa6clhAMrY1rFhSvFZ0PQa9N4g7+GfP/nolH97xgcdYlxmyg5Ptoxk02o
+iNVsBQEloi57NfC0bSez
+=Zov9
+-----END PGP SIGNATURE-----

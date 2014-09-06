@@ -1,0 +1,13 @@
+mntner:     MAINT-TEST
+descr:      Example
+admin-c:    TESTPERSON-sampledb
+tech-c:     TESTPERSON-sampledb
+auth:       CRYPT-PW aazl7kClQAddg
+auth:       MD5-PW $1$BO05zdkK$/.qYCrwPuDjpxzMjghUlO0
+auth:       PGPKEY-8BFE94A9
+remarks:    remark
+mnt-by:     MAINT-TEST
+upd-to:     test_001@localhost
+changed:    test_001@localhost 20140901
+source:     sampledb
+

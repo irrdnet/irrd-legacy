@@ -1,0 +1,90 @@
+From test_004@localhost Sat Sep  6 14:29:35 2014
+Return-Path: <test_004@localhost>
+X-Original-To: auto-dbm@localhost
+Delivered-To: auto-dbm@localhost
+Received: by irime.6core.net (Postfix, from userid 1000)
+    id 8516168379; Sat,  6 Sep 2014 14:29:35 +0000 (UTC)
+To: auto-dbm@localhost
+Subject: test_004
+Message-Id: <20140906142935.8516168379@irime.6core.net>
+Date: Sat,  6 Sep 2014 14:29:35 +0000 (UTC)
+From: test_004@localhost (Ubuntu)
+
+password: md5_citesting
+
+aut-num:    AS1
+as-name:    FIRST
+descr:      AS1
+import:     from AS-ANY accept ANY
+export:     to AS-ANY announce ANY
+admin-c:    TEST-sampledb
+tech-c:     TEST-sampledb
+mnt-by:     MAINT-TEST
+changed:    test_004@localhost 20140906
+source:     sampledb
+
+aut-num:    AS2
+as-name:    SECOND
+descr:      AS2
+import:     from AS-ANY accept ANY
+export:     to AS-ANY announce ANY
+admin-c:    TEST-sampledb
+tech-c:     TEST-sampledb
+mnt-by:     MAINT-TEST
+changed:    test_004@localhost 20140906
+source:     sampledb
+
+route:      10.0.0.0/8
+descr:      AS1 IPv4
+origin:     AS1
+mnt-by:     MAINT-TEST
+changed:    test_004@localhost
+source:     sampledb
+
+route:      172.16.0.0/16
+descr:      AS2 IPv4
+origin:     AS2
+mnt-by:     MAINT-TEST
+changed:    test_004@localhost
+source:     sampledb
+
+route6:     2001:db8:1::/64
+descr:      AS1
+origin:     AS1
+mnt-by:     MAINT-TEST
+changed:    test_004@localhost
+source:     sampledb
+
+route6:     2001:db8:2::/64
+descr:      AS2
+origin:     AS2
+mnt-by:     MAINT-TEST
+changed:    test_004@localhost
+source:     sampledb
+
+as-set:     AS2:AS-SECOND
+descr:      Sample AS-SET
+members:    AS2
+admin-c:    TEST-sampledb
+tech-c:     TEST-sampledb
+mnt-by:     MAINT-TEST
+changed:    test_004@localhost
+source:     sampledb
+
+as-set:     AS1:AS-ALL
+descr:      AS-SET should contain two IPv6 prefixes
+members:    AS1, AS2:AS-SECOND
+admin-c:    TEST-sampledb
+tech-c:     TEST-sampledb
+mnt-by:     MAINT-TEST
+changed:    test_004@localhost
+source:     sampledb
+
+as-set:     AS-PLAINSET
+descr:      PLAIN AS-SET 
+members:    AS1, AS2
+admin-c:    TEST-sampledb
+tech-c:     TEST-sampledb
+mnt-by:     MAINT-TEST
+changed:    test_004@localhost
+source:     sampledb

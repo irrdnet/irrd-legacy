@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/job/irrd.svg?branch=master)](https://travis-ci.org/job/irrd)
+
 $Id: README,v 1.4 2002/10/22 15:57:59 ljb Exp $
 
 This is the source distribution of the Internet 
