@@ -1013,8 +1013,10 @@ void irr_write_answer (irr_answer_t *irr_answer, irr_connection_t *irr) {
             if (key_info[curr_f].f_type & KEY_F)
               irr_write (irr, outbuf, len);      
           } else {
-            if (hide_cryptpw && curr_f == AUTH)
+            if (hide_cryptpw && curr_f == AUTH) {
               scrub_cryptpw(outbuf);
+              scrub_md5pw(outbuf);
+            }
             irr_write (irr, outbuf, len);
 	  }
           if (gen_roa_status && curr_f == ORIGIN) {

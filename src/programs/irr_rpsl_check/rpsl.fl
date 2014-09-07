@@ -143,6 +143,7 @@ REFER_KEYWORD   "RIPE"|"SIMPLE"|"INTERNIC"|"CLIENTADDRESS"
 PGPKEY		"PGP-KEY"
 MAILFROM 	"MAIL-FROM"
 CRYPTPW 	"CRYPT-PW"
+MD5PW 	    "MD5-PW"
 NONE 		"NONE"
 ANY      	"ANY"
 AT       	"AT"
@@ -682,6 +683,20 @@ fprintf (dfile, "PARSE_ATTR: return T_NEWLINE\n");
      if (curr_obj.curr_attr == F_AT)	
        BEGIN (BLOB_MODE);
      return T_CRYPTPW;
+   }
+   else
+     return T_WORD;
+}
+
+
+{MD5PW} {
+   string_token ();
+   if (curr_obj.curr_attr == F_AT ||
+       curr_obj.curr_attr == F_SU ||
+       curr_obj.curr_attr == F_RU) {
+     if (curr_obj.curr_attr == F_AT)	
+       BEGIN (BLOB_MODE);
+     return T_MD5PW;
    }
    else
      return T_WORD;

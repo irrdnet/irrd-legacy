@@ -225,6 +225,12 @@ void cryptpw_syntax (char *cryptpw, parse_info_t *obj) {
       error_msg_queue (obj, "Illegal encrypted password ([./0-9A-Za-z]{13})", ERROR_MSG);
 }
 
+void md5pw_syntax (char *cryptpw, parse_info_t *obj) {
+  
+  if (regexec(&re[RE_MD5_PW], cryptpw, (size_t) 0, NULL, 0))
+      error_msg_queue (obj, "Illegal encrypted password ([./0-9A-Za-z$]{34})", ERROR_MSG);
+}
+
 /* Return today's date in integer format, 
  * eg, 19991122
  */

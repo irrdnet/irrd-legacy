@@ -121,7 +121,7 @@ enum RX_OPTS {
 
 enum REGEX_TOKENS {
   RE_DATE = MAX_ATTRS, RE_EMAIL1, RE_EMAIL2, RE_EMAIL3,
-  RE_CRYPT_PW, RE_TITLES, RE_NAME, RE_APNIC_HDL, 
+  RE_CRYPT_PW, RE_MD5_PW, RE_TITLES, RE_NAME, RE_APNIC_HDL, 
   RE_LCALPHA, RE_STD_HDL, RE_RIPE_HDL, RE_COMM1, RE_COMM2, 
   RE_ASNAME, RE_ASNUM, RE_ARIN_HDL, RE_REAL,
   RE_SANITY_HDL
@@ -426,6 +426,7 @@ void regex_syntax	(char *, parse_info_t *);
 char *date_syntax	(char *, parse_info_t *, int);
 char *time_interval_syntax (parse_info_t *, char *, char *, char *, char *);
 void cryptpw_syntax	(char *, parse_info_t *);
+void md5pw_syntax	(char *, parse_info_t *);
 void source_syntax	(char *, parse_info_t *);
 int  is_nichdl		(char *);
 void nichdl_syntax	(char *, parse_info_t *);

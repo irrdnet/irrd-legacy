@@ -846,6 +846,32 @@ void scrub_cryptpw(char *buf) {
   return;
 }
 
+/* overwrite a hashed password with a fake value
+   to prevent cracking attacks */
+
+
+void scrub_md5pw(char *buf) {
+  char *ptr = buf;  
+
+
+  ptr = index(buf, ':');  /* check for start of attribute */
+  if (ptr == NULL)
+    return;
+  ptr++;        /* skip past ":" or continuation character */
+  while (*ptr == ' ' || *ptr == '\t')
+    ptr++;      /* skip white space */
+  if (!strncasecmp(ptr, "MD5-PW", 6) ) {
+    ptr += 6;   /* skip past CRYPT-PW string */
+    while (*ptr == ' ' || *ptr == '\t')
+      ptr++;    /* skip white space */
+    if (strlen(ptr) < 34)       /* md5-pw string takes 34 bytes */
+      return;
+    memcpy(ptr, "$1$SaltSalt$DummifiedMD5HashValue.", 34);  /* overwrite with our magic string */
+  }
+  return;
+}
+
+
 /* print an AS number, in asplain format */
 char *print_as(char *buf, uint32_t asnumber) {
 

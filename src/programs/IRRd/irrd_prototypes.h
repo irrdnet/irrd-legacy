@@ -159,6 +159,7 @@ int ripe_obj_type (irr_connection_t *irr, char **cp);
 void radix_flush (radix_tree_t *radix_tree);
 void interactive_io (char *);
 void scrub_cryptpw (char *);
+void scrub_md5pw (char *);
 char *print_as (char *, uint32_t);
 char *dir_chks (char *, int);
 

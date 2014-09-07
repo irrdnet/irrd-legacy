@@ -675,6 +675,7 @@ void init_regexes () {
   regex_compile (re, (int) RE_EMAIL3, 
 		 "@[[:alnum:]]+([.-][[:alnum:]]+)*$");
   regex_compile (re, (int) RE_CRYPT_PW, "^[[:alnum:]./]{13}$");
+  regex_compile (re, (int) RE_MD5_PW, "^[[:alnum:]./$]{34}$");
   regex_compile (re, (int) RE_NAME, "^[[:alpha:]][[:alnum:].'`|-]*$");
   regex_compile (re, (int) RE_APNIC_HDL, "^[A-Z]{2}[[:digit:]]{3}JP(-JP)?$");
   regex_compile (re, (int) RE_LCALPHA, "[a-z]");

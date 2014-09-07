@@ -85,7 +85,7 @@ proto_t    *pr;
 %token <string> T_KCHEXID T_BEGIN_PGP_BLOCK T_VERSION
 %token <string> T_END_PGP_BLOCK T_RADIX64
 %token <string> T_TUNNEL T_GRE T_IPINIP
-%token <string> T_MAILFROM T_CRYPTPW T_NONE T_PGPKEY T_MAILTO
+%token <string> T_MAILFROM T_CRYPTPW T_MD5PW T_NONE T_PGPKEY T_MAILTO
 %token <string> T_WHOIS T_RPSQUERY T_FTP T_DIRPATH T_REFER_KEYWORD
 
 %type <string> spec_attr /* ie, delete, password, override */
@@ -770,6 +770,7 @@ auth_type_list: auth_type { $$ = $1; }
 auth_type: T_PGPKEY { $$ = $1; }
   | T_MAILFROM      { $$ = $1; }
   | T_CRYPTPW       { $$ = $1; }
+  | T_MD5PW         { $$ = $1; }
   | T_NONE          { $$ = $1; };
 
 attr_repository_cert: T_RC_KEY T_KCHEXID { $$ = $2; };
@@ -840,6 +841,9 @@ auth_line: T_KCHEXID { $$ = $1; }
       $$ = my_strcat (&curr_obj, 3, 02, $1, " ", $2); }
   | T_CRYPTPW T_BLOB
     { cryptpw_syntax ($2, &curr_obj); 
+      $$ = my_strcat (&curr_obj, 3, 02, $1, " ", $2); }
+  | T_MD5PW T_BLOB
+    { md5pw_syntax ($2, &curr_obj); 
       $$ = my_strcat (&curr_obj, 3, 02, $1, " ", $2); }
   | T_NONE { $$ = $1; };
 

@@ -17,14 +17,16 @@
 
 #include <irrauth.h>
 
-/*  check for HIDDENCRYPTPW magic value and copy over with old
- *  value if able to match up, return error if not
+/*  check for HIDDENCRYPTPW or $1$SaltSalt$DummifiedMD5HashValue. magic values
+ * and copy over with old value if able to match up, return error if not
  */
 int update_cryptpw (trace_t *tr, FILE *fd, long fpos, char *authinfo) {
   long savepos, curpos;
-  char buf[MAXLINE], *q, *p, *r, *str_comment;
-  int buflen, position = 0, count, len, found;
+  char buf[MAXLINE], *q, *p, *r, *str_comment, *authinfo_saved;
+  int buflen, position = 0, count, len, found, nextp = 0, authinfo_len = 0;
 
+  authinfo_saved = strdup(authinfo);
+  authinfo_len = strlen(authinfo);
   savepos = ftell(fd);
   fseek (fd, fpos, SEEK_SET);
 
@@ -36,24 +38,33 @@ int update_cryptpw (trace_t *tr, FILE *fd, long fpos, char *authinfo) {
       break;
     p = ++q;
     find_token (&p, &q);
-    if (strncasecmp(p, "CRYPT-PW", 8))
+    if (strncasecmp(p, "CRYPT-PW", 8) && strncasecmp(p, "MD5-PW", 6))
       continue;
     position++;
     buflen = strlen(buf);
     find_token (&p, &q);
-    if (strncmp(p, "HIDDENCRYPTPW", 13)) {
+    if (strncmp(p, "HIDDENCRYPTPW", 13) == 0) {
+      trace(INFO, tr, "update_cryptpw(): found HIDDENCRYPTPW - %s", buf);
+      nextp=13;
+    } else if (strncmp(p, "$1$SaltSalt$DummifiedMD5HashValue.", 34) == 0) {
+      trace(INFO, tr,
+	    "update_cryptpw(): found $1$SaltSalt$DummifiedMD5HashValue. - %s",
+	    buf);
+      nextp = 34;
+    } else {
       continue;
     }
-    if (p[13] != '\n')
-      str_comment = p + 13;
+    if (p[nextp] != '\n')
+      str_comment = p + nextp;
     else
       str_comment = NULL;
-    trace(INFO, tr, "update_cryptpw(): found HIDDENCRYPTPW - %s", buf);
     count = 1;
     found = 0;
+    // ensure we start with the non-strtok NULL version
+    memcpy(authinfo, authinfo_saved, authinfo_len);
     r = strtok(authinfo, "\n");
     while (r) {
-      if (!strncasecmp(r, "CRYPT-PW", 8)) {
+      if (nextp == 13 && strncasecmp(r, "CRYPT-PW", 8) == 0) {
 	r += 8;
 	q = r;
 	find_token (&r, &q);
@@ -72,8 +83,30 @@ int update_cryptpw (trace_t *tr, FILE *fd, long fpos, char *authinfo) {
 	fseek (fd, p - buf - buflen, SEEK_CUR);
 	fwrite(r, 13, 1, fd);
 	fseek (fd, curpos, SEEK_SET);
-        if (count == position)	/* quit if we hit the same cryptpw position */
+        if (count == position) {	/* quit if we hit the same cryptpw position */
 	  break;
+        }
+      } else if (nextp == 34 && strncasecmp(r, "MD5-PW", 6) == 0) {
+        r += 6;
+        q = r;
+        find_token (&r, &q);
+        if (str_comment) {
+          q = r + 34;
+          len = strlen(q); 
+          if (!len)
+            continue;
+          trace(INFO, tr, "update_crypt(): matching comment field - %s", str_comment);
+          if (strncmp(str_comment, q, len))
+            continue;
+        }
+        trace(INFO, tr, "update_crypt(): copying old md5pw - %s\n", r);
+        found = 1;
+        curpos = ftell(fd);
+        fseek (fd, p - buf - buflen, SEEK_CUR);
+        fwrite(r, 34, 1, fd);
+        fseek (fd, curpos, SEEK_SET);
+        if (count == position) /* quit if we hit the same md5pw position */
+          break;
       }
       count++;
       r = strtok(NULL, "\n");
@@ -84,6 +117,9 @@ int update_cryptpw (trace_t *tr, FILE *fd, long fpos, char *authinfo) {
     }
   }
   fseek (fd, savepos, SEEK_SET);
+  // replace the NULLs that strtok added
+  memcpy(authinfo, authinfo_saved, authinfo_len);
+  free(authinfo_saved);
   return 0;
 }
 
