@@ -473,7 +473,7 @@ enum AUTH_CODE auth_process (trace_t *tr, int op, int *sockfd, FILE *fd, long fp
  */
 enum AUTH_CODE auth_ok (trace_t *tr, int op, int *sockfd, trans_info_t *ti, 
 			char *mntner, int *mntner_exists, int *num_trans) {
-  int in_attr = 0, skip = 0;
+  int in_attr = 0, skip = 0, mail_from_deprecated = 0;
   long obj_pos, fpos;
   FILE *fd;
   enum AUTH_CODE ret_code = AUTH_FAIL_C;
@@ -498,10 +498,18 @@ enum AUTH_CODE auth_ok (trace_t *tr, int op, int *sockfd, trans_info_t *ti,
     while (fgets (buf, MAXLINE, fd) != NULL && buf[0] != '\n') {
       if ((in_attr = find_attr (tr, buf, in_attr, 
 				(u_int) (AUTH_ATTR|MNT_NFY_ATTR|UPD_TO_ATTR), &q))) {
-	trace (NORM, tr, "auth_ok () find_attr: (%s)\n", q);
+	trace (NORM, tr, "auth_ok() find_attr: (%s) type: (%d)\n", q, in_attr);
 	if (in_attr == AUTH_ATTR) {
-	  if (!skip && (ret_code = do_auth_check (tr, q, ti)) == AUTH_PASS_C)
-	    skip = 1;
+	  if (!skip) {
+            ret_code = do_auth_check (tr, q, ti);
+            if (ret_code == AUTH_PASS_C) {
+	      skip = 1;
+	      mail_from_deprecated = 0;
+	    } else if (ret_code == AUTH_MAIL_FROM_DEPRECATED_C) {
+	    /* need to keep track if user has MAIL_FROM auth (in case they have other AUTH methods), so we can notify them */
+	      mail_from_deprecated = 1;
+	    }
+	  }
 	}
 	else if (in_attr == MNT_NFY_ATTR)
 	  ti->notify = myconcat (ti->notify, q);
@@ -522,7 +530,10 @@ enum AUTH_CODE auth_ok (trace_t *tr, int op, int *sockfd, trans_info_t *ti,
   }
 
   /* fprintf (dfile, "auth_ok () ret_code-(%d)\n", ret_code);*/
-  return ret_code;
+  if (mail_from_deprecated)
+    return AUTH_MAIL_FROM_DEPRECATED_C;
+  else
+    return ret_code;
 }
 
 /* Place a copy of the referenced DB object into file 'fname' should the 
@@ -615,15 +626,19 @@ enum AUTH_CODE do_auth_check (trace_t *tr, char *auth_line, trans_info_t *ti) {
   q = auth_line + authrm[2].rm_so;
   *(auth_line + authrm[2].rm_eo) = 0;
 
-  /* assume the worst :) */
+  /* default is auth fail */
   ret_code = AUTH_FAIL_C;
 
-  /* MAIL-FROM auth check */
+  /* MAIL-FROM auth check  note: should be deprecated due to security issues */
   if (!strncasecmp ("MAIL-FROM", p, 9) && ti->sender_addrs != NULL) {
-    /*fprintf (dfile, "do_auth_check () from-(%s) auth from-(%s)\n", ti->sender_addrs, p);*/
+    trace (NORM, tr, "do_auth_check () mail from-(%s) auth from-(%s)\n",ti->sender_addrs, q);
     if (!regcomp (&re, q, REG_EXTENDED|REG_NOSUB|REG_ICASE)) {
-      if (!regexec(&re, ti->sender_addrs, (size_t) 0, NULL, 0))
-	ret_code = AUTH_PASS_C;
+      if (!regexec(&re, ti->sender_addrs, (size_t) 0, NULL, 0)) {
+        if(!ci.allow_mailfrom) /* check if we allow MAIL-FROM */
+	  ret_code = AUTH_MAIL_FROM_DEPRECATED_C;
+	else
+	  ret_code = AUTH_PASS_C;
+      }
       regfree (&re);
     }
     return ret_code;
@@ -726,6 +741,8 @@ void update_trans_info (trace_t *tr, enum AUTH_CODE ret_code, trans_info_t *ti,
     ti->del_mnt_error = 1;
   else if (ret_code == BAD_OVERRIDE_C)
     ti->bad_override = 1;
+  else if (ret_code == AUTH_MAIL_FROM_DEPRECATED_C)
+    ti->auth_mail_from_deprecated = 1;
   
   if (CLEAR_NOTIFY & ret_code)
     ti->notify = free_mem (ti->notify);

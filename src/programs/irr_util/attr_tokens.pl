@@ -366,8 +366,7 @@ print OUT1 "$longs";
 
 print OUT1 "\n/* -------Countries char array------ */\n";
 $count = 0;
-$origin = "#define MAX_COUNTRIES $countries\n";
-$origin .= "char *countries[MAX_COUNTRIES] = {\n";
+$origin = "char *countries[MAX_COUNTRIES] = {\n";
 foreach $field (@country) {
     $count++;
     if ($count % 10 == 1) {
@@ -412,6 +411,7 @@ print OUT3 "#define     MAX_ATTRS $n\n";
 print OUT3 "#define     MAX_OBJS $m\n";
 print OUT3 "#define     MAX_ATSQ_LEN $max_atsq_len\n"; 
 print OUT3 "#define     MAX_MANDS $max_mands\n";
+print OUT3 "#define	MAX_COUNTRIES $countries\n";
 
 print OUT3 "\n/* --------Bison enum FIELDS--------*/\n";
 if ($n % 8 != 7) {

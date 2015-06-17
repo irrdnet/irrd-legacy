@@ -4,6 +4,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <stdarg.h>
 #include <sys/types.h>
 #include <ctype.h>
@@ -21,7 +22,7 @@
 #include <irrauth.h>
 #include <hdr_comm.h>
 
-#define REOPEN_FILE_AFTER_BYTES	  600
+#define REOPEN_FILE_AFTER_BYTES	  1800
 #define BIT_TEST(f, b)  ((f) & (b))
 
 /* internal routines */
@@ -286,7 +287,7 @@ static FILE *get_trace_fd (trace_t * tr) {
 	    type = "w";
 	if ((retval = fopen (tr->logfile->logfile_name, type))) {
 
-	    tr->logfile->logsize = 0;
+	    tr->logfile->logsize = ftello(retval);
 	    tr->logfile->bytes_since_open = 0;
 	    tr->logfile->max_filesize = TR_DEFAULT_MAX_FILESIZE;
 
@@ -349,10 +350,10 @@ int set_trace (trace_t * tmp, int first,...) {
 	    }
 	    tmp->flags |= NORM;
 	    tmp->logfile->append_flag = 1;
-	    tmp->logfile->logfile_name = strdup (va_arg (ap, char *));
-	    tmp->logfile->logfd = get_trace_fd (tmp);
     	    tmp->logfile->bytes_since_open = 0;
     	    tmp->logfile->logsize = 0;
+	    tmp->logfile->logfile_name = strdup (va_arg (ap, char *));
+	    tmp->logfile->logfd = get_trace_fd (tmp);
     	    tmp->logfile->max_filesize = TR_DEFAULT_MAX_FILESIZE;
 	    break;
 	case TRACE_FLAGS:
@@ -366,7 +367,7 @@ int set_trace (trace_t * tmp, int first,...) {
 	    tmp->syslog_flag = (u_char) va_arg(ap, int);
 	    break;
 	case TRACE_MAX_FILESIZE:
-	    tmp->logfile->max_filesize = va_arg(ap, u_int);
+	    tmp->logfile->max_filesize = atoll(va_arg(ap, char*));
 	    break;
 	case TRACE_PREPEND_STRING:
 	    if (tmp->prepend)
@@ -417,7 +418,7 @@ int config_trace_local (trace_t *tr, char *line) {
     if (!strcmp (token, "file-max-size")) {
       if ((token = (char *) uii_parse_line (&line)) == NULL)
         return (-11);
-      set_trace (tr, TRACE_MAX_FILESIZE, atoi(token), NULL);
+      set_trace (tr, TRACE_MAX_FILESIZE, token, NULL);
       return (1);
     }
     return (1);

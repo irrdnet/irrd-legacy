@@ -13,7 +13,7 @@
 #include "timer.h"
 #include <irrdmem.h>
 
-#define REOPEN_FILE_AFTER_BYTES	  600
+#define REOPEN_FILE_AFTER_BYTES	  1800
 
 /* internal routines */
 static FILE *get_trace_fd (trace_t * trace_struct);
@@ -375,7 +375,7 @@ static FILE *get_trace_fd (trace_t * tr) {
 	    type = "w";
 	if ((tr->logfile->logfd = fopen (tr->logfile->logfile_name, type))) {
 
-          tr->logfile->logsize = ftell(tr->logfile->logfd);
+          tr->logfile->logsize = ftello(tr->logfile->logfd);
           tr->logfile->bytes_since_open = 0;
           tr->logfile->max_filesize = TR_DEFAULT_MAX_FILESIZE;
 
@@ -470,7 +470,7 @@ int set_trace (trace_t * tmp, int first,...) {
 	case TRACE_MAX_FILESIZE:
    	    if (tmp->slave) break; /* ignore */
     	    pthread_mutex_lock (&tmp->logfile->mutex_lock);
-	    tmp->logfile->max_filesize = va_arg(ap, u_int);
+	    tmp->logfile->max_filesize = atoll(va_arg(ap, char*));
     	    pthread_mutex_unlock (&tmp->logfile->mutex_lock);
 	    break;
 	case TRACE_PREPEND_STRING:

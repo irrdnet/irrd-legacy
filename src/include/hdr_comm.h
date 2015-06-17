@@ -24,7 +24,7 @@
  * object retrieval.  This will limit the size
  * of objects returned to the user in email.
  */
-#define MAX_IRRD_OBJ_SIZE 350
+#define MAX_IRRD_OBJ_SIZE 1500
 
 /* Transaction types */
 #define ADD_OP     "ADD"
@@ -59,6 +59,7 @@ typedef struct _trans_info_t {
   int  new_mnt_error;
   int  del_mnt_error;
   int  bad_override;
+  int  auth_mail_from_deprecated;
   int  unknown_user;
   char *check_notify;
   char *check_mnt_nfy;
@@ -81,7 +82,7 @@ typedef struct _trans_info_t {
 } trans_info_t;
 
 #define NOTIFY_REQUIRED_FLDS (FROM_F|DATE_F|SUBJECT_F|MSG_ID_F|HDR_END_F)
-#define ERROR_FLDS (SYNTAX_ERRORS_F|DEL_NO_EXIST_F|OTHERFAIL_F|AUTHFAIL_F|MAINT_NO_EXIST_F|NEW_MNT_ERROR_F|DEL_MNT_ERROR_F|BAD_OVERRIDE_F|UNKNOWN_USER_F)
+#define ERROR_FLDS (SYNTAX_ERRORS_F|DEL_NO_EXIST_F|OTHERFAIL_F|AUTHFAIL_F|MAINT_NO_EXIST_F|NEW_MNT_ERROR_F|DEL_MNT_ERROR_F|BAD_OVERRIDE_F|AUTH_MAIL_FROM_DEPRECATED_F|UNKNOWN_USER_F)
 enum HDR_FLDS_T {
   FROM_F           = 01,
   SOURCE_F         = 02,
@@ -112,7 +113,8 @@ enum HDR_FLDS_T {
   NEW_MNT_ERROR_F  = 0400000000,
   DEL_MNT_ERROR_F  = 01000000000,
   BAD_OVERRIDE_F   = 02000000000,
-  UNKNOWN_USER_F   = 04000000000
+  AUTH_MAIL_FROM_DEPRECATED_F   = 04000000000,
+  UNKNOWN_USER_F   = 010000000000
 };
 
 
@@ -130,6 +132,7 @@ extern const char OTHERFAIL[];
 extern const char NEW_MNT_ERROR[];
 extern const char DEL_MNT_ERROR[];
 extern const char BAD_OVERRIDE[];
+extern const char AUTH_MAIL_FROM_DEPRECATED[];
 
 /* hdr info from irr_check */
 extern const char HDR_START[];

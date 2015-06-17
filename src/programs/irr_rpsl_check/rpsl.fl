@@ -121,12 +121,12 @@ char *data_type[MAX_DATA_TYPES] = {
 NWS             [^ \t\r\n]
 LNCONT		(#|\+|[ \t\r]+{NWS}+.*)
 SPACE   	[\t ]
-SPREFIX  	[0-9]+"."[0-9]+"."[0-9]+"."[0-9]+
-PREFIX  	{SPREFIX}"/"[0-9]+
+SPREFIX		(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])(\.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])){3}
+PREFIX  	{SPREFIX}"/"([0-9]|[1-2][0-9]|3[1-2])
 QUADHEX		[0-9A-Fa-f]{1,4}
 SPREFIX6        ({QUADHEX}(":"{QUADHEX}){7})|((({QUADHEX}":"){0,6}{QUADHEX})?"::"({QUADHEX}(":"{QUADHEX}){0,6})?)
 /* SPREFIX6	[0-9\:a-fA-F]+":"[0-9\:a-fA-F]+ */
-PREFIX6         {SPREFIX6}"/"[0-9]+
+PREFIX6         {SPREFIX6}"/"([0-9]|[1-9][0-9]|1[01][0-9]|12[0-8])
 /*TIMEINTERVAL    [[:digit:]]{4}[ \t]+[[:digit:]]{2}":"[[:digit:]]{2}":"[[:digit:]]{2}*/
 NUM            	[[:digit:]]+
 REAL           	[+-]?{NUM}?\.{NUM}(E[+-]?{NUM})?
@@ -728,6 +728,12 @@ fprintf (dfile, "PARSE_ATTR: return T_NEWLINE\n");
 {NAME} { /* reserved word or rp-attribute, or arbitrary name */
    string_token ();
 
+   if (curr_obj.curr_attr == F_CY) /* country code may have reserved word AT, check first*/
+	return T_WORD;
+
+   if (curr_obj.curr_attr == F_SD) /* non-dotted words allowed for sub-dom */
+	return T_DNAME;
+
    if ((i = is_reserved_word (yytext)) >= 0) {
       if (i == T_OPERATOR)
         BEGIN(EXPECT_OPERATOR);
@@ -744,12 +750,8 @@ fprintf (dfile, "PARSE_ATTR: return T_NEWLINE\n");
       return T_RP_ATTR;
    }
 
-   if (curr_obj.curr_attr == F_SD) /* non-dotted words allowed for sub-dom */
-     return T_DNAME;
-
    return T_WORD;
-   }
-
+}
 
 {NAME}"."{NAME}  { /* rp-attribute.method or DNS name */
    char *p = strchr (yytext, '.');

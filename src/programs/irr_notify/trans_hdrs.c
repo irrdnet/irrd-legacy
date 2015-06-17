@@ -82,14 +82,14 @@ const char ERROR_TAG[] = "#ERROR: ";
 */
 
 /* eg, ..... <source> where source is RADB, RIPE, ... */
-const char DEL_NO_EXIST_MSG[] = "This object does not exist in DB \"%s\".\n";
-
+const char AUTH_MAIL_FROM_DEPRECATED_MSG[] = "MAIL-FROM authentication has been deprecated on\nthis routing registry due to security concerns.\nPlease contact support about configuring password\nor GPG/PGP authentication for your maintainer.\n";
+const char DEL_NO_EXIST_MSG[] = "This object does not exist in this routing registry: \"%s\".\n";
 const char MAINT_NO_EXIST_MSG[] = "Maintainer references do not exist:\n";
 const char AUTHFAIL_MSG[] = "Authorization failure.\n";
-const char NEW_MNT_ERROR_MSG[] = "New maintainers must be added by a DB administrator.\n";
-const char NEW_MNT_ERROR_MSG_2[] = "New maintainers must be added by a DB administrator.\nForwarding new request to";
-const char DEL_MNT_ERROR_MSG[] = "Maintainers may only be deleted by a DB administrator.\n";
-const char DEL_MNT_ERROR_MSG_2[] = "Maintainers may only be deleted by a DB administrator.\nForwarding deletion request to";
+const char NEW_MNT_ERROR_MSG[] = "New maintainers must be added by an administrator.\n";
+const char NEW_MNT_ERROR_MSG_2[] = "New maintainers must be added by an administrator.\nForwarding new request to";
+const char DEL_MNT_ERROR_MSG[] = "Maintainers may only be deleted by an administrator.\n";
+const char DEL_MNT_ERROR_MSG_2[] = "Maintainers may only be deleted by an administrator.\nForwarding deletion request to";
 const char BAD_OVERRIDE_MSG[] = "Incorrect override password \"%s\"\n";
 const char UNKNOWN_USER_MSG[] = "Could not determine submitter\n";
 const char MSG_SEPERATOR[] = "\n---\n";

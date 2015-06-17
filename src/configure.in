@@ -57,7 +57,7 @@ MODULES=""
 
 EXTRA_INCLUDE_DIRS=""
 EXTRA_LIBS=""
-CPPFLAGS="-DFUNCPROTO -I../../include"
+CPPFLAGS="-D_FILE_OFFSET_BITS=64 -DFUNCPROTO -I../../include"
 dnl defining FUNCPROTO ensures that struct library uses portotype
 dnl we don't expect non-ANSI (K&R) C compilers to be used
 dnl Some compiles may define __STDC__ by itself which makes it enable, 

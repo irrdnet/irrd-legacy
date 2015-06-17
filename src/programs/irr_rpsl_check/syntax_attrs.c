@@ -82,6 +82,26 @@ int asnum_syntax (char *asstr, parse_info_t *obj) {
   return 1;
 }
 
+/* Given an ipv6 prefix, determine whether it fall in the globally routable
+   address range of 2000::/3
+
+*/
+
+void is_globally_routable_v6 (char *prefix, parse_info_t *obj) {
+  char *p;
+  int j;
+
+  p = strchr (prefix, ':');
+  if (p == NULL) { /* shouldn't happen, but just in case */
+    error_msg_queue (obj, "Error parsing IPV6 prefix", ERROR_MSG);
+    return; 
+  }
+  j = p - prefix;
+  if (j != 4 || (*prefix != '2' && *prefix != '3')) {
+    error_msg_queue (obj, "IPv6 prefix is not globally routable.  Prefixes must come from 2000::/3 address block", ERROR_MSG);
+  }
+}
+
 /* Given an inetnum address range (ie, inetnum: a1 - a2 or a1 > a2)
  * determine if a1 is greater than a1.
  *
@@ -595,7 +615,7 @@ void hdl_syntax (parse_info_t *obj, char *hdl) {
 
   p = q = hdl;
   if (irrcheck_find_token (&p, &q) > 0) {
-    if (verbose) fprintf (dfile, "JW: enter hdl_syntax(): %s %s\n", attr_name[obj->curr_attr], hdl);
+    if (verbose) fprintf (dfile, "enter hdl_syntax(): %s %s\n", attr_name[obj->curr_attr], hdl);
 
     tok_s = p;
     /* see if we have a nic-hdl, illegal for role and person objs */

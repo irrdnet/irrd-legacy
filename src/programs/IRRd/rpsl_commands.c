@@ -342,6 +342,7 @@ void SL_Add (LINKED_LIST *ll_setlist, char *member, char *range_op, enum EXPAND_
     range_op_type = prefix_range_parse(q, &range_op_start, &range_op_end);
     if (range_op_type == INVALID_RANGE) {
       trace (ERROR, default_trace, "SL_Add(): range_op is invalid : %s\n", range_op);
+      free(range_ptr);
       return;
     }
     /* should have a prefix length to be legal */
@@ -362,8 +363,8 @@ void SL_Add (LINKED_LIST *ll_setlist, char *member, char *range_op, enum EXPAND_
     else {
       prefix_range_type = prefix_range_parse(temp_ptr + 1, &prefix_range_start, &prefix_range_end);
       if (prefix_range_type == INVALID_RANGE) {
-        free(range_ptr);
         trace (ERROR, default_trace, "SL_Add(): prefix range is invalid : %s\n", buffer);
+        free(range_ptr);
         return;
       }
       *temp_ptr = 0;	/* terminate string at range */

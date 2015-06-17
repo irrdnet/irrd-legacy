@@ -102,6 +102,7 @@ extern const char NEW_MNT_ERROR_MSG_2[];
 extern const char DEL_MNT_ERROR_MSG[];
 extern const char DEL_MNT_ERROR_MSG_2[];
 extern const char BAD_OVERRIDE_MSG[];
+extern const char AUTH_MAIL_FROM_DEPRECATED_MSG[];
 extern const char UNKNOWN_USER_MSG[];
 extern const char PREV_OBJ_MSG[];
 extern const char EXIST_OBJ_MSG[];

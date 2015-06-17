@@ -190,7 +190,7 @@ void make_journal_name (char * dbname, int journal_ext, char * journal_name) {
 int find_last_serial (char *dbname, int journal_ext, uint32_t *last_serial) {
   char file[256];
   char buf [FLS_BUFSIZE + FLS_OVERFLOW + 1]; 
-  off_t offset;
+  long offset;
   ssize_t bytes_read, bytes_to_read = FLS_BUFSIZE;
   int off_by_one = 0;
   int i, fd = -1;

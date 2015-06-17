@@ -38,8 +38,8 @@
 #define TR_DEFAULT_FLAGS	(TR_FATAL|TR_ERROR|TR_WARN)
 #define TR_DEFAULT_APPEND	TRUE
 #define TR_DEFAULT_FLOCK	TRUE
-/* We do not currently support LARGE files, so limit filesize to max int */
-#define TR_DEFAULT_MAX_FILESIZE 2147483647      /* Max size for 32 bit files */
+/* Use 64 bit size for log files */
+#define TR_DEFAULT_MAX_FILESIZE INT64_MAX
 #define TR_DEFAULT_SYSLOG	TR_LOG_FILE	/* Use logfile only */
 
 typedef struct _error_list_t {
@@ -57,10 +57,10 @@ typedef struct _logfile_t
     int ref_count;		/* reference counter */
     u_char append_flag;		/* if 1, append to log file */
     u_char flock_flag;		/* if 1, use flock to access trace file */
-    u_int  max_filesize;	/* Max. filesize of trace, in bytes */
+    off_t max_filesize;		/* Max. filesize of trace, in bytes */
 
-    u_long logsize;
-    u_long bytes_since_open;    /* we periodically reopen, and append to file
+    off_t logsize;
+    int bytes_since_open;	/* we periodically reopen, and append to file
 				 * after writing xxx number of bytes. This is
 				 * so if don't /dev/null log data if file removed,
 				 * but we still have inode

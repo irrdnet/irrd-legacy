@@ -466,6 +466,11 @@ void sender_response (trace_t *tr, FILE *fin, long obj_pos, trans_info_t *ti,
     return;
   }
 
+  if  (ti->auth_mail_from_deprecated) {
+    fprintf (msg_fp, "%s%s\n", ERROR_TAG, AUTH_MAIL_FROM_DEPRECATED_MSG);
+    return;
+  }
+
   if (ti->unknown_user) {
     fprintf (msg_fp, "%s%s", ERROR_TAG, UNKNOWN_USER_MSG);
     return;

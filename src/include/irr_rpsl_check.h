@@ -15,7 +15,6 @@
 				       */
 #define     MAX_ATTR_SIZE 66560       /* maximum chars for an attribute */
 
-#define     MAX_COUNTRIES 241	/* number of countries in countries array */
 #define     ATTR_ID_LENGTH 12	/* number of positions indent attribute vals */
 #define     CANON_DISK 0 /* build canonicalized object to disk   */
 #define     CANON_MEM  1 /* build canonicalized object in memory */
@@ -432,6 +431,7 @@ int  is_nichdl		(char *);
 void nichdl_syntax	(char *, parse_info_t *);
 int  delete_syntax	(char *, parse_info_t *);
 int  password_syntax	(char *, parse_info_t *);
+void is_globally_routable_v6	(char *, parse_info_t *);
 int  inetnum_syntax	(parse_info_t *, char *, char *);
 int  country_syntax	(char *, parse_info_t *);
 int  asnum_syntax	(char *, parse_info_t *);

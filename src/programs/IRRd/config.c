@@ -1181,7 +1181,7 @@ void get_config_server_debug () {
 
   if ((strcmp ("stdout", default_trace->logfile->logfile_name) != 0) &&
       (default_trace->logfile->max_filesize > 0))
-    config_add_output ("debug server file-max-size %d\r\n", 
+    config_add_output ("debug server file-max-size %lld\r\n", 
 		       default_trace->logfile->max_filesize);
 
   if (default_trace->syslog_flag)
@@ -1224,9 +1224,9 @@ int config_debug_server_syslog (uii_connection_t *uii) {
   return (1);
 }
 
-/* debug server size %d */
-int config_debug_server_size (uii_connection_t *uii, int bytes) {
-  set_trace (default_trace, TRACE_MAX_FILESIZE, bytes, NULL);
+/* debug server size %s */
+int config_debug_server_size (uii_connection_t *uii, char *size) {
+  set_trace (default_trace, TRACE_MAX_FILESIZE, size, NULL);
   config_add_module (0, "debug", get_config_server_debug, IRR.submit_trace);
   return (1);
 }
@@ -1261,8 +1261,8 @@ int config_debug_submission_verbose (uii_connection_t *uii) {
   return (1);
 }
 
-/* debug submission file-max-size %d */
-int config_debug_submission_maxsize (uii_connection_t *uii, int size) {
+/* debug submission file-max-size %s */
+int config_debug_submission_maxsize (uii_connection_t *uii, char *size) {
   set_trace (IRR.submit_trace, TRACE_MAX_FILESIZE, size, NULL);
   config_add_module (0, "debug", get_config_submission_debug, NULL);
   return (1);

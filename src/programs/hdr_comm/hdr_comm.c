@@ -291,6 +291,9 @@ u_int int_type_field (char *line, trans_info_t *ti) {
   if (!memcmp (BAD_OVERRIDE, line, strlen (BAD_OVERRIDE)))
     return ((u_int)(ti->bad_override = BAD_OVERRIDE_F));
 
+  if (!memcmp (AUTH_MAIL_FROM_DEPRECATED, line, strlen (AUTH_MAIL_FROM_DEPRECATED)))
+    return ((u_int)(ti->auth_mail_from_deprecated = AUTH_MAIL_FROM_DEPRECATED_F));
+
   if (!memcmp (UNKNOWN_USER, line, strlen (UNKNOWN_USER)))
     return ((u_int)(ti->unknown_user = UNKNOWN_USER_F));
   
@@ -476,6 +479,9 @@ void print_hdr_struct (FILE *fout, trans_info_t *ti) {
 
   if (ti->bad_override)
     fprintf (fout, "%s\n", BAD_OVERRIDE);
+
+  if (ti->auth_mail_from_deprecated)
+    fprintf (fout, "%s\n", AUTH_MAIL_FROM_DEPRECATED);
 
   if (ti->unknown_user)
     fprintf (fout, "%s\n", UNKNOWN_USER);

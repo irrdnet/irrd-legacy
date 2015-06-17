@@ -31,7 +31,7 @@ main(int argc, char *argv[])
   extern int optind;
   src_t sstart;
   source_t *obj;
-  char *usage = "Usage: %s [options] [filename]\n  -v verbose logging, turn on debugging\n  -c <crypted password> (default 'foo')\n  -E DB admin address for new maintainer requests\n  -f <IRRd config file location> (default '/etc/irrd.conf')\n  -h <IRRd host> (default 'localhost')\n  -l <log directory> (default 'irrd_directory')\n  -p <IRRd port> (default 43)\n  -r <pgp directory>  (default is ~/.pgp)\n  -s <DB source> source is authoritative\n  The file is chosen by irr_submit\n  -N permit inetnum/domain objects\n  -R RPS Dist mode\n  -D Inetd mode, read/write to STDIN/STDOUT\n  -x do not send notifications\n  The '-x' flag will cause updates to be sent to IRRd only.\n  The default is to send all notifications.\n\n  Command line options will override irrd.conf options.\n  -F \" enclosed response footer string.\n  -O \" enclosed host/IP web origin string.\n";
+  char *usage = "Usage: %s [options] [filename]\n  -v verbose logging, turn on debugging\n  -c <crypted password> (default 'foo')\n  -E DB admin address for new maintainer requests\n  -f <IRRd config file location> (default '/etc/irrd.conf')\n  -h <IRRd host> (default 'localhost')\n  -l <log directory> (default 'irrd_directory')\n  -p <IRRd port> (default 43)\n  -r <pgp directory>  (default is ~/.pgp)\n  -s <DB source> source is authoritative\n  -M allow MAIL-FROM auth (deprecated)\n  -N permit inetnum/domain objects\n  -R RPS Dist mode\n  -D Inetd mode, read/write to STDIN/STDOUT\n  -x do not send notifications\n  The '-x' flag will cause updates to be sent to IRRd only.\n  The default is to send all notifications.\n\n  Command line options will override irrd.conf options.\n  -F \" enclosed response footer string.\n  -O \" enclosed host/IP web origin string.\n";
 
   /* Initialization */
   /* need to set real uid/gid in case this is a setuid program */
@@ -115,6 +115,9 @@ main(int argc, char *argv[])
 	obj = create_source_obj(optarg, 1);
 	add_src_obj(&sstart, obj);    
       }
+      break;
+    case 'M':
+      ci.allow_mailfrom = 1;
       break;
     case 'N':
       ci.allow_inetdom = 1;
