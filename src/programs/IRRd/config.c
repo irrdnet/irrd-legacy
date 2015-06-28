@@ -287,6 +287,15 @@ void get_config_irr_database (irr_database_t *database) {
     atts = 1;
   }
   
+#ifdef JOURNAL_SIZE
+  if (database->max_journal_bytes != 0) {
+    config_add_output ("irr_database %s max_journal_bytes %d\r\n",
+		       database->name,
+		       database->max_journal_bytes);
+    atts =1;
+  }
+#endif
+
   if (atts == 0) 
     config_add_output ("irr_database %s\r\n", database->name);
 }
@@ -1133,6 +1142,25 @@ int config_irr_database_compress_script (uii_connection_t *uii, char *name, char
   irrd_free(name);
   return (1);
 }
+
+#ifdef JOURNAL_SIZE
+/* config irr_database %s max_journal_bytes %d */
+int config_irr_database_max_journal_bytes (uii_connection_t *uii, char *name, int bytes) {
+  irr_database_t *database = NULL;
+
+  if ((database = find_database (name)) == NULL) {
+    config_notice (ERROR, uii, "Database %s not found!\r\n", name);
+    irrd_free(name);
+    return (-1);
+  }
+
+  trace (NORM, default_trace, "CONFIG %s max_journal_bytes %d\n", name, bytes);
+
+  database->max_journal_bytes = bytes;
+  irrd_free(name);
+  return (1);
+}
+#endif
 
 /* no config irr_database %s */
 int no_config_irr_database (uii_connection_t *uii, char *name) {

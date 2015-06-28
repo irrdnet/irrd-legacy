@@ -18,6 +18,9 @@ int config_irr_database_nodefault (uii_connection_t *uii, char *name);
 int config_irr_database_roa_data (uii_connection_t *uii, char *name);
 int config_roa_disclaimer (uii_connection_t *uii, char *line);
 int config_irr_database_clean (uii_connection_t *uii, char *name, int seconds);
+#ifdef JOURNAL_SIZE
+int config_irr_database_max_journal_bytes (uii_connection_t *uii, char *name, int bytes);
+#endif
 int config_irr_database_no_clean (uii_connection_t *uii, char *name);
 int config_tmp_directory (uii_connection_t *uii, char *dir);
 int config_irr_database_export (uii_connection_t *uii, char *name, int interval, int n, char *filename);
@@ -85,6 +88,9 @@ void uii_irr_mirror_last (uii_connection_t *uii, char *name);
 void uii_irr_mirror_serial (uii_connection_t *uii, char *name, uint32_t serial);
 void uii_mirrorstatus_db (uii_connection_t *uii, char *db_name);
 void uii_set_serial (uii_connection_t *uii, char *name, uint32_t serial);
+#ifdef JOURNAL_SIZE
+void uii_irr_rotate_journal (uii_connection_t *uii, char *name);
+#endif
 void show_database (uii_connection_t *uii);
 void uii_show_ip (uii_connection_t *uii, prefix_t *prefix, int num, char *lessmore);
 void uii_irr_clean (uii_connection_t *uii, char *name);

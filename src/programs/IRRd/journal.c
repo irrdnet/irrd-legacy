@@ -98,7 +98,18 @@ void journal_maybe_rollover (irr_database_t *database) {
   char file_old[BUFSIZE], file_new[BUFSIZE];
 
   fstat(database->journal_fd, &buf);
+
+#ifdef JOURNAL_SIZE
+  u_long jmax = database->max_journal_bytes;
+
+  if (jmax == 0) {
+    return;
+  }
+
+  if (buf.st_size > jmax) {
+#else
   if (buf.st_size > IRR_MAX_JOURNAL_SIZE) {
+#endif
 
     trace (NORM, default_trace, "Rolling Journal file (> %d bytes) for %s\n",
 	   IRR_MAX_JOURNAL_SIZE, database->name);

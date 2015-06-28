@@ -495,6 +495,12 @@ void init_irrd_commands (int UNPRIV_FLAG) {
 		      (int (*)()) uii_set_serial,
 		      "Set the serial number of a database");
 
+#ifdef JOURNAL_SIZE
+    uii_add_command2 (UII_NORMAL, COMMAND_NORM, "rotate journal %s",
+		      (int (*)()) uii_irr_rotate_journal,
+		      "Rotate the database journal file");
+#endif
+
     uii_add_command2 (UII_NORMAL, COMMAND_NORM, "reboot", (int (*)()) mrt_reboot,
 		      "Reboot IRRd");
     uii_add_command2 (UII_NORMAL, COMMAND_NORM, "export %s",
@@ -663,6 +669,13 @@ void init_irrd_commands (int UNPRIV_FLAG) {
 		    (int (*)()) config_irr_database_clean,
 		    "Set database cleaning time");
      
+#ifdef JOURNAL_SIZE
+  uii_add_command2 (UII_CONFIG, COMMAND_NORM,
+		    "irr_database %s max_journal_bytes %d",
+		    (int (*)()) config_irr_database_max_journal_bytes,
+		    "Configure the size of the journal file");
+#endif
+
   uii_add_command2 (UII_CONFIG, COMMAND_NORM, "irr_port %d", 
 		    (int (*)()) config_irr_port_2,
 		    "The \"IRRd\" whois interface query port");
