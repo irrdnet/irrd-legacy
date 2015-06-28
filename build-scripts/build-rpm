@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+set -e
+
+if [ $# -eq 0 ]
+  then
+    echo "No version number supplied as argument, example:"
+    echo "    $0 3.0.9"
+    exit
+fi
+
+VERSION=$1
+
+DATE=$(date +%Y%m%d)
+
+sed "s/@@version@@/$VERSION/" build-scripts/rpm/irrd.spectemplate > build-scripts/rpm/irrd.spec
+sed -i.bak "s/@@date@@/${DATE}/" src/configure.in
+sed -i.bak "s/@@IRRD_VERSION@@/${VERSION} [$(date +%d%b%Y)]/" src/include/version.h
+
+if [ ! -d ~/rpmbuild/SOURCES/ ]; then
+    mkdir -p ~/rpmbuild/SOURCES/
+fi
+git archive --prefix="irrd-${VERSION}/" --format=tar v${VERSION} | bzip2 > ~/rpmbuild/SOURCES/irrd-${VERSION}.tar.bz2
+
+if [ ! -d ~/rpmbuild/PATCHES/irrd ]; then
+    mkdir -p ~/rpmbuild/PATCHES/irrd
+fi
+cp -r build-scripts/rpm/PATCHES/* ~/rpmbuild/PATCHES/irrd
+
+rpmbuild -ba build-scripts/rpm/irrd.spec
