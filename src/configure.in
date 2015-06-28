@@ -1,6 +1,6 @@
 # Process this file with autoconf to produce a configure script.
 
-AC_INIT([irrd], [20100701])
+AC_INIT([irrd], [@@date@@])
 AM_INIT_AUTOMAKE([foreign])
 
 AC_PREREQ([2.59])
