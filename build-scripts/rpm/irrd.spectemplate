@@ -1,0 +1,109 @@
+Name:              irrd
+Version:           @@version@@ 
+Release:           1%{?dist}
+Packager:          Job Snijders <job@instituut.net>
+Summary:           Internet Route Registry Daemon
+
+Group:             Applications/Internet
+License:           BSD
+URL:               http://www.irrd.net
+Source0:           https://github.com/irrdnet/irrd/archive/%{Version}.tar.gz
+
+BuildArch:         x86_64
+
+BuildRequires:	   make, bison, flex
+
+%define _patchdir %{_topdir}/PATCHES
+
+%description
+(from http://www.irrd.net):
+
+IRRd is a freely available, stand-alone Internet Routing Registry database
+server. IRRd supports the RPSL and RPSLng (Routing Policy Specification
+Language) standards.
+
+The IRRd package includes all required IRR support services, including:
+automated near real-time mirroring of other IRR databases, update syntax
+checking, authentication/security, and notification.
+
+%prep
+%setup -q -n %{name}%{version}
+
+%build
+cd src
+
+# patch 1 is from Heas to add the !i6 command
+%{__patch} -p0 < %{_patchdir}/p1/misc.patch
+
+# patch 2 is rad's journal code
+%{__patch} -p0 < %{_patchdir}/p2/config.c.patch
+%{__patch} -p0 < %{_patchdir}/p2/irrd_prototypes.h.patch
+%{__patch} -p0 < %{_patchdir}/p2/journal.c.patch
+%{__patch} -p0 < %{_patchdir}/p2/main.c.patch
+%{__patch} -p0 < %{_patchdir}/p2/uii_commands.c.patch
+%{__patch} -p0 < %{_patchdir}/p2/Make.include.in.patch
+
+# patch 3 is Troy's MD5 code
+%{__patch} -p0 < %{_patchdir}/p3/patch1
+%{__patch} -p0 < %{_patchdir}/p3/patch2
+%{__patch} -p0 < %{_patchdir}/p3/patch3
+%{__patch} -p0 < %{_patchdir}/p3/patch4
+%{__patch} -p0 < %{_patchdir}/p3/patch5
+%{__patch} -p0 < %{_patchdir}/p3/patch6
+%{__patch} -p0 < %{_patchdir}/p3/patch7
+%{__patch} -p0 < %{_patchdir}/p3/patch8
+%{__patch} -p0 < %{_patchdir}/p3/patch9
+%{__patch} -p0 < %{_patchdir}/p3/patcha
+%{__patch} -p0 < %{_patchdir}/p3/patchc
+
+%{configure}
+
+%{__make}
+
+%install
+
+%{__mkdir_p} %{buildroot}%{_bindir}
+%{__mkdir_p} %{buildroot}%{_sbindir}
+%{__mkdir_p} %{buildroot}%{_sysconfdir}
+%{__mkdir_p} %{buildroot}%{_initddir}
+%{__mkdir_p} %{buildroot}%{_mandir}/man8
+%{__mkdir_p} %{buildroot}%{_datadir}/%{name}
+
+%{__install} -m 755 src/programs/IRRd/irrd %{buildroot}%{_sbindir}/irrd
+%{__install} -m 755 src/programs/irr_notify/irr_notify %{buildroot}%{_sbindir}/irr_notify
+%{__install} -m 755 src/programs/irr_rpsl_check/irr_rpsl_check %{buildroot}%{_sbindir}/irr_rpsl_check
+%{__install} -m 755 src/programs/irr_rpsl_submit/irr_rpsl_submit %{buildroot}%{_sbindir}/irr_rpsl_submit
+%{__install} -m 755 %{_patchdir}/p0/irr_rpsl_submit-filtered %{buildroot}%{_sbindir}/irr_rpsl_submit-filtered
+%{__install} -m 755 src/programs/irrdcacher/irrdcacher %{buildroot}%{_bindir}/irrdcacher
+%{__install} -m 755 src/programs/irrdcacher/ripe2rpsl %{buildroot}%{_bindir}/ripe2rpsl
+%{__install} -m 644 src/programs/IRRd/irrd.8 %{buildroot}%{_mandir}/man8/irrd.8
+%{__install} -m 744 %{_patchdir}/p0/irrd.init %{buildroot}%{_initddir}/irrd
+
+# this is automatic
+%clean
+#%{__rm} -rf %{buildroot}
+
+%files
+%defattr(-,root,root,-)
+
+%{_sbindir}/irrd
+%{_bindir}/irrdcacher
+%{_bindir}/ripe2rpsl
+%{_sbindir}/irr_notify
+%{_sbindir}/irr_rpsl_check
+%{_sbindir}/irr_rpsl_submit
+%{_sbindir}/irr_rpsl_submit-filtered
+
+%{_initddir}/irrd
+
+%{_mandir}/man8/irrd.8.gz
+
+%doc samples/irrd.conf.sample irrd-user.pdf irrd-user.sgml
+
+%changelog
+* Thu Sep  4 2014 Richard Doty <rdoty@us.ntt.net> 2.3.10-2
+- add md5
+* Thu Oct 17 2012 Richard Doty <rdoty@us.ntt.net> 1.2.10-1
+- add irr_rpsl_submit-filtered
+* Tue Oct 16 2012 Richard Doty <rdoty@us.ntt.net> 1.2.10-1
+- initial version
