@@ -94,6 +94,25 @@ function test_007 {
     whois -h 127.0.0.1 MAINT-TEST
 }
 
+function test_008 {
+    echo "INFO: testing mp-members with i and i6"
+    irr_rpsl_submit -v -f irrd.conf -s sampledb -x < test_008_mp_members.txt
+    sleep 2
+    echo
+    echo "INFO: this should return one IPv4 prefix"
+    whois -h localhost '!iRS-MULTIPROTOCOL'
+    echo
+    echo "INFO: this should return one IPv6 prefix"
+    whois -h localhost '!i6RS-MULTIPROTOCOL'
+    echo
+    echo "INFO: this should return two IPv4 prefixes"
+    whois -h localhost '!iRS-MULTIPROTOCOLS'
+    echo
+    echo "INFO: this should return two IPv6 prefixes"
+    whois -h localhost '!i6RS-MULTIPROTOCOLS'
+    echo
+}
+
 function tests_round_1 {
     # empty the database and insert first maintainer
     cat test_000_insert_maint.txt | sudo tee /var/spool/irr_database/sampledb.db
@@ -107,6 +126,8 @@ function tests_round_1 {
     run test_003 "REPLACE OK: " "FAILED"
     echo; echo
     run test_004 "OK" "FAIL"
+    echo; echo
+    run test_008 "OK" "FAIL"
     echo; echo
     # the following essentially is test_005
     # echo '!i6AS1:AS-ALL' | telnet localhost 43
