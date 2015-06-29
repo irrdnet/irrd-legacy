@@ -11,7 +11,7 @@ Source0:           %{name}-%{version}.tar.bz2
 
 BuildArch:         x86_64
 
-BuildRequires:	   make, bison, flex
+BuildRequires:	   make, bison, flex, glib2-devel
 
 %description
 (from http://www.irrd.net):

@@ -2,7 +2,7 @@
 
 This is the source distribution of the Internet Routing Registry Daemon (IRRd).
 
-IRRd is jointly maintained by Merit Network, Inc. and NTT Communications Inc.
+IRRd is jointly maintained by Merit Network, Inc. and NTT Communications, Inc.
 employees.
 
 A user guide is included as part of the distribution as irrd-user.pdf.
@@ -11,6 +11,7 @@ To build and install the distribution, execute the following commands:
 
 ```
 cd src
+./autogen.sh
 ./configure
 make
 make install
