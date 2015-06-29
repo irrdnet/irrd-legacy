@@ -29,10 +29,10 @@ typedef struct _member_examined_hash_t {
 
 int str_p_cmp(gconstpointer, gconstpointer);
 
-void update_members_list (irr_database_t *database, char *range_op,
-        enum EXPAND_TYPE expand_flag, 
-        GHashTable  *hash_member_examined, 
-        LINKED_LIST *ll_setlist, LINKED_LIST *ll_set_names, 
+void update_members_list (irr_database_t *database, char *range_op, u_short,
+        enum EXPAND_TYPE expand_flag,
+        GHashTable  *hash_member_examined,
+        LINKED_LIST *ll_setlist, LINKED_LIST *ll_set_names,
         GQueue *stack, irr_connection_t *irr);
 void mbrs_by_ref_set (irr_database_t *database, char *range_op, u_short,
         enum EXPAND_TYPE expand_flag, LINKED_LIST *ll_setlist,
@@ -50,7 +50,8 @@ void HashMemberExaminedDestroy(member_examined_hash_t *h) {
 }
 
 /* as-set/route-set expansion !ias-bar */
-void irr_set_expand (irr_connection_t *irr, char *name) {
+void irr_set_expand (irr_connection_t *irr, char *name)
+{
     irr_database_t *database;
     time_t start_time;
     GArray *array;
@@ -81,7 +82,7 @@ void irr_set_expand (irr_connection_t *irr, char *name) {
     convert_toupper (name);
     stack = g_queue_new();
     hash_member_examined = g_hash_table_new_full(g_str_hash, g_str_equal, NULL, (GDestroyNotify)HashMemberExaminedDestroy);
-    ll_setlist = LL_Create (LL_DestroyFunction, free, NULL); 
+    ll_setlist = LL_Create (LL_DestroyFunction, free, NULL);
     mstr = rpsl_macro_expand_add (" ", name, irr, NULL);
     g_queue_push_head(stack, mstr);
     member_examined_ptr = irrd_malloc(sizeof(member_examined_hash_t));
@@ -116,9 +117,10 @@ void irr_set_expand (irr_connection_t *irr, char *name) {
             }
             make_setobj_key (abuf, set_name);
             if ((hash_spec = fetch_hash_spec (database, abuf, UNPACK)) != NULL) {
-                first = 0; 
-                update_members_list (database, range_op, expand_flag, hash_member_examined,
-                        ll_setlist, hash_spec->ll_1, stack, irr);
+                first = 0;
+                update_members_list (database, range_op, AF_INET, expand_flag,
+                        hash_member_examined, ll_setlist, hash_spec->ll_1,
+                        stack, irr);
                 mbrs_by_ref_set (database, range_op, AF_INET, expand_flag, ll_setlist,
                         set_name, hash_spec->ll_2, irr);
                 Delete_hash_spec (hash_spec);
@@ -177,8 +179,7 @@ int str_p_cmp(gconstpointer g_aa, gconstpointer g_bb)
 }
 
 /* as-set/route-set expansion !i6as-bar */
-    void
-irr_set_expand6(irr_connection_t *irr, char *name)
+void irr_set_expand6(irr_connection_t *irr, char *name)
 {
     irr_database_t *database;
     time_t start_time;
@@ -188,7 +189,8 @@ irr_set_expand6(irr_connection_t *irr, char *name)
     member_examined_hash_t *member_examined_ptr;
     LINKED_LIST *ll_setlist;
     char *set_name, *last_set_name, *mstr, *db;
-    char *lasts, *range_op, abuf[BUFSIZE];
+    char *range_op, abuf[BUFSIZE];
+    char *lasts = NULL;
     int i, first, dup, expand_flag = NO_EXPAND;
     hash_spec_t *hash_spec;
 
@@ -247,8 +249,9 @@ irr_set_expand6(irr_connection_t *irr, char *name)
             make_setobj_key(abuf, set_name);
             if ((hash_spec = fetch_hash_spec (database, abuf, UNPACK)) != NULL) {
                 first = 0;
-                update_members_list(database, range_op, expand_flag, hash_member_examined,
-                        ll_setlist, hash_spec->ll_1, stack, irr);
+                update_members_list(database, range_op, AF_INET6, expand_flag,
+                        hash_member_examined, ll_setlist, hash_spec->ll_1,
+                        stack, irr);
                 mbrs_by_ref_set(database, range_op, AF_INET6, expand_flag, ll_setlist,
                         set_name, hash_spec->ll_2, irr);
                 Delete_hash_spec (hash_spec);
@@ -325,9 +328,11 @@ void mbrs_by_ref_set (irr_database_t *database, char *range_op, u_short afi,
     }
 }
 
-void update_members_list (irr_database_t *database, char *range_op, enum EXPAND_TYPE expand_flag, 
-        GHashTable *hash_member_examined, 
-        LINKED_LIST *ll_setlist, LINKED_LIST *ll_set_names, 
+void update_members_list (irr_database_t *database, char *range_op,
+        u_short afi,
+        enum EXPAND_TYPE expand_flag,
+        GHashTable *hash_member_examined,
+        LINKED_LIST *ll_setlist, LINKED_LIST *ll_set_names,
         GQueue *stack, irr_connection_t *irr) {
     char *member, *p, *r;
     char buffer[BUFSIZE], range_buf[512];
@@ -339,13 +344,16 @@ void update_members_list (irr_database_t *database, char *range_op, enum EXPAND_
 
     LL_ContIterate (ll_set_names, member) {
         convert_toupper(member);
-        if ((expand_flag == NO_EXPAND) || !chk_set_name (member)) {
+        /* #FIXME The following logic block is a inscrutable */
+        if (expand_flag == NO_EXPAND) {
+            SL_Add (ll_setlist, member, range_op, afi, expand_flag, irr);
+        } else if (expand_flag == OTHER_EXPAND || !chk_set_name (member)) {
             SL_Add (ll_setlist, member, range_op, 0, expand_flag, irr);
         } else { /* we have a set name */
             if (!g_hash_table_lookup(hash_member_examined, member)) {
                 strcpy(range_buf, " "); /* initialize to empty range */
                 r = member;
-                /* Need to seperate the range op from the set 
+                /* Need to seperate the range op from the set
                    name for rpsl_macro_expand_add() */
                 if ((p = strchr (member, '^')) != NULL) {
                     strncpy (buffer, member, p - member);
@@ -354,7 +362,7 @@ void update_members_list (irr_database_t *database, char *range_op, enum EXPAND_
                     if (len < 512) /* don't overflow buffer */
                         strcpy(range_buf,p);
                     r = buffer; /* this is the set name without the range op */
-                } 
+                }
                 if (range_op != NULL) {   /* append existing range_op */
                     if ( (len + strlen(range_op)) < 512 ) {
                         if (p == NULL)
@@ -362,14 +370,14 @@ void update_members_list (irr_database_t *database, char *range_op, enum EXPAND_
                         strcat(range_buf, range_op);
                     }
                 }
-                p = rpsl_macro_expand_add (range_buf, r, irr, database->name); 
+                p = rpsl_macro_expand_add (range_buf, r, irr, database->name);
                 g_queue_push_head(stack, p);
                 member_examined_ptr = irrd_malloc(sizeof(member_examined_hash_t));
                 member_examined_ptr->key = strdup(r);
                 g_hash_table_insert(hash_member_examined, member_examined_ptr->key, member_examined_ptr);
             }
         }
-    } 
+    }
 } /* void update_members_list() */
 
 /* a list of prefix range types */
@@ -403,7 +411,9 @@ enum PREFIX_RANGE_TYPE prefix_range_parse( char *range, unsigned int *start, uns
  * Also appends a range operator to *p.
  *
  */
-void SL_Add (LINKED_LIST *ll_setlist, char *member, char *range_op, u_short afi, enum EXPAND_TYPE expand_flag, irr_connection_t *irr) {
+void SL_Add (LINKED_LIST *ll_setlist, char *member, char *range_op,
+        u_short afi, enum EXPAND_TYPE expand_flag, irr_connection_t *irr)
+{
     char buffer[BUFSIZE], buf2[BUFSIZE], rangestr[32];
     char *q, *temp_ptr, *range_ptr;
     char *last = NULL;
@@ -414,13 +424,15 @@ void SL_Add (LINKED_LIST *ll_setlist, char *member, char *range_op, u_short afi,
     enum  PREFIX_RANGE_TYPE range_op_type, prefix_range_type;
     unsigned int range_op_start, range_op_end, prefix_range_start, prefix_range_end;
 
-    /* if performing a route-set expansion, check for AS numbers and lookup route prefixes which list the AS as their origin */
+    /* if performing a route-set expansion, check for AS numbers and lookup
+     * route prefixes which list the AS as their origin
+     */
     if ( expand_flag == ROUTE_SET_EXPAND && !strncasecmp(member, "AS", 2)) {
         make_gas_key(buffer, member + 2);
         make_6as_key(buf2, member + 2);
         LL_ContIterate (irr->ll_database, db) { /* search over all databases */
             /* first check for IPv4 prefixes */
-            if ((hash_spec = fetch_hash_spec(db, buffer, FAST)) != NULL) {
+            if ((afi == AF_INET) && (hash_spec = fetch_hash_spec(db, buffer, FAST)) != NULL) {
                 if (hash_spec->len1 > 0) {
                     q = strdup(hash_spec->gas_answer);
                     temp_ptr = strtok_r(q, " ", &last);
@@ -433,7 +445,7 @@ void SL_Add (LINKED_LIST *ll_setlist, char *member, char *range_op, u_short afi,
                 }
             }
             /* now check for IPv6 prefixes */
-            if ((hash_spec = fetch_hash_spec(db, buf2, FAST)) != NULL) {
+            if ((afi == AF_INET6) && (hash_spec = fetch_hash_spec(db, buf2, FAST)) != NULL) {
                 if (hash_spec->len1 > 0) {
                     q = strdup(hash_spec->gas_answer);
                     temp_ptr = strtok_r(q, " ", &last);
@@ -449,12 +461,13 @@ void SL_Add (LINKED_LIST *ll_setlist, char *member, char *range_op, u_short afi,
         return;
     }
 
-    if (afi != 0)
+    if (afi != 0) {
         if (afi == AF_INET6) {
             if (!strchr(member, ':'))
                 return;
         } else if (strchr(member, ':'))
             return;
+    }
     strcpy (buffer, member);
     if (range_op == NULL)
         goto add_member;
@@ -541,7 +554,7 @@ add_member:
     LL_Add(ll_setlist, strdup (buffer));
 }
 
-char *rpsl_macro_expand_add (char *range, char *name, irr_connection_t *irr, 
+char *rpsl_macro_expand_add (char *range, char *name, irr_connection_t *irr,
         char *dbname) {
     irr_database_t *database;
     char buffer[BUFSIZE];

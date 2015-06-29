@@ -64,18 +64,32 @@ function test_004 {
     whois -h localhost AS1:AS-ALL
     echo
     echo "INFO: this should list a mix of ASN and AS_SET (AS1:AS-ALL)"
+    echo whois -h localhost '!i6AS1:AS-ALL'
     whois -h localhost '!i6AS1:AS-ALL'
     echo
+    echo whois -h localhost '!iAS1:AS-ALL'
+    whois -h localhost '!iAS1:AS-ALL'
+    echo
     echo "INFO: this should list be a list of only ASN (AS1:AS-ALL)"
+    echo whois -h localhost '!i6AS1:AS-ALL,1'
     whois -h localhost '!i6AS1:AS-ALL,1'
     echo
+    echo whois -h localhost '!iAS1:AS-ALL,1'
+    whois -h localhost '!iAS1:AS-ALL,1'
+    echo
     echo "INFO: this should list be a list of only ASN (AS-PLAINSET)"
+    echo whois -h localhost '!i6AS-PLAINSET,1'
     whois -h localhost '!i6AS-PLAINSET,1'
     echo
+    echo whois -h localhost '!iAS-PLAINSET,1'
+    whois -h localhost '!iAS-PLAINSET,1'
+    echo
     echo "INFO: this should return an IPv6 prefix"
+    echo whois -h localhost '!i6RS-ONLYREFERENCEDMEMBERS,1'
     whois -h localhost '!i6RS-ONLYREFERENCEDMEMBERS,1'
     echo
     echo "INFO: this should list be a list IPv4 prefixes (RS-PLAINSET"
+    echo whois -h localhost '!iRS-PLAINSET,1'
     whois -h localhost '!iRS-PLAINSET,1'
     echo
 }
