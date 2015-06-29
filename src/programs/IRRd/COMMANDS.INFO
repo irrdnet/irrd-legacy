@@ -23,8 +23,13 @@ g command
 i command with option 1
 	Return members of an as-set/route-set.  Recursive
 	lookup available.
-	eg, !iAS-ESNETEU     	# non-recursive, don't expand any embedded sets
-	eg, !iAS-ESNETEU,1   	# expand any embedded as-set/route-set's
+	eg, !iAS-ESNETEU                # non-recursive, don't expand any embedded sets
+	eg, !iAS-ESNETEU,1              # expand any embedded as-set
+	eg, !iAS15562:RS-SNIJDERSIT,1   # expand any embedded route-set's into IPv4 prefixes
+
+i6 command with option 1
+	Like !i, but return IPv6 prefixes in case a route-set is queried
+	eg, !i6AS15562:RS-SNIJDERSIT,1   # expand any embedded route-set's into IPv4 prefixes
 
 j command
 	View the mirror status (oldest journal number, CURRENTSERIAL) for a db.

@@ -240,7 +240,7 @@ void memory_hash_spec_del (hash_spec_t *hash_value, enum SPEC_KEYS id,
         return;
       if ( (irr_object->type == ROUTE && id == GASX) ||
     	   (irr_object->type == ROUTE6 && id == GASX6) ||
-	   (irr_object->type != ROUTE6 && id == SET_MBRSX) ) {
+	   (id == SET_MBRSX) ) {
         LL_Iterate (hash_value->ll_1, irr_hash_str) {
           if (!strcmp (irr_object->name, irr_hash_str->string)) {
             LL_Remove (hash_value->ll_1, irr_hash_str);
@@ -386,7 +386,7 @@ if (id == GASX6)
  	return(retval);
       if ( (irr_object->type == ROUTE && id == GASX) ||
 	   (irr_object->type == ROUTE6 && id == GASX6) ||
-	   (irr_object->type != ROUTE6 && id == SET_MBRSX) ) {
+	   (id == SET_MBRSX) ) {
         LL_Add (hash_sval->ll_1, new_irr_hash_string (tmpstr));
         hash_sval->len1 += strlen (tmpstr) + 1;
         hash_sval->items1++;

@@ -28,6 +28,7 @@ extern trace_t *default_trace;
 enum SPEC_KEYS { /* these are used for id values in the special hash */
   SET_OBJX,	/*  hash lookup for as-set and route-set objects */
   SET_MBRSX,	/*  hash lookup for autnum's/route's which reference an as-set/route-set */
+  SET_MBRSX6,	/*  hash lookup for autnum's/route6's which reference an as-set/route-set */
   GASX,		/* hash lookup for !gas queries */
   GASX6,	/* hash lookup for !6as queries */
   MNTOBJS	/* hash lookup for maintainer object queries */

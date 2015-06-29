@@ -481,7 +481,7 @@ void pick_off_secondary_fields (char *buffer, int curr_f,
     add_field_items (cp, &irr_object->ll_mnt_by);
     break;
   case MEMBER_OF:
-  /* ROUTE and AUT-NUM member-of: scanning */
+  /* ROUTE, ROUTE6 and AUT-NUM member-of: scanning */
     add_field_items (cp, &irr_object->ll_mbr_of);
     break;
   case MEMBERS:

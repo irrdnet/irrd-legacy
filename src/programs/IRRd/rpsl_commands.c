@@ -33,12 +33,12 @@ void update_members_list (irr_database_t *database, char *range_op,
 			GHashTable  *hash_member_examined, 
 			LINKED_LIST *ll_setlist, LINKED_LIST *ll_set_names, 
 			GQueue *stack, irr_connection_t *irr);
-void mbrs_by_ref_set (irr_database_t *database, char *range_op,
+void mbrs_by_ref_set (irr_database_t *database, char *range_op, u_short,
 	enum EXPAND_TYPE expand_flag, LINKED_LIST *ll_setlist,
 	char *set_name, LINKED_LIST *ll_mbr_by_ref, irr_connection_t *irr);
 char *rpsl_macro_expand_add (char *range, char *name,
 				irr_connection_t *irr, char *dbname);
-void SL_Add (LINKED_LIST *ll_setlist, char *member, char *range_op, enum EXPAND_TYPE expand_flag, irr_connection_t *irr);
+void SL_Add (LINKED_LIST *ll_setlist, char *member, char *range_op, u_short, enum EXPAND_TYPE expand_flag, irr_connection_t *irr);
 int chk_set_name (char *);
 
 void HashMemberExaminedDestroy(member_examined_hash_t *h) {
@@ -118,7 +118,7 @@ void irr_set_expand (irr_connection_t *irr, char *name) {
           first = 0; 
 	  update_members_list (database, range_op, expand_flag, hash_member_examined, 
 			       ll_setlist, hash_spec->ll_1, stack, irr);
-	  mbrs_by_ref_set (database, range_op, expand_flag, ll_setlist, 
+	  mbrs_by_ref_set (database, range_op, AF_INET, expand_flag, ll_setlist,
                               set_name, hash_spec->ll_2, irr);
 	  Delete_hash_spec (hash_spec); 
       }
@@ -175,7 +175,131 @@ int str_p_cmp(gconstpointer g_aa, gconstpointer g_bb)
 	return strcmp(aa, bb);
 }
 
-void mbrs_by_ref_set (irr_database_t *database, char *range_op,
+/* as-set/route-set expansion !i6as-bar */
+void
+irr_set_expand6(irr_connection_t *irr, char *name)
+{
+  irr_database_t *database;
+  time_t start_time;
+  DATA_PTR *array;
+  STACK *stack;
+  HASH_TABLE *hash_member_examined;
+  member_examined_hash_t member_examined_item;
+  member_examined_hash_t *member_examined_ptr;
+  LINKED_LIST *ll_setlist;
+  char *set_name, *last_set_name, *mstr, *db;
+  char *lasts, *range_op, abuf[BUFSIZE];
+  int i, first, dup, expand_flag = NO_EXPAND;
+  hash_spec_t *hash_spec;
+
+  if (strchr(name, ',') != NULL) {
+    strtok_r(name, ",", &lasts);
+    /* check if we are expanding a route-set */
+    if ((set_name = strchr(name, ':')) != NULL)
+      set_name++;
+    else
+      set_name = name;
+    if (!strncasecmp(set_name, "rs-", 3))
+      expand_flag = ROUTE_SET_EXPAND;
+    else
+      expand_flag = OTHER_EXPAND;
+  }
+
+  start_time = time(NULL);
+  convert_toupper(name);
+  stack = Create_STACK(512);
+  hash_member_examined = HASH_Create(SMALL_HASH_SIZE, HASH_KeyOffset,
+       HASH_Offset(&member_examined_item, &member_examined_item.key),
+       HASH_DestroyFunction, HashMemberExaminedDestroy, 0);
+  ll_setlist = LL_Create(LL_DestroyFunction, free, NULL);
+  mstr = rpsl_macro_expand_add(" ", name, irr, NULL);
+  Push(stack, mstr);
+  member_examined_ptr = New(member_examined_hash_t);
+  member_examined_ptr->key = strdup(name);
+  HASH_Insert(hash_member_examined, member_examined_ptr);
+
+  while (Get_STACK_Count(stack) > 0) {
+    if (IRR.expansion_timeout > 0) {
+      if ((time(NULL) - start_time) > IRR.expansion_timeout) {
+        trace(ERROR, default_trace,
+	      "irr_set_expand(): Set expansion timeout\n");
+        sprintf(abuf, "Expansion maximum CPU time exceeded: %d seconds",
+		IRR.expansion_timeout);
+        irr_send_error(irr, abuf);
+        goto getout;
+      }
+    }
+    mstr = (char *)Pop(stack);
+    /* might want to check the examined list to see if this set name
+       has been examined already */
+    first = 1;
+    lasts = NULL;
+    range_op = strtok_r(mstr, ",", &lasts);
+    if (!strcmp(range_op, " "))
+      range_op = NULL;
+    set_name = strtok_r(NULL, ",", &lasts);
+
+    irr_lock_all(irr); /* lock db's while searching */
+    while ((db = strtok_r(NULL, ",", &lasts)) != NULL) {
+      if ((database = find_database(db)) == NULL) {
+        trace(ERROR, default_trace, "irr_set_expand(): Database not found %s\n",
+	      db);
+        sprintf(abuf, "Database not found: %s", db);
+        irr_send_error(irr, abuf);
+        goto getout;
+      }
+      make_setobj_key(abuf, set_name);
+      if ((hash_spec = fetch_hash_spec(database, abuf, UNPACK)) != NULL) {
+          first = 0;
+	  update_members_list(database, range_op, expand_flag,
+			      hash_member_examined, ll_setlist,
+			      hash_spec->ll_1, stack, irr);
+	  mbrs_by_ref_set(database, range_op, AF_INET6, expand_flag, ll_setlist,
+                          set_name, hash_spec->ll_2, irr);
+	  Delete_hash_spec(hash_spec);
+      }
+      if (first == 0)
+        break;
+    }
+    irr_unlock_all(irr);
+    free (mstr);
+  }
+
+  first = 1;
+  dup = 0;
+  i = 0;
+  last_set_name = "";
+  array = NewArray(DATA_PTR, ll_setlist->count);
+  LL_ContIterate(ll_setlist, set_name) {
+    array[i++] = set_name;
+  }
+  ARRAY_Sort(array, ll_setlist->count, (DATA_PTR)strcmp);
+  i = 0;
+  while (i < ll_setlist->count) {
+    set_name = array[i++];
+    if (!first) {
+       /* since list is sorted, any duplicates should be consecutive */
+      if (strcmp(last_set_name, set_name) == 0)
+        dup = 1;
+      else /* add a space before each item */
+        irr_add_answer(irr, " ");
+    }
+    if (!dup) { /* only print this if not a duplicate */
+      irr_add_answer(irr, "%s", set_name);
+      last_set_name = set_name;
+    } else
+      dup = 0;
+    first = 0;
+  }
+  irrd_free(array);
+  irr_send_answer(irr);
+getout:
+  LL_Destroy(ll_setlist);
+  HASH_Destroy(hash_member_examined);
+  Destroy_STACK(stack);
+}
+
+void mbrs_by_ref_set (irr_database_t *database, char *range_op, u_short afi,
 	enum EXPAND_TYPE expand_flag, LINKED_LIST *ll_setlist,
 	char *set_name, LINKED_LIST *ll_mbr_by_ref, irr_connection_t *irr) {
   char *member, *maint, key[BUFSIZE];
@@ -198,7 +322,7 @@ void mbrs_by_ref_set (irr_database_t *database, char *range_op,
     make_spec_key (key, maint, set_name);
     if ((hash_spec = fetch_hash_spec (database, key, UNPACK)) != NULL) {
       LL_ContIterate (hash_spec->ll_1, member) {
-	SL_Add (ll_setlist, member, range_op, expand_flag, irr);
+	SL_Add (ll_setlist, member, range_op, afi, expand_flag, irr);
       }
       Delete_hash_spec (hash_spec);
     }
@@ -220,7 +344,7 @@ void update_members_list (irr_database_t *database, char *range_op, enum EXPAND_
   LL_ContIterate (ll_set_names, member) {
     convert_toupper(member);
     if ((expand_flag == NO_EXPAND) || !chk_set_name (member)) {
-      SL_Add (ll_setlist, member, range_op, expand_flag, irr);
+      SL_Add (ll_setlist, member, range_op, 0, expand_flag, irr);
     } else { /* we have a set name */
       if (!g_hash_table_lookup(hash_member_examined, member)) {
 	strcpy(range_buf, " "); /* initialize to empty range */
@@ -283,7 +407,7 @@ enum PREFIX_RANGE_TYPE prefix_range_parse( char *range, unsigned int *start, uns
  * Also appends a range operator to *p.
  *
  */
-void SL_Add (LINKED_LIST *ll_setlist, char *member, char *range_op, enum EXPAND_TYPE expand_flag, irr_connection_t *irr) {
+void SL_Add (LINKED_LIST *ll_setlist, char *member, char *range_op, u_short afi, enum EXPAND_TYPE expand_flag, irr_connection_t *irr) {
   char buffer[BUFSIZE], buf2[BUFSIZE], rangestr[32];
   char *q, *temp_ptr, *range_ptr;
   char *last = NULL;
@@ -305,7 +429,7 @@ void SL_Add (LINKED_LIST *ll_setlist, char *member, char *range_op, enum EXPAND_
           q = strdup(hash_spec->gas_answer);
           temp_ptr = strtok_r(q, " ", &last);
 	  while (temp_ptr != NULL && *temp_ptr != '\0') {
-	    SL_Add(ll_setlist, temp_ptr, range_op, expand_flag, irr);
+	    SL_Add(ll_setlist, temp_ptr, range_op, afi, expand_flag, irr);
 	    temp_ptr = strtok_r(NULL, " ", &last);
 	  }
 	  free(q);
@@ -329,6 +453,12 @@ void SL_Add (LINKED_LIST *ll_setlist, char *member, char *range_op, enum EXPAND_
     return;
   }
 
+  if (afi != 0)
+    if (afi == AF_INET6) {
+	if (!strchr(member, ':'))
+	   return;
+    } else if (strchr(member, ':'))
+	   return;
   strcpy (buffer, member);
   if (range_op == NULL)
     goto add_member;

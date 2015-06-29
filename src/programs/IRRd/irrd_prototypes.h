@@ -197,7 +197,8 @@ int get_curr_f (char *buf);
 int get_roamaxlen (char *buf, int *maxlen);
 
 /* RPSL */
-void irr_set_expand (irr_connection_t *irr, char *name);
+void irr_set_expand(irr_connection_t *irr, char *name);
+void irr_set_expand6(irr_connection_t *irr, char *name);
 
 /* indicies */
 int irr_database_find_matches (irr_connection_t *irr, char *key, 
