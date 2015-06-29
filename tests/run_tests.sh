@@ -72,6 +72,12 @@ function test_004 {
     echo "INFO: this should list be a list of only ASN (AS-PLAINSET)"
     whois -h localhost '!i6AS-PLAINSET,1'
     echo
+    echo "INFO: this should return an IPv6 prefix"
+    whois -h localhost '!i6RS-ONLYREFERENCEDMEMBERS,1'
+    echo
+    echo "INFO: this should list be a list IPv4 prefixes (RS-PLAINSET"
+    whois -h localhost '!iRS-PLAINSET,1'
+    echo
 }
 
 function test_006 {
@@ -106,7 +112,6 @@ function tests_round_1 {
     # echo '!i6AS1:AS-ALL' | telnet localhost 43
     # run show_irrd_config "sampledb" "FAIL"
     # see https://travis-ci.org/job/irrd/builds/34656137 for a round 1 failure
-    # test_006 & test_007 are only done with pwhash_hiding
 }
 
 function tests_with_pwhash_hiding {

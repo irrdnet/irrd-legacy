@@ -88,3 +88,31 @@ tech-c:     TEST-sampledb
 mnt-by:     MAINT-TEST
 changed:    test_004@localhost
 source:     sampledb
+
+route-set:  RS-PLAINSET
+descr:      PLAIN ROUTE-SET
+members:    10.0.0.0/24, 10.0.1.0/24
+members:    10.0.2.0/24
+admin-c:    TEST-sampledb
+tech-c:     TEST-sampledb
+mnt-by:     MAINT-TEST
+changed:    test_004@localhost
+source:     sampledb
+
+route-set:  RS-ONLYREFERENCEDMEMBERS
+descr:      Route-set with no direct members, only indirect
+mbrs-by-ref: any
+admin-c:    TEST-sampledb
+tech-c:     TEST-sampledb
+mnt-by:     MAINT-TEST
+changed:    test_004@localhost
+source:     sampledb
+
+route6:     2001:db8:2000:e::/64
+descr:      called through RS-ONLYREFERENCEDMEMBERS
+origin:     AS1
+member-of:  RS-ONLYREFERENCEDMEMBERS
+notify:     tech@ntt.net
+mnt-by:     MAINT-TEST
+changed:    test_004@localhost
+source:     sampledb
