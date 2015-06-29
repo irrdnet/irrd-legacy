@@ -114,15 +114,19 @@ function test_008 {
     sleep 2
     echo
     echo "INFO: this should return one IPv4 prefix"
+    echo whois -h localhost '!iRS-MULTIPROTOCOL'
     whois -h localhost '!iRS-MULTIPROTOCOL'
     echo
     echo "INFO: this should return one IPv6 prefix"
+    echo whois -h localhost '!i6RS-MULTIPROTOCOL'
     whois -h localhost '!i6RS-MULTIPROTOCOL'
     echo
     echo "INFO: this should return two IPv4 prefixes"
+    echo whois -h localhost '!iRS-MULTIPROTOCOLS'
     whois -h localhost '!iRS-MULTIPROTOCOLS'
     echo
     echo "INFO: this should return two IPv6 prefixes"
+    echo whois -h localhost '!i6RS-MULTIPROTOCOLS'
     whois -h localhost '!i6RS-MULTIPROTOCOLS'
     echo
 }

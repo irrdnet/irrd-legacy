@@ -344,11 +344,9 @@ void update_members_list (irr_database_t *database, char *range_op,
 
     LL_ContIterate (ll_set_names, member) {
         convert_toupper(member);
-        /* #FIXME The following logic block is a inscrutable */
-        if (expand_flag == NO_EXPAND) {
-            SL_Add (ll_setlist, member, range_op, afi, expand_flag, irr);
-        } else if (expand_flag == OTHER_EXPAND || !chk_set_name (member)) {
-            SL_Add (ll_setlist, member, range_op, 0, expand_flag, irr);
+        /* #FIXME The following logic block is a inscrutable and needs documentation */
+        if ((expand_flag == NO_EXPAND) || !chk_set_name (member)) {
+                      SL_Add (ll_setlist, member, range_op, 0, expand_flag, irr);
         } else { /* we have a set name */
             if (!g_hash_table_lookup(hash_member_examined, member)) {
                 strcpy(range_buf, " "); /* initialize to empty range */
