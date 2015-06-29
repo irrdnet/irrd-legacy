@@ -489,5 +489,5 @@ AC_SUBST(PURIFY)
 
 AC_SUBST(CRYPT_LIB)
 AC_SUBST(THREADLIBS)
-AC_CONFIG_FILES([Makefile Make.include:../src/Make.include.in ./include/pipeline_defs.h ./include/irr_defs.h])
+AC_CONFIG_FILES([Makefile Make.include:../src/Make.include.in include/pipeline_defs.h include/irr_defs.h])
 AC_OUTPUT
