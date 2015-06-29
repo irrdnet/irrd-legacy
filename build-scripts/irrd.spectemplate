@@ -24,8 +24,6 @@ The IRRd package includes all required IRR support services, including:
 automated near real-time mirroring of other IRR databases, update syntax
 checking, authentication/security, and notification.
 
-%define _patchdir %{_topdir}/PATCHES
-
 %prep
 %setup -q -n %{name}-%{version}
 
@@ -53,7 +51,7 @@ cd src
 %{__install} -m 755 src/programs/irrdcacher/irrdcacher %{buildroot}%{_bindir}/irrdcacher
 %{__install} -m 755 src/programs/irrdcacher/ripe2rpsl %{buildroot}%{_bindir}/ripe2rpsl
 %{__install} -m 644 src/programs/IRRd/irrd.8 %{buildroot}%{_mandir}/man8/irrd.8
-%{__install} -m 744 %{_patchdir}/%{name}/p0/irrd.init %{buildroot}%{_initddir}/irrd
+%{__install} -m 744 src/contrib/irrd.init %{buildroot}%{_initddir}/irrd
 
 # this is automatic
 %clean
