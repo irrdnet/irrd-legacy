@@ -181,10 +181,9 @@ irr_set_expand6(irr_connection_t *irr, char *name)
 {
   irr_database_t *database;
   time_t start_time;
-  DATA_PTR *array;
-  STACK *stack;
-  HASH_TABLE *hash_member_examined;
-  member_examined_hash_t member_examined_item;
+  GArray *array;
+  GQueue *stack;
+  GHashTable *hash_member_examined;
   member_examined_hash_t *member_examined_ptr;
   LINKED_LIST *ll_setlist;
   char *set_name, *last_set_name, *mstr, *db;
@@ -207,56 +206,51 @@ irr_set_expand6(irr_connection_t *irr, char *name)
 
   start_time = time(NULL);
   convert_toupper(name);
-  stack = Create_STACK(512);
-  hash_member_examined = HASH_Create(SMALL_HASH_SIZE, HASH_KeyOffset,
-       HASH_Offset(&member_examined_item, &member_examined_item.key),
-       HASH_DestroyFunction, HashMemberExaminedDestroy, 0);
+  stack = g_queue_new();
+  hash_member_examined = g_hash_table_new_full(g_str_hash, g_str_equal, NULL, (GDestroyNotify)HashMemberExaminedDestroy);
   ll_setlist = LL_Create(LL_DestroyFunction, free, NULL);
   mstr = rpsl_macro_expand_add(" ", name, irr, NULL);
-  Push(stack, mstr);
-  member_examined_ptr = New(member_examined_hash_t);
+  g_queue_push_head(stack, mstr);
+  member_examined_ptr = irrd_malloc(sizeof(member_examined_hash_t));
   member_examined_ptr->key = strdup(name);
-  HASH_Insert(hash_member_examined, member_examined_ptr);
+  g_hash_table_insert(hash_member_examined, member_examined_ptr->key, member_examined_ptr);
 
-  while (Get_STACK_Count(stack) > 0) {
+  while (!g_queue_is_empty(stack)) {
     if (IRR.expansion_timeout > 0) {
       if ((time(NULL) - start_time) > IRR.expansion_timeout) {
-        trace(ERROR, default_trace,
-	      "irr_set_expand(): Set expansion timeout\n");
+        trace(ERROR, default_trace, "irr_set_expand6(): Set expansion timeout\n");
         sprintf(abuf, "Expansion maximum CPU time exceeded: %d seconds",
 		IRR.expansion_timeout);
         irr_send_error(irr, abuf);
         goto getout;
       }
     }
-    mstr = (char *)Pop(stack);
+    mstr = (char *) g_queue_pop_head(stack);
     /* might want to check the examined list to see if this set name
        has been examined already */
     first = 1;
     lasts = NULL;
     range_op = strtok_r(mstr, ",", &lasts);
-    if (!strcmp(range_op, " "))
-      range_op = NULL;
+    if (!strcmp(range_op, " ")) range_op = NULL;
     set_name = strtok_r(NULL, ",", &lasts);
 
     irr_lock_all(irr); /* lock db's while searching */
     while ((db = strtok_r(NULL, ",", &lasts)) != NULL) {
       if ((database = find_database(db)) == NULL) {
-        trace(ERROR, default_trace, "irr_set_expand(): Database not found %s\n",
+        trace(ERROR, default_trace, "irr_set_expand6(): Database not found %s\n",
 	      db);
         sprintf(abuf, "Database not found: %s", db);
         irr_send_error(irr, abuf);
         goto getout;
       }
       make_setobj_key(abuf, set_name);
-      if ((hash_spec = fetch_hash_spec(database, abuf, UNPACK)) != NULL) {
+      if ((hash_spec = fetch_hash_spec (database, abuf, UNPACK)) != NULL) {
           first = 0;
-	  update_members_list(database, range_op, expand_flag,
-			      hash_member_examined, ll_setlist,
-			      hash_spec->ll_1, stack, irr);
+	  update_members_list(database, range_op, expand_flag, hash_member_examined,
+              ll_setlist, hash_spec->ll_1, stack, irr);
 	  mbrs_by_ref_set(database, range_op, AF_INET6, expand_flag, ll_setlist,
                           set_name, hash_spec->ll_2, irr);
-	  Delete_hash_spec(hash_spec);
+	  Delete_hash_spec (hash_spec);
       }
       if (first == 0)
         break;
@@ -269,14 +263,14 @@ irr_set_expand6(irr_connection_t *irr, char *name)
   dup = 0;
   i = 0;
   last_set_name = "";
-  array = NewArray(DATA_PTR, ll_setlist->count);
+  array = g_array_sized_new(FALSE, TRUE, sizeof(char*), ll_setlist->count);
   LL_ContIterate(ll_setlist, set_name) {
-    array[i++] = set_name;
+    g_array_append_val(array, set_name);
   }
-  ARRAY_Sort(array, ll_setlist->count, (DATA_PTR)strcmp);
+  g_array_sort(array, (GCompareFunc)str_p_cmp);
   i = 0;
   while (i < ll_setlist->count) {
-    set_name = array[i++];
+    set_name = g_array_index(array, char*, i++);
     if (!first) {
        /* since list is sorted, any duplicates should be consecutive */
       if (strcmp(last_set_name, set_name) == 0)
@@ -291,12 +285,12 @@ irr_set_expand6(irr_connection_t *irr, char *name)
       dup = 0;
     first = 0;
   }
-  irrd_free(array);
+  g_array_free(array, TRUE);
   irr_send_answer(irr);
 getout:
   LL_Destroy(ll_setlist);
-  HASH_Destroy(hash_member_examined);
-  Destroy_STACK(stack);
+  g_hash_table_destroy(hash_member_examined);
+  g_queue_free(stack);
 }
 
 void mbrs_by_ref_set (irr_database_t *database, char *range_op, u_short afi,
@@ -442,7 +436,7 @@ void SL_Add (LINKED_LIST *ll_setlist, char *member, char *range_op, u_short afi,
           q = strdup(hash_spec->gas_answer);
           temp_ptr = strtok_r(q, " ", &last);
 	  while (temp_ptr != NULL && *temp_ptr != '\0') {
-	    SL_Add(ll_setlist, temp_ptr, range_op, expand_flag, irr);
+	    SL_Add(ll_setlist, temp_ptr, range_op, afi, expand_flag, irr);
 	    temp_ptr = strtok_r(NULL, " ", &last);
 	  }
 	  free(q);
