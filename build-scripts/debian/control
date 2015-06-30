@@ -1,0 +1,19 @@
+Priority: optional
+Maintainer: Job Snijders <job@instituut.net>
+Source: irrd
+Build-Depends: debhelper (>= 5), make, bison, flex, libglib2.0-dev
+Standards-Version: 3.8.2
+Homepage: http://www.irrd.net
+
+Package: irrd
+Section: utils
+Architecture: amd64
+Description: (from http://www.irrd.net):
+ .
+ IRRd is a freely available, stand-alone Internet Routing Registry database
+ server. IRRd supports the RPSL and RPSLng (Routing Policy Specification
+ Language) standards.
+ .
+ The IRRd package includes all required IRR support services, including:
+ automated near real-time mirroring of other IRR databases, update syntax
+ checking, authentication/security, and notification.

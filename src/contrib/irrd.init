@@ -33,7 +33,7 @@ case $1 in
 		kill $p
 		exit 0
 	else
-		exit 7	# not running
+		exit 0 # not running
 	fi
         ;;
 'restart')
