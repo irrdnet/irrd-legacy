@@ -586,7 +586,7 @@ void irr_process_command (irr_connection_t * irr) {
   if ((!strncasecmp (com_ptr, "ver", 3)) || 
       (command_char == 'v') || (command_char == 'V') || 
       (!strcasecmp (com_ptr, "-v"))) {
-    irr_add_answer (irr, "# IRRd -- version %s ", IRRD_VERSION);
+    irr_add_answer (irr, "# IRRd -- version %s [%s]", IRRD_VERSION, __DATE__);
     irr_send_answer (irr);
     return;
   }

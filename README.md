@@ -7,10 +7,13 @@ employees.
 
 A user guide is included as part of the distribution as irrd-user.pdf.
 
+IRRd depends on bison, flex and the glib2 development files.
+
 To build and install the distribution, execute the following commands:
 
 ```
-cd src
+git clone https://github.com/irrdnet/irrd.git
+cd irrd/src
 ./autogen.sh
 ./configure
 make

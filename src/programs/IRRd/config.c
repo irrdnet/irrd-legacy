@@ -63,7 +63,7 @@ void config_create_default () {
   config_add_module (0, "comment", get_comment_config, tmp);
 
   tmp = malloc (512);
-  sprintf (tmp, "# IRRd -- version %s ", IRRD_VERSION);
+  sprintf (tmp, "# IRRd -- version %s [%s]", IRRD_VERSION, __DATE__);
   config_add_module (0, "comment", get_comment_config, tmp);
 		
   tmp = strdup  ("#####################################################################");

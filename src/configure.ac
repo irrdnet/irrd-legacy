@@ -1,6 +1,6 @@
 # Process this file with autoconf to produce a configure script.
 
-AC_INIT([irrd], [@@date@@])
+AC_INIT([irrd], m4_esyscmd_s(echo $(git describe --abbrev=4 --dirty --always --tags )))
 AM_INIT_AUTOMAKE([foreign])
 
 AC_PREREQ([2.59])
@@ -130,6 +130,8 @@ case "${host_os}" in
     ;;
     linux* )
 	CRYPT_LIB="-lcrypt"
+    ;;
+    *86*-darwin*)
     ;;
     osf* )
 	if test $CC = "cc" ; then

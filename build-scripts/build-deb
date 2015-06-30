@@ -1,16 +1,13 @@
 #!/bin/sh
 
-VERSION=$1
+VERSION=$(git describe --abbrev=4 --dirty --always --tags | sed 's/^v//')
 
 if [ "$0" != "./build-scripts/build-deb" ]; then
   echo "Please run me from the root checkout dir" >&2
   exit 1
 fi
 
-if [ -z "$VERSION" ]; then
-    echo 'Please set $VERSION' >&2
-    exit 1
-fi
+echo "Building debian package for ${VERSION}"
 
 set -e
 set -x
@@ -20,11 +17,6 @@ echo "License: BSD" > build-scripts/debian/copyright
 cat COPYRIGHT >> build-scripts/debian/copyright
 cp -r build-scripts/debian debian
 cp src/contrib/irrd.init debian/
-
-DATE=$(date +%Y%m%d)
-
-sed -i.bak "s/@@date@@/${DATE}/" src/configure.ac
-sed -i.bak "s/@@IRRD_VERSION@@/${VERSION} [$(date +%d%b%Y)]/" src/include/version.h
 
 cat > debian/changelog << EOF
 irrd (${VERSION}) unstable; urgency=medium

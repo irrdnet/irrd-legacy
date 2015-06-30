@@ -1,5 +1,7 @@
-sed -i.bak "s/@@date@@/$(date +%Y%m%d)/" configure.ac
-mkdir m4
+if [ ! -d m4 ]; then
+    mkdir m4
+fi
+
 echo "Running aclocal"
 aclocal
 echo "Running autoconf"
