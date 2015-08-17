@@ -501,7 +501,7 @@ void make_6as_key (char *gas_key, char *origin) {
 
 void make_setobj_key (char *new_key, char *obj_name) {
 
-  *new_key++ = '@'; /* key uniqueness */
+  *new_key++ = '#'; /* key uniqueness */
   strcpy (new_key, obj_name);
   convert_toupper (new_key);
 }
