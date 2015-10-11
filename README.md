@@ -20,6 +20,20 @@ make
 make install
 ```
 
+Ubuntu 12 notes
+===============
+
+```
+sudo apt-get install byacc automake autoconf build-essential gnupg flex
+```
+
+Ubuntu 14 notes
+===============
+
+```
+sudo apt-get install byacc automake autoconf build-essential gnupg flex libglib2.0-dev
+```
+
 Binaries are installed in /usr/local/sbin by default.
 
 Send email to [irrd@rpsl.net](http://lists.rpsl.net/mailman/listinfo/irrd) for
