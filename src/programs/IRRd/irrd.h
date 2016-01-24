@@ -103,6 +103,8 @@ typedef struct _irr_database_t {
   uint32_t		serial_number;	/* serial number for mirroring */
   uint32_t		new_serial_number; /* serial number for mirroring */
   prefix_t		*mirror_prefix; /* prefix of host to connect for mirroring */
+  char                  *mirror_prefix_hostname; /* hostname */
+  time_t		mirror_prefix_time; /* when we last refreshed this dns entry */
   char			*remote_ftp_url; /* for irrdcacher to fetch database */
   int                   rpsdist_flag;	/* if set, this DB was created with
 					  * a 'rpsdist_database' command */
