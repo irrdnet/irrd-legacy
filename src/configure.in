@@ -225,6 +225,12 @@ if test $FLEX_PATH = no; then
  AC_MSG_ERROR([flex is required -- see www.gnu.org/software/flex/])
 fi
 
+dnl find yacc
+AC_PATH_PROG(YACC_PATH,yacc,no)
+if test $YACC_PATH = no; then
+ AC_MSG_ERROR([yacc is required -- install byacc or similar])
+fi
+
 dnl find bison/yacc
 AC_PROG_YACC
 dnl AC_PATH_PROG(BISON_PATH,bison,no)
