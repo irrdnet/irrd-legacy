@@ -1,32 +1,40 @@
-[![Build Status](https://travis-ci.org/job/irrd.svg?branch=master)](https://travis-ci.org/job/irrd)
+[![Build Status](https://travis-ci.org/irrdnet/irrd.svg?branch=master)](https://travis-ci.org/irrdnet/irrd)
 
-$Id: README,v 1.4 2002/10/22 15:57:59 ljb Exp $
+This is the source distribution of the Internet Routing Registry Daemon (IRRd).
 
-This is the source distribution of the Internet 
-Routing Registry Daemon (IRRd).
+IRRd is jointly maintained by Merit Network, Inc. and NTT Communications, Inc.
+employees.
 
-Source code and documentation for IRRd is available online at:
-  http://www.irrd.net
+A user guide is included as part of the distribution as irrd-user.pdf.
 
-Also, a user guide is included as part of the distribution as
-irrd-user.pdf.
+IRRd depends on bison, flex and the glib2 development files.
 
 To build and install the distribution, execute the following commands:
 
-cd src
+```
+git clone https://github.com/irrdnet/irrd.git
+cd irrd/src
+./autogen.sh
 ./configure
 make
 make install
+```
+
+Ubuntu 12 notes
+===============
+
+```
+sudo apt-get install byacc automake autoconf build-essential gnupg flex
+```
+
+Ubuntu 14 notes
+===============
+
+```
+sudo apt-get install byacc automake autoconf build-essential gnupg flex libglib2.0-dev
+```
 
 Binaries are installed in /usr/local/sbin by default.
 
-Send email to irrd-support@irrd.net for assistance/bug/comments.
-
-A mailing list, irrd-discuss@irrd.net is also available for 
-IRRd users to share advice and experiences with the daemon.
-Send mail to irrd-discuss-request@irrd.net for subscriptions/list
-administravia requests.
-
-Please note that IRRj, a Java interface for IRRd, is not supported
-by Merit at present.  Also, the Windows port of IRRd is no longer
-being actively maintained/supported.
+Send email to [irrd@rpsl.net](http://lists.rpsl.net/mailman/listinfo/irrd) for
+assistance/bug/comments or use the [Github](https://github.com/irrdnet/irrd/issues) system to file an issue.

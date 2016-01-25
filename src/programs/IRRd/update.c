@@ -126,6 +126,7 @@ int irr_special_indexing_store (irr_database_t *database, irr_object_t *irr_obje
     family = AF_INET6;  /* change family to IPV6 and fall thru.. */
     speckey = GASX6;
     make_6as_key (key_buf, print_as(str_origin, irr_object->origin));
+    prefix = ascii2prefix(family, irr_object->name);
   case ROUTE:
     prefix = ascii2prefix(family, irr_object->name);
     if (prefix == NULL) {

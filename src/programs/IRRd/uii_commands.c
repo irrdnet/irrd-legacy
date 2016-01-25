@@ -407,6 +407,27 @@ void uii_irr_clean (uii_connection_t *uii, char *name) {
   return;
 }
 
+#ifdef JOURNAL_SIZE
+void uii_irr_rotate_journal (uii_connection_t *uii, char *name) {
+  irr_database_t *db;
+
+  db = find_database (name);
+
+  if (db != NULL) {
+    uii_send_data (uii, "Rotating %s journal...\r\n", name);
+    u_long jmax = db->max_journal_bytes;
+    db->max_journal_bytes = 1;
+    journal_maybe_rollover(db);
+    db->max_journal_bytes = jmax;
+  }
+  else
+    uii_send_data (uii, "Could not find %s database...\r\n", name);
+
+  irrd_free(name);
+  return;
+}
+#endif
+
 void uii_irr_mirror_last (uii_connection_t *uii, char *name) {
   uii_irr_mirror (uii, name, 0);
 }

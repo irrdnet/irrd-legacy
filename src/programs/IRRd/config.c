@@ -63,7 +63,7 @@ void config_create_default () {
   config_add_module (0, "comment", get_comment_config, tmp);
 
   tmp = malloc (512);
-  sprintf (tmp, "# IRRd -- version %s ", IRRD_VERSION);
+  sprintf (tmp, "# IRRd -- version %s [%s]", IRRD_VERSION, __DATE__);
   config_add_module (0, "comment", get_comment_config, tmp);
 		
   tmp = strdup  ("#####################################################################");
@@ -287,6 +287,15 @@ void get_config_irr_database (irr_database_t *database) {
     atts = 1;
   }
   
+#ifdef JOURNAL_SIZE
+  if (database->max_journal_bytes != 0) {
+    config_add_output ("irr_database %s max_journal_bytes %d\r\n",
+		       database->name,
+		       database->max_journal_bytes);
+    atts =1;
+  }
+#endif
+
   if (atts == 0) 
     config_add_output ("irr_database %s\r\n", database->name);
 }
@@ -1134,6 +1143,25 @@ int config_irr_database_compress_script (uii_connection_t *uii, char *name, char
   return (1);
 }
 
+#ifdef JOURNAL_SIZE
+/* config irr_database %s max_journal_bytes %d */
+int config_irr_database_max_journal_bytes (uii_connection_t *uii, char *name, int bytes) {
+  irr_database_t *database = NULL;
+
+  if ((database = find_database (name)) == NULL) {
+    config_notice (ERROR, uii, "Database %s not found!\r\n", name);
+    irrd_free(name);
+    return (-1);
+  }
+
+  trace (NORM, default_trace, "CONFIG %s max_journal_bytes %d\n", name, bytes);
+
+  database->max_journal_bytes = bytes;
+  irrd_free(name);
+  return (1);
+}
+#endif
+
 /* no config irr_database %s */
 int no_config_irr_database (uii_connection_t *uii, char *name) {
   irr_database_t *db;
@@ -1181,7 +1209,7 @@ void get_config_server_debug () {
 
   if ((strcmp ("stdout", default_trace->logfile->logfile_name) != 0) &&
       (default_trace->logfile->max_filesize > 0))
-    config_add_output ("debug server file-max-size %d\r\n", 
+    config_add_output ("debug server file-max-size %lld\r\n", 
 		       default_trace->logfile->max_filesize);
 
   if (default_trace->syslog_flag)
@@ -1224,9 +1252,9 @@ int config_debug_server_syslog (uii_connection_t *uii) {
   return (1);
 }
 
-/* debug server size %d */
-int config_debug_server_size (uii_connection_t *uii, int bytes) {
-  set_trace (default_trace, TRACE_MAX_FILESIZE, bytes, NULL);
+/* debug server size %s */
+int config_debug_server_size (uii_connection_t *uii, char *size) {
+  set_trace (default_trace, TRACE_MAX_FILESIZE, size, NULL);
   config_add_module (0, "debug", get_config_server_debug, IRR.submit_trace);
   return (1);
 }
@@ -1261,8 +1289,8 @@ int config_debug_submission_verbose (uii_connection_t *uii) {
   return (1);
 }
 
-/* debug submission file-max-size %d */
-int config_debug_submission_maxsize (uii_connection_t *uii, int size) {
+/* debug submission file-max-size %s */
+int config_debug_submission_maxsize (uii_connection_t *uii, char *size) {
   set_trace (IRR.submit_trace, TRACE_MAX_FILESIZE, size, NULL);
   config_add_module (0, "debug", get_config_submission_debug, NULL);
   return (1);

@@ -223,7 +223,7 @@ uii_accept_connection (void)
 {
     int sockfd;
     socklen_t len;
-    int port, family;
+    int family;
     prefix_t *prefix;
 #ifndef HAVE_IPV6
     struct sockaddr_in addr;
@@ -260,13 +260,11 @@ uii_accept_connection (void)
     if ((family = addr.sa.sa_family) == AF_INET) {
 #endif	/* HAVE_IPV6 */
 	struct sockaddr_in *sin = (struct sockaddr_in *) & addr;
-	port = ntohs (sin->sin_port);
 	prefix = New_Prefix (AF_INET, &sin->sin_addr, 32);
     }
 #ifdef HAVE_IPV6
     else if (family == AF_INET6) {
 	struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *) & addr;
-	port = ntohs (sin6->sin6_port);
 	if (IN6_IS_ADDR_V4MAPPED (&sin6->sin6_addr))
 	    prefix = New_Prefix (AF_INET, ((char *) &sin6->sin6_addr) + 12, 32);
 	else
@@ -1174,7 +1172,7 @@ uii_call_callback_fn (uii_connection_t * uii, uii_command_t * candidate)
 	    else if (*(cp + 1) == 's' || *(cp + 1) == 'n')	/* string */
 		args[nargs++] = strdup (utoken);
 	    else if (*(cp + 1) == 'd' || *(cp + 1) == 'D')	/* integer */
-		args[nargs++] = (void*) atoi(utoken); 
+		args[nargs++] = (void*)(intptr_t)atoi(utoken);
 	    else if (*(cp + 1) == 'm' || *(cp + 1) == 'M') {	/* ipv4 or ipv6 prefix */
 		if (strchr (utoken, ':'))
 		    args[nargs++] = ascii2prefix (AF_INET6, utoken);
@@ -1205,7 +1203,7 @@ uii_call_callback_fn (uii_connection_t * uii, uii_command_t * candidate)
     //char optional_str[64];
     //snprintf(optional_str, 64, "%d", optional);
     if (optional_arg >= 0)
-	args[optional_arg] = (void*) optional;
+	args[optional_arg] = (void*)(intptr_t)optional;
 
     assert (candidate->call_fn);
     assert (nargs <= 10);	/* XXX */
@@ -2353,8 +2351,8 @@ uii_translate_machine_token_to_human (char *token)
     cp += strlen (cp);
 
     if (token[2] != '\0') {
-	sprintf (cp, token + 2);
-	cp += strlen (cp);
+        sprintf (cp, "%s", token + 2);
+        cp += strlen (cp);
     }
     return (tmp);
 }

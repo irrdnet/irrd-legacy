@@ -1,0 +1,7 @@
+usr/sbin/irrd
+usr/bin/irrdcacher
+usr/bin/ripe2rpsl
+usr/sbin/irr_notify
+usr/sbin/irr_rpsl_check
+usr/sbin/irr_rpsl_submit
+usr/share/man/man8/irrd.8

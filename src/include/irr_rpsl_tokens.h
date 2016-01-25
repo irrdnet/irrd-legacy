@@ -3,6 +3,7 @@
 #define     MAX_OBJS 21
 #define     MAX_ATSQ_LEN 25
 #define     MAX_MANDS 14
+#define	MAX_COUNTRIES 249
 
 /* --------Bison enum FIELDS--------*/
 enum ATTRS {

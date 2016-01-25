@@ -1,0 +1,30 @@
+#!/bin/sh
+
+VERSION=$(git describe --abbrev=4 --dirty --always --tags | sed 's/^v//')
+
+if [ "$0" != "./build-scripts/build-deb" ]; then
+  echo "Please run me from the root checkout dir" >&2
+  exit 1
+fi
+
+echo "Building debian package for ${VERSION}"
+
+set -e
+set -x
+
+rm -rf debian
+echo "License: BSD" > build-scripts/debian/copyright
+cat COPYRIGHT >> build-scripts/debian/copyright
+cp -r build-scripts/debian debian
+cp src/contrib/irrd.init debian/
+
+cat > debian/changelog << EOF
+irrd (${VERSION}) unstable; urgency=medium
+
+  * Automatic build
+
+ -- AutoBuilder <irrd@rpsl.net>  $(date -R)
+
+EOF
+
+debuild

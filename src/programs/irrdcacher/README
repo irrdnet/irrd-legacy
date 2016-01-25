@@ -1,0 +1,57 @@
+The Irrdcacher Software Package
+
+Irrdcacher retrieves remote database files for the IRRd cache. 
+Irrdcacher is used to retrieve database copies that
+are not mirrored.  The irrdcacher software package  differs from ftp
+in that it can convert RIPE181 databases to RPSL databases,
+recognize the databases that make up the IRR 
+and automatically unzip them and send a cache refresh signal
+to IRRd.
+
+If you specify one of the databases which make up the IRR (ie,
+ripe, radb, ans, canet, mci) irrdcacher will look for the remote file
+as *.db.gz, unzip the file for you and send a cache refresh
+signal to your IRRd.  Specify the "-S" command flag to suppress
+the cache refresh signal.  If you specify any other non-database
+file, irrdcacher will retrieve the file with no special treatment 
+(e.g., the *.CURRENTSERIAL files).
+
+The irrdcacher package comes with two utilities, "ripe2rpsl"
+and "wget".  The "wget" utility is a pre-built binary that performs
+the file transfer operation and the "ripe2rpsl" is a perl program
+that converts RIPE181 databases to RPSL.  The package also comes with
+a sample cron job entry.
+
+Irrdcacher recognizes the following command line options.
+
+-h irrd host name (default localhost)
+-p irrd port (default 43)
+-s ftp server and remote directory (default 'ftp.ra.net:routing.arbiter/radb')
+-w additional search PATH component  (the user process PATH is the default)
+-c cache path (default ./)
+-S suppress the cache refresh signal to irrd
+-C do RPSL conversion
+
+The following example illustrates an irrdcacher invokation that retrieves
+the MCI and RADB databases, performs RIPE181 to RPSL conversion, stores
+the databases in the "/users/my_home_dir/irrd_cache" cache directory,
+looks for "irrdcacher", "wget", and "ripe2rpsl" in "/users/my_home_dir/bin"
+if they are not found in the default search path, and sends a cache
+refresh signal to IRRd listening on port 5678 at host 
+"irrd_host@my_domain.net".  The irrdcacher in this example also retrieves 
+the RADB.CURRENTSERIAL with no special treatment.
+
+%> irrdcacher -C -c /users/my_home_dir/irrd_cache
+                 -w /users/my_home_dir/bin -h irrd_host@my_domain.net
+                 -p 5678 mci radb RADB.CURRENTSERIAL
+
+
+Irrdcacher is provided as a convenience.  It is hoped that some day 
+all registries will support mirroring or some other mechanism for sharing
+Internet routing registry databases. 
+
+Acknowledgement
+
+  Thanks to David Kessens of ISI for writing the ripe2rpsl conversion
+utility.
+

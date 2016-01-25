@@ -36,6 +36,7 @@ const char OLD_OBJ_FILE[]   = "OLD-OBJ-FILE:";
 const char NEW_MNT_ERROR[]  = "NEW_MNT_ERROR:";
 const char DEL_MNT_ERROR[]  = "DEL_MNT_ERROR:";
 const char BAD_OVERRIDE[]   = "BAD_OVERRIDE:";
+const char AUTH_MAIL_FROM_DEPRECATED[]   = "AUTH_MAIL_FROM_DEPRECATED:";
 
 /* irr_check and irr_auth */
 

@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -e
+
+VERSION=$(git describe --abbrev=4 --dirty --always --tags)
+RPM_VERSION=$(echo ${VERSION} | sed 's/-/~/g')
+
+echo "Building RPM for ${VERSION}"
+
+DATE=$(date +%Y%m%d)
+
+sed "s/@@version@@/$RPM_VERSION/" build-scripts/irrd.spectemplate > build-scripts/irrd.spec
+
+if [ ! -d ~/rpmbuild/SOURCES/ ]; then
+    mkdir -p ~/rpmbuild/SOURCES/
+fi
+#git archive --prefix="irrd-${VERSION}/" --format=tar v${VERSION} | bzip2 > ~/rpmbuild/SOURCES/irrd-${VERSION}.tar.bz2
+
+rpmbuild -ba build-scripts/irrd.spec

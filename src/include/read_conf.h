@@ -42,6 +42,7 @@ typedef struct _config_info_t {
   char     *footer_msg;   /* submission footer msg's */
   char     *notify_header_msg;   /* header on submissions msgs */ 
   char     *forward_header_msg;   
+  int	   allow_mailfrom;  /* flag to allow MAIL-FROM auth (insecure) */
   int	   allow_inetdom;  /* flag to allow inetnum/inet6num/as-block/domain objs */
   source_t *srcs;         /* pointer to the source_t list */
   acl      *acls;         /* accept ACL list */

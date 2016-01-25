@@ -98,7 +98,18 @@ void journal_maybe_rollover (irr_database_t *database) {
   char file_old[BUFSIZE], file_new[BUFSIZE];
 
   fstat(database->journal_fd, &buf);
+
+#ifdef JOURNAL_SIZE
+  u_long jmax = database->max_journal_bytes;
+
+  if (jmax == 0) {
+    return;
+  }
+
+  if (buf.st_size > jmax) {
+#else
   if (buf.st_size > IRR_MAX_JOURNAL_SIZE) {
+#endif
 
     trace (NORM, default_trace, "Rolling Journal file (> %d bytes) for %s\n",
 	   IRR_MAX_JOURNAL_SIZE, database->name);
@@ -190,7 +201,7 @@ void make_journal_name (char * dbname, int journal_ext, char * journal_name) {
 int find_last_serial (char *dbname, int journal_ext, uint32_t *last_serial) {
   char file[256];
   char buf [FLS_BUFSIZE + FLS_OVERFLOW + 1]; 
-  off_t offset;
+  long offset;
   ssize_t bytes_read, bytes_to_read = FLS_BUFSIZE;
   int off_by_one = 0;
   int i, fd = -1;

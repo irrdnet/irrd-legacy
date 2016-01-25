@@ -1,0 +1,519 @@
+#!/usr/bin/perl
+
+#
+# This prog is designed to be called from a cron job to update
+# the cache for use by irrd.  This prog updates the cache
+# by ftp'ing remote db's/registries.  
+#    The output can be easily parsed
+# from a checker script or output-filter script.  Fatal error messages
+# are all prefixed with the tag 'ERROR:'.  The 'ERROR'
+# line gives a description and location of the fatal error.  'WARN'
+# msg's are also given in non-fatal situations.
+#
+
+use Getopt::Std;
+
+# set 2 for solaris else set to 1
+$sockstream = 2;
+
+
+local($wd,$db)=(`pwd`);
+
+chop($wd);
+if ($wd =~ /^\s*$/) {
+  $wd = `/bin/pwd`;
+  chop($wd);
+  if ($wd =~ /^\s*$/) {
+    print "Could not determine current working directory, exit!\n";
+    exit;
+  }
+}
+
+
+if (!getopts('p:w:s:SCf:')) {
+	print "irrdcacher: unknown command-line option or missing flag parm!\n";
+	&usage();
+	exit;
+}
+
+&usage() if ($#ARGV < 0); 
+
+# canonicalize db names
+# want *.db, eg,  mci.db
+%match = ();
+foreach $j (@ARGV) {
+    if ($j =~ /(\S+):(\S+)/) {
+	$j = $1;
+	$k = $2;
+    }
+    else {
+	$k = '';
+    }
+    
+#    if ($j !~ /CURRENTSERIAL$/i &&
+#	$j =~ /^(ans|mci|radb|ripe|canet)/i) {
+#	($j = $1) =~ tr/A-Z/a-z/;
+#	$j .= '.db';
+#	push (@DB, $j);
+#	if ($k ne '') {
+#	    if ($k !~ /\S+\.db$/) {
+#		$k .= '.db';
+#	    }
+#	}
+#	push (@DB_NEWNAME, $k);
+#    }
+#    else {
+#	push (@OTHERS, $j);
+#	push (@OTHERS_NEWNAME, $k);
+#    }
+
+    # canonicalize
+    if ($j =~ /^([^ \t\.]+)((\.db(\.gz)?)|\.CURRENTSERIAL)?$/) {
+	($i = $1) =~ tr/A-Z/a-z/;
+    }
+    else {
+	($i = $j) =~ tr/A-Z/a-z/;
+    }   
+    next if (defined($match{$i}));
+    $match{$i} = 1;
+
+    push (@DB, $i);
+    push (@DB_NEWNAME, $k);
+}
+
+# load default values
+# remove possible trailing '/'
+#($CACHEDIR = $wd) =~ s/\/$//;
+$CACHEDIR = "/var/tmp";
+$wd =~ s/\/$//;
+$IRRD_CONF = "/etc/irrd.conf";
+$IRRD_HOST = 'localhost';
+$IRRD_PORT = 43 ;
+$FTPSVR='ftp.radb.net';
+$FTPPTH='radb/dbase';
+
+if ($opt_w) {
+#print "path-($ENV{PATH})\n\n";
+  $ENV{PATH} =~ s/:$//;
+  $opt_w =~ s/^://;
+  $ENV{PATH} .= ":$opt_w";
+  $opt_w =~ s/\/$//;
+#print "path-($ENV{PATH})\n";
+}
+
+# can we find the executables we need?
+$ENV{PATH} .= ":/bin:/usr/bin:/usr/local/bin:$wd";
+$out = `which wget`;
+if ($out =~ /^no/) {
+    print "irrdcacher: wget not found in path!\n";
+    exit;
+}
+
+#print "JW: env $ENV{PATH}";
+#print "JW: out $out\n";
+if ($opt_C) {
+    $out = `which ripe2rpsl`;
+    if ($out =~ /^no/) {
+	print "irrdcacher: ripe2rpsl not found in path!\n";
+	exit;
+    }
+}
+
+if ($opt_s) {
+    if ($opt_s =~ /ftp:\/\/([^ \t\/]+)\/(\S+)/) {
+	$FTPSVR = $1;
+	($FTPPTH = $2) =~ s/\/$//;
+    }
+    else {
+	print "Please specify the ftp server and remote path in URL format'\n";
+	exit;
+    }
+}
+
+# irrd.conf file
+if ($opt_f) {
+    $IRRD_CONF = $opt_f;
+}
+
+# see if we can open the irrd.conf file to get the tmp dir and port
+if (open (F, "<$IRRD_CONF")) {
+    while (<F>) {
+	next if (/^!/);
+	if (/^tmp directory\s+(\S+)/) {
+	    # remove possible trailing '/'
+	    ($CACHEDIR = $1) =~ s/\/$//;
+#	    print "JW: setting cachedir ($CACHEDIR)\n";
+	    # see if we can write to the tmp dir
+	    if (!-w $CACHEDIR) {
+		die "irrdcacher: insufficient write permission to ($CACHEDIR)!\n";
+	    }
+	    last;
+	}
+	elsif (/^irr_port\s+(\S+)/) {
+	    $IRRD_PORT = $1;
+	}
+    }
+    close (F);
+}
+
+#$IRRD_HOST = $opt_h if ($opt_h); 
+$IRRD_PORT = $opt_p if ($opt_p);
+
+
+#for ($x = 0, $y = $#OTHERS; $x <= $y; $x++) {
+#    $db      = pop (@OTHERS);
+#    $newname = pop (@OTHERS_NEWNAME);
+#    $ftppth = $FTPPTH.'/'.$db;
+#    &updateBLOBs($db, $ftppth, $newname);
+#}
+
+#for ($x = 0, $y = $#DB; $x <= $y; $x++) {
+#    $db      = pop (@DB);
+#    $newname = pop (@DB_NEWNAME);
+#    $ftppth = $FTPPTH.'/'.$db.'.gz';
+#    last if (($ret_code = &updateDBs($db, $ftppth, $newname)) ne '');
+#}
+
+# currentserial fetch 
+for ($x = 0, $y = $#DB; $x <= $y; $x++) {
+    ($db = $DB[$x]) =~ tr/a-z/A-Z/;
+    $db .= '.CURRENTSERIAL';
+    $newname = '';
+    $ftppth = $FTPPTH.'/'.$db;
+    &updateBLOBs($db, $ftppth, $newname);
+}
+
+# db fetch
+for ($x = 0, $y = $#DB; $x <= $y; $x++) {
+    $db      = pop (@DB).'.db';
+    $newname = '';
+    $ftppth = $FTPPTH.'/'.$db.'.gz';
+    last if (($ret_code = &updateDBs($db, $ftppth, $newname)) ne '');
+}
+
+# let the user know the results of the request
+if ($ret_code ne '') {
+    print $ret_code;
+}
+else {
+    print "Successful operation\n";
+}
+
+sub usage {
+	print "usage: $0 [options] files...\n\n";
+	print "options: -p irrd port (default 43)\n";
+	print "         -s ftp server and remote directory URL\n";
+	print "            (default 'ftp://ftp.radb.net/routing.arbiter/radb/dbase')\n";
+	print "         -w add component to your default search path\n";
+	print "         -f full path name of the irrd.conf file (default /etc/irrd.conf)\n";
+	print "         -S suppress the cache refresh signal to irrd\n";
+	print "         -C do RPSL conversion\n\n";
+	print "example: $0 -p 5555 radb mci RADB.CURRENTSERIAL\n";
+	print "\nspecial note: If you are running via cron be sure to use the '-w' flag\n";
+	exit;
+}
+
+#
+# Ftp the list of db's specified on the command line
+# into the cache area.  Send a refresh signal
+# to irrd.
+#
+sub updateDBs {
+    local($i, $fpath, $newnm)=@_;
+    local($msg);
+
+    $msg=&ftpDbNonSplit($i, $fpath, $newnm);
+    
+    if ($msg eq '') {
+	if (!$opt_S) {
+            if ($newnm ne '') {
+                $i = $newnm;
+            }
+	    
+	    $i=~s/(\S+)\.db$/$1/;
+	    $msg=&rebuildIndex("!B$i", $sockstream);
+	}
+    }
+
+    return $msg;
+}			   
+
+sub updateBLOBs {
+    local($remdb, $fpath, $newnm)=@_;
+    local($msg);
+    
+    $msg = &ftpBlob ($remdb, $fpath);
+	
+    if ($msg eq '') {
+	if ($newnm ne '') {
+	    if (system("mv -f $CACHEDIR/$remdb $CACHEDIR/$newnm")!=0) {
+		$msg =  "irrdcacher: Can't rename ($CACHEDIR/$remdb) to-($CACHEDIR/$newnm) to-($CACHEDIR/$newnm)\n";
+	    }
+	}
+    }
+
+    return $msg;
+}
+
+sub ftpBlob {
+    local($db, $ftpt, $newnm)=@_;
+    local($tmpdir, $msg)=("$CACHEDIR/tmp",'');
+
+#    print "JW ftpblob ($db,$ftpt)\n";
+
+# do we have write permission to the cache directory?	
+    if (!-w $CACHEDIR) {
+	return "irrdcacher: insufficient write permission to ($CACHEDIR)!\n";
+    }
+
+# Remove old $tmpdir/$db.gz if one is lying around
+    unlink (glob ("$tmpdir/$db"));
+
+# Create a 'tmp' directory to ftp the db's into 
+    if (($msg = &myCreateDir ($tmpdir, "$tmpdir/$db", "ftpBlob()")) ne '') {
+	return $msg;
+    }
+
+# ftp the cache file to $tmpdir work area
+    if (($msg = &importBlob ($FTPSVR, $ftpt, $db, $tmpdir)) ne '') {
+	&backout (\$msg, "ftpBlob()", $tmpdir, "$tmpdir/$db");
+	return $msg;	    
+    }
+    
+    if ($newnm ne '') {
+        $to = $newnm;
+    }
+    else {
+        $to = $db;
+    }
+
+#    print "JW: moving file ($tmpdir/$db) to ($CACHEDIR/$to)\n";
+    if (system ("mv -f $tmpdir/$db $CACHEDIR/$to")!=0) {
+	$msg = "irrdcacher: Can't move db from-($tmpdir/$db) to-($CACHEDIR/$to)\n";
+    }
+
+# unzip the file if necesary
+    if ($to =~ /\.gz$/) {
+	if (system("gunzip -fn $CACHEDIR/$to")!=0) {
+	    $msg = "irrdcacher: Can't unzip ($CACHEDIR/$to):($!)\n";
+	    unlink ("$CACHEDIR/$to");
+	}
+    }
+
+# Get rid of temp file and rm $tmpdir directory
+    &backout (\$msg, "ftpBlob()", $tmpdir, "$tmpdir/$db");
+
+    return $msg;
+}
+
+sub importBlob {
+    local($ftpsvr,$ftppth,$locfile,$locdir)=@_;
+    local($outm,$m);
+
+    $outm=`wget --passive-ftp -P $locdir ftp://$ftpsvr/$ftppth 2>&1`;
+
+# back out if not all of the ftp files were retrieved
+    if ($outm !~ /${locfile}\'\s+saved/) {
+        if ($outm ne '') {
+  	  return "irrdcacher: unsuccessful ftp $locfile reason-($outm)\n";
+        }
+        else {
+          return "irrdcacher: unsuccessful ftp $locfile\n";
+        }
+    }
+
+# unzip the file if necesary
+#    if ($locfile =~ /\.gz$/) {
+#	print "unzipping $locfile\n";
+#	if (system("gunzip -n $locdir/$locfile")!=0) {
+#	    $m = "irrdcacher: Can't unzip ($locdir/$locfile.gz):($!)\n";
+#	    unlink ("$locdir/$locfile.gz");
+#	    return $m;
+#	}
+#    }
+
+    return '';
+}
+
+#
+# This routine ftp's db's from a remote site and places
+# it into the cache area.  ftpDbNonSplit() will return "ERROR..." 
+# for operation fail, "WARN..." for operation success but something 
+# unusual happened and return '' the null message for operation success.
+#
+sub ftpDbNonSplit {
+    local($db, $ftpfile, $newnm)=@_;
+    local($tmpdir,$msg,$to,$from)=("$CACHEDIR/tmp",'','','');
+    local($ii);
+
+# do we have write permission to the cache directory?
+    if (!-w $CACHEDIR) {
+	return "irrdcacher: insuffient write permission to ($CACHEDIR)!\n";
+    }
+
+# Remove old $tmpdir/$db.gz if one is lying around
+    unlink (glob ("$tmpdir/$db.gz"), "$tmpdir/$db.tmp");
+
+# Create a 'tmp' directory to ftp the db's into 
+    return $msg 
+	if (($msg=&myCreateDir($tmpdir,"$tmpdir/$db","ftpDbNonSplit()")) ne '');
+
+# ftp the cache file to $tmpdir work area
+    if (($msg=&importDB ($FTPSVR,$ftpfile,$db,$tmpdir)) ne '') {
+	&backout(\$msg, "ftpNonDbSplit()", $tmpdir);
+	return $msg;	    
+    }
+    
+    $from = "$tmpdir/$db";
+    if ($opt_C) {
+        if ($newnm eq '') {
+            $msg=`ripe2rpsl < $tmpdir/$db > $tmpdir/$db.tmp`;
+	}
+	else {
+            $ii = $newnm;
+            $ii =~ s/(\S+)\.db$/$1/;
+            $ii =~ tr/a-z/A-Z/;
+            $msg=`ripe2rpsl -s $ii < $tmpdir/$db > $tmpdir/$db.tmp`;
+	}
+        unlink ("$tmpdir/$db");
+        if ($msg ne '') {
+	    &backout(\$msg,"ftpNonDbSplit()",$tmpdir,"$tmpdir/$db","$tmpdir/$db.tmp");
+            return $msg;
+        }
+        $from = "$tmpdir/$db.tmp";
+    }
+    elsif ($newnm ne '') {
+            $ii = $newnm;
+            $ii =~ s/(\S+)\.db$/$1/;
+            $ii =~ tr/a-z/A-Z/;
+	$msg=`update_source $ii < $tmpdir/$db > $tmpdir/$db.tmp`;
+        if ($msg ne '') {
+            &backout(\$msg,"ftpNonDbSplit()",$tmpdir,"$tmpdir/$db","$tmpdir/$db.tmp");
+            return $msg;
+        }
+	unlink ("$tmpdir/$db");
+        $from = "$tmpdir/$db.tmp";
+    }	
+
+    if ($newnm ne '') {
+        $to = $newnm;
+    }
+    else {
+        $to = $db;
+    }
+
+    if (system("mv -f $from $CACHEDIR/$to")!=0) {
+	$msg="irrdcacher: Can't move db from-($tmpdir/$db) to-($CACHEDIR/$db)\n";
+	&backout(\$msg, "ftpNonDbSplit()", $tmpdir, $from);	
+	return $msg;
+    }
+
+# Get rid of temp file and rm $tmpdir directory
+    &backout(\$msg, "ftpNonDbSplit()", $tmpdir, "$tmpdir/$db");
+
+    return $msg;
+}
+
+sub importDB {
+    local($ftpsvr,$ftppth,$locfile,$locdir)=@_;
+    local($outm,$m);
+
+    $outm=`wget --passive-ftp -P $locdir ftp://$ftpsvr/$ftppth 2>&1`;
+
+# back out if not all of the ftp files were retrieved
+    if ($outm !~ /${locfile}\.gz\'\s+saved/) {
+	return "irrdcacher: unsuccessful ftp $locfile.gz reason-($outm)\n";
+    }
+
+    if (system("gunzip -fn $locdir/$locfile.gz")!=0) {
+	$m="irrdcacher: Can't unzip ($locdir/$locfile.gz):($!)\n";
+	unlink ("$locdir/$locfile.gz");
+	return $m;
+    }
+
+    return '';
+}
+
+sub rebuildIndex {
+    local($cmd,$SOCKSTREAM) = @_;
+    local($whoishost,$port,$AF_INET,$SOCK_STREAM) = ($IRRD_HOST,$IRRD_PORT,2,$SOCKSTREAM);
+    local($sockaddr,$name,$aliases,$type,$len,$thataddr,$proto,$that);
+    $sockaddr='S n a4 x8';
+    ($name,$aliases,$type,$len,$thataddr)=gethostbyname($whoishost);
+    $that=pack($sockaddr,$AF_INET,$port,$thataddr);
+    socket (S,$AF_INET,$SOCK_STREAM,$proto) || return "irrdcacher: socket failed($cmd):($!)\n";
+    connect (S,$that) || return "irrdcacher: Connect failed($cmd):($!)\n";
+    select (S); $| = 1; select(STDOUT);
+    
+    print S "$cmd\n";
+    $devnull=<S>; 
+    print S "!q\n";
+    $devnull=<S>; 
+    close(S);
+    
+    return '';
+}
+
+#
+# Create directory $dir
+# Directory permissions must allow read and write
+# $fname is the file we want to create so it cannot
+# already exist (ie, must be able to remove if it does
+# exist).
+#
+sub myCreateDir {
+    local($dir,$fname,$tag)=@_;
+
+# Create a tmp directory to ftp the db's to
+    if (-d $dir) {
+	unlink($fname);
+	if (-e $fname) {
+	    return "irrdcacher: Can't remove $fname:($!)\n";
+	}
+# check if I can cd and write to $dir
+	if (!-w $dir || !-x $dir) {
+	    return "irrdcacher :  insufficient write and/or excute permission to ($dir)!\n";
+	}
+    }
+    else {
+	if (!mkdir($dir, 0750)) {
+	    return "irrdcacher: Can't mkdir($dir):($!)\n";
+	}
+    }
+
+    return '';
+}
+
+#
+# This routine backs out of the temp dir that was used to
+# ftp files into.
+# rm files in @rmfiles (they must be full names, else default dir will
+# be used).  $m is the initial message (could be non-null), $tag is
+# the name of the calling routine.  $newdir is the dir to cd to and
+# $rmdir is the dir to be removed.
+#
+sub backout {
+    local($m,$tag,$rmdir,@rmfiles)=@_;
+
+    foreach $f (@rmfiles) {
+	unlink($f);
+    }
+
+    chdir($CACHEDIR);
+    rmdir($rmdir);
+}
+
+sub my_system {
+    local ($command)=@_;
+
+    if (system("$command")!=0) {
+        if ($w_opt) {
+          if (system("$w_opt/$command")==0) {
+              return 0
+          }
+        }
+	return 1;
+    }
+
+    return 0; # maintain similar return code as "system()"
+}    

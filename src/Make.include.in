@@ -2,6 +2,8 @@
 # $Id: Make.include.in,v 1.7 2001/12/03 20:07:33 ljb Exp $
 #
 
+GIT_VERSION = $(shell git describe --abbrev=4 --dirty --always --tags)
+
 .c.o:
 #	@echo "Compiling:       $*.c"
 	$(CC) $(CFLAGS) $(CPPFLAGS)  -c $<
@@ -21,7 +23,7 @@ FLEX_PATH=      @FLEX_PATH@
 YACC=		@YACC@
 
 CC= 		@CC@
-CFLAGS= 	@CFLAGS@ @DEFS@ @MODULES@ @GLIB_CFLAGS@
+CFLAGS= 	@CFLAGS@ @DEFS@ @MODULES@ @GLIB_CFLAGS@ -DJOURNAL_SIZE -DVERSION=\"$(GIT_VERSION)\"
 CPPFLAGS= 	@CPPFLAGS@ @EXTRA_INCLUDE_DIRS@
 
 LD= 		@CC@

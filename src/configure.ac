@@ -1,6 +1,6 @@
 # Process this file with autoconf to produce a configure script.
 
-AC_INIT([irrd], [20100701])
+AC_INIT([irrd], m4_esyscmd_s(echo $(git describe --abbrev=4 --dirty --always --tags )))
 AM_INIT_AUTOMAKE([foreign])
 
 AC_PREREQ([2.59])
@@ -57,7 +57,7 @@ MODULES=""
 
 EXTRA_INCLUDE_DIRS=""
 EXTRA_LIBS=""
-CPPFLAGS="-DFUNCPROTO -I../../include"
+CPPFLAGS="-D_FILE_OFFSET_BITS=64 -DFUNCPROTO -I../../include"
 dnl defining FUNCPROTO ensures that struct library uses portotype
 dnl we don't expect non-ANSI (K&R) C compilers to be used
 dnl Some compiles may define __STDC__ by itself which makes it enable, 
@@ -130,6 +130,8 @@ case "${host_os}" in
     ;;
     linux* )
 	CRYPT_LIB="-lcrypt"
+    ;;
+    *86*-darwin*)
     ;;
     osf* )
 	if test $CC = "cc" ; then
@@ -495,5 +497,5 @@ AC_SUBST(PURIFY)
 
 AC_SUBST(CRYPT_LIB)
 AC_SUBST(THREADLIBS)
-AC_CONFIG_FILES([Makefile Make.include:../src/Make.include.in ./include/pipeline_defs.h ./include/irr_defs.h])
+AC_CONFIG_FILES([Makefile Make.include:../src/Make.include.in include/pipeline_defs.h include/irr_defs.h])
 AC_OUTPUT

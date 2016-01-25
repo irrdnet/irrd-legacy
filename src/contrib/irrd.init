@@ -1,0 +1,61 @@
+#!/bin/bash
+#
+# /etc/init.d/irrd - Start/Stop the IRRd
+
+### BEGIN INIT INFO
+# Provides:          irrd
+# Required-Start:    $local_fs $remote_fs $syslog
+# Required-Stop:     $local_fs $remote_fs $syslog
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: start|stop|restart|force-reload|status IRRd
+# Description:       Enable service provided by daemon.
+### END INIT INFO
+
+PATH=/usr/bin:/bin
+
+case $1 in
+'start')
+        if [ -f /usr/sbin/irrd -a -f /etc/irrd.conf ]; then
+                echo "starting IRRd."
+                /usr/sbin/irrd -m
+	elif [ ! -f /usr/sbin/irrd ]; then
+		exit 5	# not installed
+	elif [ ! -f /etc/irrd.conf ]; then
+		exit 6	# not configured
+        fi
+
+        ;;
+'stop')
+        echo "stopping IRRd."
+	p=`ps -ef|grep [/]usr/sbin/irrd|awk '{print $2}'`
+	if [ " $p" != " " ]; then
+		kill $p
+		exit 0
+	else
+		exit 0 # not running
+	fi
+        ;;
+'restart')
+        $0 stop
+        sleep 5
+        $0 start
+        ;;
+'force-reload')
+	$0 restart
+	;;
+'status')
+	n=`ps -ef|grep [/]usr/sbin/irrd|wc -l`
+	if [ $n = 1 ]; then
+		exit 0
+	elif [ $n = 0 ]; then
+		exit 3
+	else
+		exit 4
+	fi
+	;;
+*)
+        echo "usage: $0 {start|stop|restartforce-reload|status}"
+	exit 2
+        ;;
+esac

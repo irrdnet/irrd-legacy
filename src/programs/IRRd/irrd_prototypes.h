@@ -18,12 +18,15 @@ int config_irr_database_nodefault (uii_connection_t *uii, char *name);
 int config_irr_database_roa_data (uii_connection_t *uii, char *name);
 int config_roa_disclaimer (uii_connection_t *uii, char *line);
 int config_irr_database_clean (uii_connection_t *uii, char *name, int seconds);
+#ifdef JOURNAL_SIZE
+int config_irr_database_max_journal_bytes (uii_connection_t *uii, char *name, int bytes);
+#endif
 int config_irr_database_no_clean (uii_connection_t *uii, char *name);
 int config_tmp_directory (uii_connection_t *uii, char *dir);
 int config_irr_database_export (uii_connection_t *uii, char *name, int interval, int n, char *filename);
 int config_export_directory (uii_connection_t *uii, char *dir);
 int config_debug_submission_syslog (uii_connection_t *uii);
-int config_debug_submission_maxsize (uii_connection_t *uii, int size);
+int config_debug_submission_maxsize (uii_connection_t *uii, char *size);
 int config_debug_submission_verbose (uii_connection_t *uii);
 int config_debug_server_verbose (uii_connection_t *uii);
 int config_no_debug_server_verbose (uii_connection_t *uii);
@@ -31,7 +34,7 @@ int config_debug_server_file (uii_connection_t *uii, char *filename);
 int no_config_debug_server (uii_connection_t *uii);
 int config_debug_submission_file (uii_connection_t *uii, char *filename);
 int no_config_debug_submission (uii_connection_t *uii);
-int config_debug_server_size (uii_connection_t *uii, int bytes);
+int config_debug_server_size (uii_connection_t *uii, char *size);
 void get_config_irr_port ();
 int config_override (uii_connection_t *uii, char *override);
 int config_pgpdir (uii_connection_t *uii, char *pgpdir);
@@ -85,6 +88,9 @@ void uii_irr_mirror_last (uii_connection_t *uii, char *name);
 void uii_irr_mirror_serial (uii_connection_t *uii, char *name, uint32_t serial);
 void uii_mirrorstatus_db (uii_connection_t *uii, char *db_name);
 void uii_set_serial (uii_connection_t *uii, char *name, uint32_t serial);
+#ifdef JOURNAL_SIZE
+void uii_irr_rotate_journal (uii_connection_t *uii, char *name);
+#endif
 void show_database (uii_connection_t *uii);
 void uii_show_ip (uii_connection_t *uii, prefix_t *prefix, int num, char *lessmore);
 void uii_irr_clean (uii_connection_t *uii, char *name);
@@ -191,7 +197,8 @@ int get_curr_f (char *buf);
 int get_roamaxlen (char *buf, int *maxlen);
 
 /* RPSL */
-void irr_set_expand (irr_connection_t *irr, char *name);
+void irr_set_expand(irr_connection_t *irr, char *name);
+void irr_set_expand6(irr_connection_t *irr, char *name);
 
 /* indicies */
 int irr_database_find_matches (irr_connection_t *irr, char *key, 

@@ -1,0 +1,10 @@
+[Unit]
+Description=IRRd
+
+[Service]
+ExecStart=/usr/local/sbin/irrd
+Type=forking
+Restart=on-abort
+
+[Install]
+WantedBy=multi-user.target

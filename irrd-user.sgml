@@ -105,6 +105,14 @@
 	  Add jwjs docs for import-via/export-via
        </revremark>
    </revision>
+   <revision>
+     <revnumber>3.0.9</revnumber>
+       <date>2015-05-08</date>
+       <authorinitials>ljb</authorinitials>
+       <revremark>
+	  Document flag to enable MAIL-FROM authentication in irr_rpsl_submit.  It is now disabled by default.
+       </revremark>
+   </revision>
 </revhistory>
 <copyright>
 <year>1999</year>
@@ -710,6 +718,7 @@ The irr_rpsl_submit command is configured by command line flag values, by settin
 <arg>-F <replaceable>response footer string</replaceable></arg>
 <arg>-h <replaceable>irrd host</replaceable></arg><sbr>
 <arg>-l <replaceable>log directory</replaceable></arg>
+<arg>-M</arg><sbr>
 <arg>-N</arg><sbr>
 <arg>-p <replaceable>irrd port</replaceable></arg>
 <arg>-r <replaceable>pgp directory</replaceable></arg>
@@ -754,6 +763,10 @@ The irr_rpsl_submit command is configured by command line flag values, by settin
 <row>
 <entry><option>-l &lt;log dir></option></entry>
 <entry>Log directory location</entry>
+</row>
+<row>
+<entry><option>-M</option></entry>
+<entry>permit MAIL-FROM authentication. Default is to deny due to security issues</entry>
 </row>
 <row>
 <entry><option>-N</option></entry>

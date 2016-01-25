@@ -1,0 +1,120 @@
+#!/usr/bin/make -f
+# -*- makefile -*-
+# Uncomment this to turn on verbose mode.
+export DH_VERBOSE=1
+
+# These are used for cross-compiling and for saving the configure script
+# from having to guess our platform (since we know it already)
+DEB_HOST_GNU_TYPE   ?= $(shell dpkg-architecture -qDEB_HOST_GNU_TYPE)
+DEB_BUILD_GNU_TYPE  ?= $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
+
+
+CFLAGS = -Wall -g
+
+ifneq (,$(findstring noopt,$(DEB_BUILD_OPTIONS)))
+       CFLAGS += -O0
+else
+       CFLAGS += -O2
+endif
+ifeq (,$(findstring nostrip,$(DEB_BUILD_OPTIONS)))
+       INSTALL_PROGRAM += -s
+endif
+
+__mkdir=/bin/mkdir
+_localstatedir=$(_prefix)/var
+_mandir=$(_datadir)/man
+_tmppath=$(_var)/tmp
+_libdir=$(_exec_prefix)/$(_lib)
+__sed=/usr/bin/sed
+__tar=/bin/tar
+_var=/var
+_usr=/usr
+__cp=/bin/cp
+_infodir=$(_datadir)/info
+_usrsrc=$(_usr)/src
+_bindir=$(_exec_prefix)/bin
+_prefix=/usr
+_lib=lib
+__rm=/bin/rm
+__ln_s=ln -s
+_sysconfdir=/etc
+_sharedstatedir=$(_prefix)/com
+_includedir=$(_prefix)/include
+__make=$(MAKE)
+_docdir=$(_datadir)/doc
+__python=/usr/bin/python
+_exec_prefix=$(_prefix)
+__perl=/usr/bin/perl
+__install=/usr/bin/install
+__mkdir_p=/bin/mkdir -p
+_sbindir=$(_exec_prefix)/sbin
+__unzip=/usr/bin/unzip
+__mv=/bin/mv
+_datadir=$(_prefix)/share
+_libexecdir=$(_exec_prefix)/libexec
+
+configure: configure-stamp
+configure-stamp:
+	dh_testdir
+	(cd src && ./autogen.sh)
+	(cd src && ./configure)
+	touch configure-stamp
+
+build: build-stamp
+build-stamp: configure-stamp
+	dh_testdir
+	(cd src && $(MAKE))
+	touch build-stamp
+
+clean:
+	dh_testdir
+	dh_testroot
+	rm -f configure-stamp build-stamp
+	[ ! -f Makefile ] || $(MAKE) distclean
+	dh_clean
+
+install: build
+	dh_testdir
+	dh_testroot
+	dh_prep
+	dh_installdirs
+	# Add here commands to install the package into debian/tmp
+	$(__mkdir_p) $(CURDIR)/debian/tmp$(_bindir)
+	$(__mkdir_p) $(CURDIR)/debian/tmp$(_sbindir)
+	$(__mkdir_p) $(CURDIR)/debian/tmp$(_sysconfdir)
+	$(__mkdir_p) $(CURDIR)/debian/tmp$(_mandir)/man8
+	$(__mkdir_p) $(CURDIR)/debian/tmp$(_datadir)/irrd
+	$(__install) -m 755 src/programs/IRRd/irrd $(CURDIR)/debian/tmp$(_sbindir)/irrd
+	$(__install) -m 755 src/programs/irr_notify/irr_notify $(CURDIR)/debian/tmp$(_sbindir)/irr_notify
+	$(__install) -m 755 src/programs/irr_rpsl_check/irr_rpsl_check $(CURDIR)/debian/tmp$(_sbindir)/irr_rpsl_check
+	$(__install) -m 755 src/programs/irr_rpsl_submit/irr_rpsl_submit $(CURDIR)/debian/tmp$(_sbindir)/irr_rpsl_submit
+	$(__install) -m 755 src/programs/irrdcacher/irrdcacher $(CURDIR)/debian/tmp$(_bindir)/irrdcacher
+	$(__install) -m 755 src/programs/irrdcacher/ripe2rpsl $(CURDIR)/debian/tmp$(_bindir)/ripe2rpsl
+	$(__install) -m 644 src/programs/IRRd/irrd.8 $(CURDIR)/debian/tmp$(_mandir)/man8/irrd.8
+	dh_install --list-missing -s --sourcedir=debian/tmp
+
+# Build architecture-independent files here.
+binary-indep: build install
+# We have nothing to do by default.
+
+# Build architecture-dependent files here.
+binary-arch: build install
+	dh_testdir
+	dh_testroot
+	dh_installdocs
+	dh_installinit
+	dh_installexamples
+	dh_installman
+	dh_link
+	dh_strip
+	dh_compress
+	dh_fixperms
+	dh_makeshlibs -V
+	dh_installdeb
+	dh_shlibdeps
+	dh_gencontrol
+	dh_md5sums
+	dh_builddeb
+
+binary: binary-indep binary-arch
+.PHONY: build clean binary-indep binary-arch binary install

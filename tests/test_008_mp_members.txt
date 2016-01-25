@@ -1,0 +1,33 @@
+From test_008@localhost Sat Sep  6 14:29:35 2014
+Return-Path: <test_008@localhost>
+X-Original-To: auto-dbm@localhost
+Delivered-To: auto-dbm@localhost
+Received: by irime.6core.net (Postfix, from userid 1000)
+    id 8516168379; Sat,  6 Sep 2014 14:29:35 +0000 (UTC)
+To: auto-dbm@localhost
+Subject: test_008
+Message-Id: <20140906142935.8516168379@irime.6core.net>
+Date: Sat,  6 Sep 2014 14:29:35 +0000 (UTC)
+From: test_008@localhost (Ubuntu)
+
+password: md5_citesting
+
+route-set:  RS-MULTIPROTOCOL
+descr:      Route-set with mp-members
+mp-members: 10.2.0.0/24
+mp-members: 2001:db8:1000::/48
+admin-c:    TEST-sampledb
+tech-c:     TEST-sampledb
+mnt-by:     MAINT-TEST
+changed:    test_008@localhost
+source:     sampledb
+
+route-set:  RS-MULTIPROTOCOLS
+descr:      Route-set with mp-members
+mp-members: 10.2.0.0/24, 10.3.0.0/24
+mp-members: 2001:db8:3000::/48, 2001:db8:4000::/48
+admin-c:    TEST-sampledb
+tech-c:     TEST-sampledb
+mnt-by:     MAINT-TEST
+changed:    test_008@localhost
+source:     sampledb
