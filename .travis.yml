@@ -1,4 +1,5 @@
 language: c
+sudo: true
 
 before_install:
     - sudo apt-get update
