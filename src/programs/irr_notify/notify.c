@@ -974,7 +974,8 @@ void perform_transactions (trace_t *tr, FILE *fin, ret_info_t *start,
 			   char *IRRd_HOST, int IRRd_PORT, char *pgpdir) {
   char buf[MAXLINE], *ret_code;
   int fd, num_trans = 0;
-  int open_conn = 0, abort_trans = 0;
+  int open_conn = 0;
+/*  int abort_trans = 0; */
   long offset;
   trans_info_t ti;
   irrd_result_t *p;
@@ -995,7 +996,7 @@ void perform_transactions (trace_t *tr, FILE *fin, ret_info_t *start,
     /* fprintf (dfile, "HDR_START offset (%ld)\n", offset);*/
     /* illegal hdr field found or EOF or no object after hdr */
     if (parse_header (tr, fin, &offset, &ti)) {
-      abort_trans = 1;
+/*      abort_trans = 1; */
       /* fprintf (dfile, "calling update_trans_outcome_list (internal error)...\n"); */
       update_trans_outcome_list (tr, start, &ti, offset, INTERNAL_ERROR_RESULT,
 				 "\" Internal error: malformed header!\"\n");
@@ -1003,7 +1004,9 @@ void perform_transactions (trace_t *tr, FILE *fin, ret_info_t *start,
       continue;
     }
     else if (update_has_errors (&ti))
-      abort_trans = 1;
+    /* Do nothing */
+        offset = offset;
+/*      abort_trans = 1; */
     else if (null_submission == 0) {
       update_trans_outcome_list (tr, start, &ti, offset, NULL_SUBMISSION, NULL);
       continue;

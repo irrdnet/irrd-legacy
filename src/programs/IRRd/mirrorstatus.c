@@ -212,7 +212,7 @@ FAIL:
  *
  */
 static int mirrorstatus_process_answer (LINKED_LIST *ll_checkdb, char *answer) {
-  char *answer_line, *db_name, *lasts, *lasts2;
+  char *answer_line = NULL, *db_name = NULL, *lasts = NULL, *lasts2 = NULL;
   char *p_flag, *p_answer, *p_last_export;
   irr_database_t *db;
   u_long range_start, range_end, last_export;

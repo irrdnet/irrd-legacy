@@ -601,7 +601,8 @@ void uii_show_ip_less (uii_connection_t *uii, prefix_t *prefix, int flag) {
 
 /* More specific route search */ 
 void uii_show_ip_more (uii_connection_t *uii, prefix_t *prefix) {
-  radix_node_t *node, *start_node, *last_node;
+  radix_node_t *node, *start_node;
+/* radix_node_t *last_node; */
   radix_tree_t *radix;
   irr_prefix_object_t *prefix_object;
   irr_database_t *database;
@@ -610,7 +611,6 @@ void uii_show_ip_more (uii_connection_t *uii, prefix_t *prefix) {
   LL_Iterate (IRR.ll_database, database) {
     irr_lock (database);
 
-    last_node = NULL;
     start_node = NULL;
     node = NULL;    
 

@@ -243,14 +243,14 @@ int uii_token_match (char *ctoken, char *user_token) {
  */
 LINKED_LIST *find_matching_commands (int state, LINKED_LIST *ll_tokens,
 				     LINKED_LIST *ll_last, int alone) {
-  char *utoken, *ctoken;
+  char *utoken = NULL, *ctoken = NULL;
   LINKED_LIST *ll_match;
   LINKED_LIST *ll_exact = NULL;
   int best_point = 0; /* exact +2, partial +1, no  +0, remain -1 */
   uii_command_t *uii_command;
-  char *last_ctoken = NULL, *last_utoken = NULL;
+  char *last_ctoken = NULL;
+/*   char *last_utoken = NULL; */
   int skip = 0;
-  int optional;
   int point;
 
   ll_match = LL_Create (0);
@@ -273,7 +273,7 @@ LINKED_LIST *find_matching_commands (int state, LINKED_LIST *ll_tokens,
       continue;
 
     last_ctoken = ctoken = LL_GetHead (uii_command->ll_tokens);
-    last_utoken = utoken = LL_GetHead (ll_tokens);
+    /* last_utoken = utoken = LL_GetHead (ll_tokens); */
     skip = 0;
 
     /* for password and comments -- see if any of the first part of command matches */
@@ -288,7 +288,6 @@ LINKED_LIST *find_matching_commands (int state, LINKED_LIST *ll_tokens,
     /* if ((utoken != NULL) && (!strcasecmp ("no", utoken)))*/
     /* last_utoken = utoken = LL_GetNext (ll_tokens, utoken);*/
 
-    optional = 0;
     point = 0;
     while ((utoken != NULL) && (ctoken != NULL)) {
 	int ret;
@@ -296,7 +295,7 @@ LINKED_LIST *find_matching_commands (int state, LINKED_LIST *ll_tokens,
       /* accept everything else to end of line*/
       if (strncmp (ctoken, "%S", 2) == 0) {
         last_ctoken = ctoken;
-        last_utoken = utoken;
+        /* last_utoken = utoken; */
         /* ctoken = NULL;*/ /* shouldn't follow anything */
         utoken = NULL; /* simulate eating up to the last */
 	break;
@@ -315,7 +314,7 @@ LINKED_LIST *find_matching_commands (int state, LINKED_LIST *ll_tokens,
 	break;
       }
 
-      last_utoken = utoken;
+      /* last_utoken = utoken; */
       utoken = LL_GetNext (ll_tokens, utoken);
     keep_utoken:
       last_ctoken = ctoken;

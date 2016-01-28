@@ -986,7 +986,8 @@ void irr_less_all (irr_connection_t *irr, prefix_t *prefix,
 /* Route searches. M - all more specific eg, !r199.208.0.0/16,M */
 /* TODO: Need to implement m for one level only more specific */
 void irr_more_all (irr_connection_t *irr, prefix_t *prefix, int mode) {
-  radix_node_t *node, *start_node, *last_node;
+  radix_node_t *node, *start_node;
+/* radix_node_t *last_node; */
   radix_node_t *roa_node = NULL;
   irr_prefix_object_t *prefix_object;
   radix_tree_t *radix;
@@ -1008,7 +1009,7 @@ void irr_more_all (irr_connection_t *irr, prefix_t *prefix, int mode) {
   }
 
   LL_ContIterate (irr->ll_database, database) {
-    last_node = NULL;
+/*    last_node = NULL; */
     start_node = NULL;
     node = NULL;    
 
@@ -1065,7 +1066,7 @@ void irr_more_all (irr_connection_t *irr, prefix_t *prefix, int mode) {
  */
 void irr_exact (irr_connection_t *irr, prefix_t *prefix, int flag, int mode) {
   radix_node_t *node = NULL;
-  radix_node_t *roa_node = NULL;
+/*  radix_node_t *roa_node = NULL; */
   irr_prefix_object_t *prefix_object;
   irr_database_t *database;
   int first = 1;
@@ -1076,9 +1077,9 @@ void irr_exact (irr_connection_t *irr, prefix_t *prefix, int flag, int mode) {
       irr->ll_answer = LL_Create (LL_DestroyFunction, free, 0);
     irr_lock_all (irr);
   } else {
-    if (mode & INCLUDE_ROASTATUS) {
+/*    if (mode & INCLUDE_ROASTATUS) {
       roa_node = prefix_search_best (IRR.roa_database, prefix);
-    }
+    } */
   }
 
   LL_ContIterate (irr->ll_database, database) {
