@@ -485,6 +485,7 @@ int config_irr_remote_ftp_url (uii_connection_t *uii, char *name, char *dir) {
   else {
     /* make purify happy */
     irrd_free(db->remote_ftp_url);
+    irrd_free(db->mirror_prefix_hostname);
     db->remote_ftp_url = strdup (dir);
     config_notice (NORM, uii, "Remote ftp URL (%s) set for (%s)\r\n", dir, name);
   }
@@ -1004,6 +1005,8 @@ int config_irr_database_mirror (uii_connection_t *uii, char *name,
     irrd_free(host);
     return (-1);
   }
+  database->mirror_prefix_hostname = strdup(host);
+  time(&database->mirror_prefix_time);
   database->mirror_port = port;
   database->mirror_protocol = 1;	/* default mirror protocol is 1 */
 

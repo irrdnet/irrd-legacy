@@ -77,7 +77,7 @@ int request_mirror (irr_database_t *db, uii_connection_t *uii, uint32_t last) {
   /* non blocking connect */
   trace (NORM, default_trace, "(%s) Connecting to Mirror %s:%d\n",
          db->name, prefix_toa (db->mirror_prefix), db->mirror_port);
-  n = nonblock_connect (default_trace, db->mirror_prefix, 
+  n = nonblock_connect (default_trace, db->mirror_prefix,
 			 db->mirror_port, db->mirror_fd);
 
   if (n !=1 ) {
@@ -390,7 +390,26 @@ int valid_start_line (irr_database_t *database, FILE *fp, uint32_t *serial_num) 
 }
 
 void irr_mirror_timer (mtimer_t *timer, irr_database_t *db) {
-  request_mirror (db, NULL, 0);
+    time_t now; /* current time */
+    prefix_t *local_prefix; /* local mirror_prefix */
+    request_mirror (db, NULL, 0);
+    time(&now);
+    /* check dns cache entry */
+    if ((now - db->mirror_prefix_time) > 3600)
+    {
+        /* lookup mirror_prefix_hostname again */
+        local_prefix = string_toprefix (db->mirror_prefix_hostname, default_trace);
+        if (local_prefix == NULL)
+        {
+            /* error looking up dns name */
+            return; /* do nothing */
+        } else {
+            db->mirror_prefix_time = now;
+            irrd_free(db->mirror_prefix);
+            db->mirror_prefix = local_prefix;
+        }
+
+    }
 }
 
 int irr_service_mirror_request (irr_connection_t *irr, char *command) {
