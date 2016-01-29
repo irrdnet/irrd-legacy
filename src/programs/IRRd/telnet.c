@@ -354,7 +354,7 @@ listen_telnet (u_short port) {
   trace (NORM, default_trace, "listening for connections on port %d (fd %d)\n",
 	 port, sockfd);
                    
-  select_add_fd (sockfd, 1, (void_fn_t) irr_accept_connection, (void*) sockfd);
+  select_add_fd (sockfd, SELECT_READ, (void_fn_t) irr_accept_connection, (void *)&sockfd);
 
   return (sockfd);
 }
@@ -735,6 +735,10 @@ void irr_write_direct (irr_connection_t *irr, FILE *fp, int len) {
     size_t items=0;
 
     items = fread(final_answer->ptr, 1, bytes, fp);
+    if (bytes != items)
+    {
+      fprintf(stderr, "irr_write_direct: error reading data (%lu != %lu)", (long unsigned int)items, (long unsigned int)bytes);
+    }
     read += bytes;
     final_answer->ptr += bytes;
 #if OPT_POSTGRES

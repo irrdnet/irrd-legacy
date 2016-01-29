@@ -29,12 +29,9 @@ parse_line (char *line, char *format,...)
     u_int match, l;
     char word[BUFSIZE];
 
-    int state;
-
     prefix_t *prefix;
 
     match = 0;
-    state = 0;
     va_start (ap, format);
 
     fcp = format;

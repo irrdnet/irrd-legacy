@@ -382,6 +382,7 @@ if (id == GASX6)
     case GASX:
     case GASX6:
     case SET_MBRSX:
+    case SET_MBRSX6:
       if ( (tmpstr = irr_object->name) == NULL )
  	return(retval);
       if ( (irr_object->type == ROUTE && id == GASX) ||

@@ -309,6 +309,10 @@ int main (int argc, char *argv[])
 
       scan_irr_file (IRR.roa_database, NULL, 0, NULL);
       n = fstat(fileno(IRR.roa_database->db_fp), &stat_buf);
+      if (n == -1)
+      {
+        fprintf(stderr, "Error doing fstat on database errno=%d\n", errno);
+      }
       IRR.roa_database_mtime = stat_buf.st_mtime;
       if (gmtime_r(&stat_buf.st_mtime, &tbuf))
         n = strftime(IRR.roa_timebuffer, sizeof(IRR.roa_timebuffer), "t=%Y-%m-%dT%H:%M:%SZ\n", &tbuf);
@@ -388,10 +392,11 @@ int main (int argc, char *argv[])
 
 static void daemonize ()
 {
-    int pid, t;
+    int pid;
     int time_left;
-
-    t = 0; /* This gets rid of a warning when t is #ifdef'd out of existance */
+#ifndef SETPGRP_VOID
+    int t = 0;
+#endif /*  SETPGRP_VOID */
 
     /* alarm's time may not inherited by fork */
     time_left  = alarm (0);
