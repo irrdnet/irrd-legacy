@@ -3,7 +3,8 @@ set -o errexit
 
 function run_tests {
     mkdir -p /tmp/irr/pgp_dir /tmp/irr/log
-    sudo irrd -f irrd.conf &
+    touch /tmp/irrd.log && tail -F /tmp/irrd.log &
+    sudo irrd -f irrd.conf
     sleep 2
     tests_round_1
     tests_with_pwhash_hiding
