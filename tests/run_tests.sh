@@ -3,7 +3,7 @@ set -o errexit
 
 function run_tests {
     mkdir -p /tmp/irr/pgp_dir /tmp/irr/log
-    tail -F /tmp/irrd.log &
+    touch /tmp/irrd.log && tail -F /tmp/irrd.log &
     sudo irrd -f irrd.conf -v
     sleep 2
     tests_round_1
