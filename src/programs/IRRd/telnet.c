@@ -354,7 +354,7 @@ listen_telnet (u_short port) {
   trace (NORM, default_trace, "listening for connections on port %d (fd %d)\n",
 	 port, sockfd);
                    
-  select_add_fd (sockfd, SELECT_READ, (void_fn_t) irr_accept_connection, (void *)&sockfd);
+  select_add_fd (sockfd, SELECT_READ, (void_fn_t) irr_accept_connection, (void *)sockfd);
 
   return (sockfd);
 }
