@@ -273,7 +273,7 @@ LINKED_LIST *find_matching_commands (int state, LINKED_LIST *ll_tokens,
       continue;
 
     last_ctoken = ctoken = LL_GetHead (uii_command->ll_tokens);
-    /* last_utoken = utoken = LL_GetHead (ll_tokens); */
+    utoken = LL_GetHead (ll_tokens);
     skip = 0;
 
     /* for password and comments -- see if any of the first part of command matches */
