@@ -422,6 +422,12 @@ void *scan_irr_file_main (FILE *fp, irr_database_t *database,
 	  p = NULL;	/* ignore errors if mirroring or non-atomic update */
       }
 
+      /* Need to skip over RIPE ERROR/WARNING messages in mirror file */
+      if (curr_f == SYNTAX_ERR || curr_f == WARNING) {
+        if (fseek (fp, offset, SEEK_SET) < 0) {
+          trace (ERROR, default_trace,"Attempt to seek past RIPE server extraneous line failed!\n");
+        }
+      }
       Delete_IRR_Object (irr_object);
       irr_object = NULL;
       mode = IRR_NOMODE;
@@ -641,7 +647,7 @@ int find_blank_line (FILE *fp, char *buf, int buf_size,
     }
     state = get_state (cp, len, state, p_save_state);
 
-    /* only dump lines if the ERROR or WARN line come 
+    /* only dump lines if the ERROR or WARNING line come 
      * at the end of the object.
      */
     if (state == START_F) {

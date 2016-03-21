@@ -169,8 +169,14 @@ long copy_irr_object (irr_database_t *database, irr_object_t *object) {
   fread_len = fread (buffer, 1, 1, object->fp); /* read final terminating newline */
   if (fread_len !=1)
     trace (ERROR, default_trace,"copy_irr_object(): Error reading final terminating newline\n");
+
+  /* Old RIPE server may have trailing WARNING/ERROR message after object,
+      so may not have newline.  Skip check for now...
+
   if (buffer[0] != '\n')
     trace (ERROR, default_trace,"copy_irr_object(): Terminating newline characacter incorrect, value = %d\n",buffer[0]);
+  */
+
   fwrite ("\n", 1, 1, database->db_fp); /* write terminating newline */
   database->bytes += 1;
 

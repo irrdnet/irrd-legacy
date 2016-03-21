@@ -68,8 +68,14 @@ void journal_irr_update (irr_database_t *db, irr_object_t *object,
     fread_len = fread (buffer, 1, 1, object->fp); /* read terminal newline */
     if (fread_len !=1)
       trace (ERROR, default_trace,"journal_irr_update(): Error reading final terminating newline\n");
+
+    /* Old RIPE server may have trailing WARNING/ERROR message after object,
+        so may not have newline.  Skip check for now...
+
     if (buffer[0] != '\n') 
       trace (ERROR, default_trace,"journal_irr_update(): Terminating newline characacter incorrect, value = %d\n",buffer[0]);
+    */
+
     write (db->journal_fd, "\n", 1); /* write the final newline */
   }
 
