@@ -374,7 +374,7 @@ static int irr_read_command_schedule (irr_connection_t *irr) {
  */
 static int irr_read_command (irr_connection_t * irr) {
   int n, i, state;
-  char *cp, *newline;
+  char *cp, *newline, *tmp_ptr;
   int command_found = 0;
 
   if ((n = read (irr->sockfd, irr->end, BUFSIZE - (irr->end - irr->buffer) - 2)) <= 0) {
@@ -409,27 +409,24 @@ static int irr_read_command (irr_connection_t * irr) {
       strcpy (irr->tmp, irr->buffer);
 
     command_found = 1;
-
+    
+    cp = irr->tmp;
     if (state != IRR_MODE_LOAD_UPDATE) {
-      strcpy (irr->tmp, irr->buffer);
+      strcpy (cp, irr->buffer);
 
-      /* remove trailing spaces */
-      cp = irr->tmp + strlen (irr->tmp) - 1;
-      while (cp >= (irr->tmp) && isspace ((int) *cp)) {
-	*cp = '\0';
-	cp--;
+      /* remove any trailing spaces */
+      tmp_ptr = cp + strlen (cp) - 1;
+      while (tmp_ptr >= (cp) && isspace ((unsigned char) *tmp_ptr)) {
+	*tmp_ptr = '\0';
+	tmp_ptr--;
       }
       
-      /* remove heading spaces */
-      cp = irr->tmp;
-      while (*cp && isspace ((int) *cp)) {
+      /* remove leading spaces */
+      while (*cp && isspace ((unsigned char) *cp)) {
 	cp++;
       }
-      
-      if (irr->tmp != cp)
-	strcpy (irr->tmp, cp);
     }
-    irr->cp = irr->tmp;
+    irr->cp = cp;
 
     irr_process_command (irr); 
 
