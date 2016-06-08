@@ -14,3 +14,4 @@ src/config.status
 src/include/config.h
 src/include/irr_defs.h
 src/include/pipeline_defs.h
+*~
