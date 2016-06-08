@@ -181,7 +181,8 @@ if test "$pthread" = yes; then
   QUANTIFY="$QUANTIFY -threads=yes -max-threads=80"
   PURIFY="$PURIFY -threads=yes -max-threads=80"
   dnl Check for gthreads
-  PKG_CHECK_MODULES(GTHREADS, gthread-2.0 >= 2.6,  AC_MSG_RESULT([found], AC_MSG_ERROR([gthread-2.0 >= 2.6 not found])))
+  AC_MSG_CHECKING([for gthreads >= 2.6])
+  PKG_CHECK_MODULES(GTHREADS, gthread-2.0 >= 2.6)
   AC_SUBST(GTHREADS_CFLAGS)
   AC_SUBST(GTHREADS_LIBS)
   THREADLIBS="-l$ac_pthrlib"
@@ -377,7 +378,7 @@ AC_CHECK_FUNCS(snprintf)
 AC_CHECK_FUNCS(dirname basename)
 
 dnl Check for glib
-PKG_CHECK_MODULES(GLIB, glib-2.0 >= 2.6, AC_MSG_RESULT([found], AC_MSG_ERROR([glib-2.0 >= 2.6 not found])))
+PKG_CHECK_MODULES(GLIB, glib-2.0 >= 2.6)
 AC_SUBST(GLIB_CFLAGS)
 AC_SUBST(GLIB_LIBS)
 
