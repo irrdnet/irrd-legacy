@@ -1,12 +1,13 @@
 # Process this file with autoconf to produce a configure script.
+AC_PREREQ([2.69])
 
 AC_INIT([irrd], m4_esyscmd_s(echo $(git describe --abbrev=4 --dirty --always --tags )))
-AM_INIT_AUTOMAKE([foreign])
 
-AC_PREREQ([2.59])
 AC_CONFIG_SRCDIR([lib/mrt/mrt.c])
 AC_CONFIG_HEADERS(include/config.h)
+AC_CONFIG_AUX_DIR([aconf])
 AC_CONFIG_MACRO_DIR([m4])
+AM_INIT_AUTOMAKE([foreign])
 AC_INCLUDES_DEFAULT
 
 # Checks for programs.
@@ -497,5 +498,34 @@ AC_SUBST(PURIFY)
 
 AC_SUBST(CRYPT_LIB)
 AC_SUBST(THREADLIBS)
+
+AH_TOP([
+/* Define if you have pthread library (-lpthread) */
+#undef HAVE_LIBPTHREAD
+
+/* Define if you have pthread_attr_setscope */
+#undef HAVE_PTHREAD_ATTR_SETSCOPE
+
+/* Define if you have struct in6_addr */
+#undef HAVE_STRUCT_IN6_ADDR
+
+/* Define if you have u_char, u_int, u_short, and u_long */
+#undef HAVE_U_TYPES
+
+#undef HAVE_MAIL
+
+#undef HAVE_SENDMAIL
+
+#undef PGP
+
+#undef HAVE_GZIP
+
+#undef HAVE_IRRDCACHER
+
+#undef HAVE_WGET
+
+#undef HAVE_LIBGEN
+])
+
 AC_CONFIG_FILES([Makefile Make.include:../src/Make.include.in include/pipeline_defs.h include/irr_defs.h])
 AC_OUTPUT
