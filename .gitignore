@@ -15,4 +15,14 @@ src/include/config.h
 src/include/irr_defs.h
 src/include/pipeline_defs.h
 src/include/stamp-h1
+src/programs/IRRd/irrd
+src/programs/irr_notify/irr_notify
+src/programs/irr_rpsl_check/irr_rpsl_check
+src/programs/irr_rpsl_check/lex.yy.c
+src/programs/irr_rpsl_check/y.output
+src/programs/irr_rpsl_check/y.tab.c
+src/programs/irr_rpsl_check/y.tab.h
+src/programs/irr_rpsl_submit/irr_rpsl_submit
 *~
+*.a
+*.o
