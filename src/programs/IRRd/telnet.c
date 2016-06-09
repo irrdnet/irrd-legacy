@@ -7,7 +7,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #ifndef SETPGRP_VOID
-#include <sys/termios.h>
+#include <termios.h>
 #endif
 #include <netinet/in.h>
 #include <netinet/tcp.h>
@@ -354,7 +354,7 @@ listen_telnet (u_short port) {
   trace (NORM, default_trace, "listening for connections on port %d (fd %d)\n",
 	 port, sockfd);
                    
-  select_add_fd (sockfd, 1, (void_fn_t) irr_accept_connection, (void*) sockfd);
+  select_add_fd (sockfd, 1, (void_fn_t) irr_accept_connection, (void*)(intptr_t)sockfd);
 
   return (sockfd);
 }
@@ -729,9 +729,7 @@ void irr_write_direct (irr_connection_t *irr, FILE *fp, int len) {
     else
       bytes = len - read;
 
-    size_t items=0;
-
-    items = fread(final_answer->ptr, 1, bytes, fp);
+    (void)fread(final_answer->ptr, 1, bytes, fp);
     read += bytes;
     final_answer->ptr += bytes;
 #if OPT_POSTGRES
