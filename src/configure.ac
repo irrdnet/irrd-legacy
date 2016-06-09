@@ -473,6 +473,26 @@ AC_ARG_WITH(postgres,
 	[AC_MSG_RESULT([--with-postgres not specified])]
 	)
 
+dnl locate perl 5.
+AC_PATH_PROG(PERLV_PATH,perl5,no)
+if test $PERLV_PATH = no; then
+    unset ac_cv_path_PERLV_PATH
+    AC_PATH_PROG(PERLV_PATH,perl,no)
+    if test $PERLV_PATH = no; then
+        AC_MSG_ERROR([can't locate a suitable perl5.])
+        exit 1
+    else
+        $PERLV_PATH -e 'require 5;'
+        if test $? -ne 0 ; then
+           AC_MSG_ERROR([can't locate a suitable perl5.])
+           exit 1
+        fi
+    fi
+fi
+AC_SUBST(PERLV_PATH)
+PERLV=`basename $PERLV_PATH`
+AC_SUBST(PERLV)
+
 AC_CHECK_DECLS(utimes,,,[#include <sys/time.h>])
 AC_CHECK_DECLS(inet_ntop,,,[#include <netinet/in.h>
 #include <sys/types.h>
@@ -529,4 +549,6 @@ AH_TOP([
 ])
 
 AC_CONFIG_FILES([Makefile Make.include:../src/Make.include.in include/pipeline_defs.h include/irr_defs.h])
+AC_CONFIG_FILES([programs/irr_util/attr_tokens.pl
+		 programs/irr_util/create_templates.pl], [chmod a+x $ac_file])
 AC_OUTPUT

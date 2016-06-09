@@ -23,6 +23,8 @@ src/programs/irr_rpsl_check/y.output
 src/programs/irr_rpsl_check/y.tab.c
 src/programs/irr_rpsl_check/y.tab.h
 src/programs/irr_rpsl_submit/irr_rpsl_submit
+src/programs/irr_util/attr_tokens.pl
+src/programs/irr_util/create_templates.pl
 *~
 *.a
 *.o
