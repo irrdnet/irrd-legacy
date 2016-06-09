@@ -1,3 +1,6 @@
+if [ ! -d aconf ]; then
+    mkdir aconf
+fi
 if [ ! -d m4 ]; then
     mkdir m4
 fi
