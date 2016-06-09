@@ -594,9 +594,9 @@ void irr_process_command (irr_connection_t * irr) {
   /* set timeout, !t<seconds> (for programs like Roe, Aoe, etc */
   if (command_char == 't' || command_char == 'T') {
     com_ptr++;
-    irr->timeout = atoi (com_ptr);
+    irr->timeout = atoi(com_ptr);
     
-    if ((irr->timeout < 0) || (irr->timeout > 30*60)) {
+    if (irr->timeout > 30*60) {
       irr_send_error (irr, NULL);
       irr->timeout = 5*60;
     }
