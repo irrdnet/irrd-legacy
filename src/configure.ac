@@ -549,6 +549,11 @@ AH_TOP([
 ])
 
 AC_CONFIG_FILES([Makefile Make.include:../src/Make.include.in include/pipeline_defs.h include/irr_defs.h])
-AC_CONFIG_FILES([programs/irr_util/attr_tokens.pl
-		 programs/irr_util/create_templates.pl], [chmod a+x $ac_file])
+AC_CONFIG_FILES([programs/irr_util/IRR_query.pl
+		 programs/irr_util/attr_tokens.pl
+		 programs/irr_util/create_templates.pl
+		 programs/irr_util/irrd_log_report.pl
+		 programs/irr_util/remove_cryptpw_gz.pl
+		 programs/irr_util/ripe_subset.pl
+		 programs/irr_util/web_query.pl], [chmod a+x $ac_file])
 AC_OUTPUT

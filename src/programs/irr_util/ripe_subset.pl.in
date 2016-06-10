@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!@PERLV_PATH@
 #
 # Pierre Thibaudeau <prt@Teleglobe.CA>
 #

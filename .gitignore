@@ -23,8 +23,13 @@ src/programs/irr_rpsl_check/y.output
 src/programs/irr_rpsl_check/y.tab.c
 src/programs/irr_rpsl_check/y.tab.h
 src/programs/irr_rpsl_submit/irr_rpsl_submit
+src/programs/irr_util/IRR_query.pl
 src/programs/irr_util/attr_tokens.pl
 src/programs/irr_util/create_templates.pl
+src/programs/irr_util/irrd_log_report.pl
+src/programs/irr_util/remove_cryptpw_gz.pl
+src/programs/irr_util/ripe_subset.pl
+src/programs/irr_util/web_query.pl
 *~
 *.a
 *.o

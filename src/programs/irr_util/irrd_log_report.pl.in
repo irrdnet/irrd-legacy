@@ -1,4 +1,4 @@
-#!/usr/bin/perl -s
+#!@PERLV_PATH@ -s
 
 use POSIX;
 

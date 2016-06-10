@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!@PERLV_PATH@
 
 my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$datestr);
 my $savecrypts = 1;
