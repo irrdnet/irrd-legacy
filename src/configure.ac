@@ -58,7 +58,7 @@ MODULES=""
 
 EXTRA_INCLUDE_DIRS=""
 EXTRA_LIBS=""
-CPPFLAGS="-D_FILE_OFFSET_BITS=64 -DFUNCPROTO -I../../include"
+CPPFLAGS="-D_FILE_OFFSET_BITS=64 -DFUNCPROTO"
 dnl defining FUNCPROTO ensures that struct library uses portotype
 dnl we don't expect non-ANSI (K&R) C compilers to be used
 dnl Some compiles may define __STDC__ by itself which makes it enable, 
@@ -147,6 +147,9 @@ case "${host_os}" in
     ;;
 
 esac
+# XXX This should be done in makefiles - and if it wasnt this weird
+#     hybrid of automake and not, it would be.
+CFLAGS="$CFLAGS -I$ac_pwd/include"
 
 dnl Checks for programs.
 AC_PROG_MAKE_SET
@@ -215,13 +218,6 @@ AC_CHECK_LIB(resolv, inet_ntop, [
   AC_CHECK_HEADERS(resolv.h)]
 )
 fi
-
-dnl if test -d /usr/local/include; then
-dnl     CPPFLAGS="$CPPFLAGS -I/usr/local/include"
-dnl fi
-dnl if test -d /usr/local/lib; then
-dnl    LDFLAGS="$LDFLAGS -L/usr/local/lib"
-dnl fi
 
 dnl find flex
 AC_PATH_PROG(FLEX_PATH,flex,no)
@@ -462,8 +458,8 @@ AC_ARG_WITH(postgres,
 		case $with_postgres in
 		yes)
 			AC_CHECK_PGSQL()
-			CFLAGS="$PGSQL_CFLAGS $CFLAGS"
-			LDFLAGS="$PGSQL_LIBS $LDFLAGS"
+			CFLAGS="$CFLAGS $PGSQL_CFLAGS"
+			LDFLAGS="$LDFLAGS $PGSQL_LIBS"
 			CFLAGS="-DOPT_POSTGRES $CFLAGS"
 			;;
 		*)
