@@ -371,7 +371,7 @@ parse_debug (uii_connection_t * uii, trace_t * tr, char *s)
     if ((token = (char *) uii_parse_line (&line)) == NULL)
 	return (1);
 
-    set_trace (tr, TRACE_MAX_FILESIZE, atoll (token), NULL);
+    set_trace (tr, TRACE_MAX_FILESIZE, token, NULL);
     strcat (debug_config, ", truncating log at ");
     strcat (debug_config, token);
     strcat (debug_config, " bytes");
