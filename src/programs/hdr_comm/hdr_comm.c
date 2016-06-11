@@ -83,7 +83,8 @@ int parse_header (trace_t *tr, FILE *fin, long *offset, trans_info_t *ti) {
 char *dup_single_token (char *p) {
   char *q = p;
 
-  for (;*q == ' ' || *q == '\t'; q++);
+  for (;*q == ' ' || *q == '\t'; q++)
+    ;
   newline_remove (q);
 
   if (*q == '\0')
@@ -179,7 +180,8 @@ u_int is_from_field (char *line, trans_info_t *ti) {
 
   if (!strncmp (FROM, line, strlen (FROM))) {
     p = line + strlen(FROM);
-    for (;*p == ' ' || *p == '\t'; p++);
+    for (;*p == ' ' || *p == '\t'; p++)
+      ;
     newline_remove (p);      
     if (*p != '\0')
       strcpy (ti->sender_addrs, p);
