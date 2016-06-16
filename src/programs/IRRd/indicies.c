@@ -116,7 +116,7 @@ int irr_database_find_matches (irr_connection_t *irr, char *key,
   irr_database_t *database;
   hash_item_t *hash_item = NULL;
   u_long offset, len;
-  u_char _type, _p_or_s;
+  u_char _type /*XXX , _p_or_s */;
   u_short count;
   int exit_on_match = 0;
   char *cp;
@@ -138,7 +138,7 @@ int irr_database_find_matches (irr_connection_t *irr, char *key,
     
     while (count--) {
       _type = *cp++;
-      _p_or_s = *cp++;
+      /*XXX _p_or_s = * */ cp++;
       UTIL_GET_NETLONG (offset, cp);
       UTIL_GET_NETLONG (len, cp);
 

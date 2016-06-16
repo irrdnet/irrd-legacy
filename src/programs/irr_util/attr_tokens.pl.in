@@ -1,4 +1,4 @@
-#!/usr/local/bin/perl5
+#!@PERLV_PATH@
 
 open (OUT1, ">../irr_rpsl_check/attrs.rpsl") or die "Can't open output file-(attrs.rpsl)\n";
 open (OUT2, ">tokens.rpsl") or die "Can't open output file-(tokens.rpsl)\n";

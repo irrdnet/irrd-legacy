@@ -48,7 +48,7 @@ void database_clear (irr_database_t *db) {
   trace (NORM, default_trace, "Clearing out database %s\n", db->name);
 
   db->bytes = 0;
-  for (i=0; i< IRR_MAX_KEYS; i++) 
+  for (i=0; i< IRR_MAX_CLASS_KEYS; i++) 
     db->num_objects[i] = 0;
   
   radix_flush (db->radix_v4);

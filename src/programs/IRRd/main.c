@@ -7,7 +7,7 @@
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 #ifndef SETPGRP_VOID
-#include <sys/termios.h>
+#include <termios.h>
 #endif /* SETPGRP_VOID */
 #include <stdio.h>
 #include <string.h>
@@ -305,13 +305,12 @@ int main (int argc, char *argv[])
     if (IRR.roa_database) {
       struct stat stat_buf;
       struct tm tbuf;
-      int n;
 
       scan_irr_file (IRR.roa_database, NULL, 0, NULL);
-      n = fstat(fileno(IRR.roa_database->db_fp), &stat_buf);
+      (void)fstat(fileno(IRR.roa_database->db_fp), &stat_buf);
       IRR.roa_database_mtime = stat_buf.st_mtime;
       if (gmtime_r(&stat_buf.st_mtime, &tbuf))
-        n = strftime(IRR.roa_timebuffer, sizeof(IRR.roa_timebuffer), "t=%Y-%m-%dT%H:%M:%SZ\n", &tbuf);
+        (void)strftime(IRR.roa_timebuffer, sizeof(IRR.roa_timebuffer), "t=%Y-%m-%dT%H:%M:%SZ\n", &tbuf);
     }
 
     /* re-apply any transactions that didn't complete */
@@ -388,10 +387,11 @@ int main (int argc, char *argv[])
 
 static void daemonize ()
 {
-    int pid, t;
+    int pid;
     int time_left;
-
-    t = 0; /* This gets rid of a warning when t is #ifdef'd out of existance */
+#ifndef HAVE_SETSID
+    int t;
+#endif
 
     /* alarm's time may not inherited by fork */
     time_left  = alarm (0);

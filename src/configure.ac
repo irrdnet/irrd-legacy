@@ -1,7 +1,7 @@
 # Process this file with autoconf to produce a configure script.
 AC_PREREQ([2.69])
 
-AC_INIT([irrd], m4_esyscmd_s(echo $(git describe --abbrev=4 --dirty --always --tags )))
+AC_INIT([irrd], m4_esyscmd_s(echo $(git describe --abbrev=4 --dirty --always --tags | sed -e 's/^v//')))
 
 AC_CONFIG_SRCDIR([lib/mrt/mrt.c])
 AC_CONFIG_HEADERS(include/config.h)
@@ -58,7 +58,7 @@ MODULES=""
 
 EXTRA_INCLUDE_DIRS=""
 EXTRA_LIBS=""
-CPPFLAGS="-D_FILE_OFFSET_BITS=64 -DFUNCPROTO -I../../include"
+CPPFLAGS="-D_FILE_OFFSET_BITS=64 -DFUNCPROTO"
 dnl defining FUNCPROTO ensures that struct library uses portotype
 dnl we don't expect non-ANSI (K&R) C compilers to be used
 dnl Some compiles may define __STDC__ by itself which makes it enable, 
@@ -147,6 +147,9 @@ case "${host_os}" in
     ;;
 
 esac
+# XXX This should be done in makefiles - and if it wasnt this weird
+#     hybrid of automake and not, it would be.
+CFLAGS="$CFLAGS -I$ac_pwd/include"
 
 dnl Checks for programs.
 AC_PROG_MAKE_SET
@@ -181,7 +184,8 @@ if test "$pthread" = yes; then
   QUANTIFY="$QUANTIFY -threads=yes -max-threads=80"
   PURIFY="$PURIFY -threads=yes -max-threads=80"
   dnl Check for gthreads
-  PKG_CHECK_MODULES(GTHREADS, gthread-2.0 >= 2.6,  AC_MSG_RESULT([found], AC_MSG_ERROR([gthread-2.0 >= 2.6 not found])))
+  AC_MSG_CHECKING([for gthreads >= 2.6])
+  PKG_CHECK_MODULES(GTHREADS, gthread-2.0 >= 2.6)
   AC_SUBST(GTHREADS_CFLAGS)
   AC_SUBST(GTHREADS_LIBS)
   THREADLIBS="-l$ac_pthrlib"
@@ -214,13 +218,6 @@ AC_CHECK_LIB(resolv, inet_ntop, [
   AC_CHECK_HEADERS(resolv.h)]
 )
 fi
-
-dnl if test -d /usr/local/include; then
-dnl     CPPFLAGS="$CPPFLAGS -I/usr/local/include"
-dnl fi
-dnl if test -d /usr/local/lib; then
-dnl    LDFLAGS="$LDFLAGS -L/usr/local/lib"
-dnl fi
 
 dnl find flex
 AC_PATH_PROG(FLEX_PATH,flex,no)
@@ -377,7 +374,7 @@ AC_CHECK_FUNCS(snprintf)
 AC_CHECK_FUNCS(dirname basename)
 
 dnl Check for glib
-PKG_CHECK_MODULES(GLIB, glib-2.0 >= 2.6, AC_MSG_RESULT([found], AC_MSG_ERROR([glib-2.0 >= 2.6 not found])))
+PKG_CHECK_MODULES(GLIB, glib-2.0 >= 2.6)
 AC_SUBST(GLIB_CFLAGS)
 AC_SUBST(GLIB_LIBS)
 
@@ -461,8 +458,8 @@ AC_ARG_WITH(postgres,
 		case $with_postgres in
 		yes)
 			AC_CHECK_PGSQL()
-			CFLAGS="$PGSQL_CFLAGS $CFLAGS"
-			LDFLAGS="$PGSQL_LIBS $LDFLAGS"
+			CFLAGS="$CFLAGS $PGSQL_CFLAGS"
+			LDFLAGS="$LDFLAGS $PGSQL_LIBS"
 			CFLAGS="-DOPT_POSTGRES $CFLAGS"
 			;;
 		*)
@@ -471,6 +468,26 @@ AC_ARG_WITH(postgres,
 	],
 	[AC_MSG_RESULT([--with-postgres not specified])]
 	)
+
+dnl locate perl 5.
+AC_PATH_PROG(PERLV_PATH,perl5,no)
+if test $PERLV_PATH = no; then
+    unset ac_cv_path_PERLV_PATH
+    AC_PATH_PROG(PERLV_PATH,perl,no)
+    if test $PERLV_PATH = no; then
+        AC_MSG_ERROR([can't locate a suitable perl5.])
+        exit 1
+    else
+        $PERLV_PATH -e 'require 5;'
+        if test $? -ne 0 ; then
+           AC_MSG_ERROR([can't locate a suitable perl5.])
+           exit 1
+        fi
+    fi
+fi
+AC_SUBST(PERLV_PATH)
+PERLV=`basename $PERLV_PATH`
+AC_SUBST(PERLV)
 
 AC_CHECK_DECLS(utimes,,,[#include <sys/time.h>])
 AC_CHECK_DECLS(inet_ntop,,,[#include <netinet/in.h>
@@ -528,4 +545,11 @@ AH_TOP([
 ])
 
 AC_CONFIG_FILES([Makefile Make.include:../src/Make.include.in include/pipeline_defs.h include/irr_defs.h])
+AC_CONFIG_FILES([programs/irr_util/IRR_query.pl
+		 programs/irr_util/attr_tokens.pl
+		 programs/irr_util/create_templates.pl
+		 programs/irr_util/irrd_log_report.pl
+		 programs/irr_util/remove_cryptpw_gz.pl
+		 programs/irr_util/ripe_subset.pl
+		 programs/irr_util/web_query.pl], [chmod a+x $ac_file])
 AC_OUTPUT

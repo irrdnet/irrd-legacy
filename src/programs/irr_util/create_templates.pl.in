@@ -1,4 +1,4 @@
-#!/usr/local/bin/perl5
+#!@PERLV_PATH@
 
 %obj = ();
 @attrs = ();

@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!@PERLV_PATH@
 # RADB Query code
 
 # need this to allow access to sockets

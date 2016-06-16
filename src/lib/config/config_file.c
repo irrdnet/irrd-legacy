@@ -371,7 +371,7 @@ parse_debug (uii_connection_t * uii, trace_t * tr, char *s)
     if ((token = (char *) uii_parse_line (&line)) == NULL)
 	return (1);
 
-    set_trace (tr, TRACE_MAX_FILESIZE, atoll (token), NULL);
+    set_trace (tr, TRACE_MAX_FILESIZE, token, NULL);
     strcat (debug_config, ", truncating log at ");
     strcat (debug_config, token);
     strcat (debug_config, " bytes");
@@ -777,7 +777,7 @@ config_line_address (uii_connection_t * uii, prefix_t *prefix)
 	Deref_Prefix (prefix);
         return (1);
     }
-    if (prefix_compare2 (UII->prefix, prefix) != 0) {
+    if (UII->prefix == NULL || prefix_compare2 (UII->prefix, prefix) != 0) {
     	set_uii (UII, UII_ADDR, prefix, 0);
 	listen_uii2 (NULL);
     }

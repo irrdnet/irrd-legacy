@@ -105,7 +105,7 @@ int pgpdecodefile_new (FILE *infile, char *outfn, FILE *log_fd,
       
       /* Throw away the rest of the line */
       while ((n = fgetc (infile)) != EOF && 
-	     n != (int) "\n");
+	     n != (int) '\n');
     }
     
     /* If we don't have pgp installed then don't look for a signature */

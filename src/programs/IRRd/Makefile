@@ -14,8 +14,7 @@ IRRD_LIBS = -L../atomic_ops -latomic_ops
 all:  $(GOAL) 
 
 irrd: $(OBJS)
-	@echo "Linking: $(LD) $(OBJS) $(LDFLAGS) -o $@"
-	@$(LD) $(OBJS) $(LDFLAGS) -o $@ $(SYS_LIBS) $(IRRD_LIBS)
+	$(LD) $(OBJS) $(IRRD_LIBS) $(LDFLAGS) -o $@ $(SYS_LIBS)
 
 $(GOAL).purify:	$(OBJS) 
 	$(PURIFY) -follow-child-processes $(LD) $(OBJS) $(LDFLAGS) -o $@ $(SYS_LIBS) $(IRRD_LIBS)
