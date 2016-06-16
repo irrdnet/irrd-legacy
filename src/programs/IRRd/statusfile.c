@@ -224,8 +224,8 @@ return (0);
 static int
 ProcessLine (statusfile_t *sf, char *section, char *line)
 {
-char tmp[BUFSIZE], *p, *q, *last;
-hash_item_t    *h_var;
+  char tmp[BUFSIZE], *p, *q, *last;
+  hash_item_t    *h_var;
 
   h_var = irrd_malloc(sizeof(hash_item_t));
 
@@ -236,33 +236,42 @@ hash_item_t    *h_var;
     /* Sanity check: no " before = */
     p = strchr(tmp, '"');
     q = strchr(tmp, '=');
-    if (p && (p < q)) return (0);
+    if (p && (p < q))
+      return (0);
 
     if ((p = strtok_r(tmp, "=", &last)) != NULL) {
       /* No " in the key */
-      if ((q = strchr(p, '"')) != NULL) return (0);
+      if ((q = strchr(p, '"')) != NULL)
+        return (0);
 
       h_var->key = strdup(p);
 
       if ((p = strtok_r(NULL, "=", &last)) != NULL) {
 	 /* The " must follow the = if any */
          if ((q = strchr(p, '"')) != NULL) {
-	    if (q != p) return (0);
+	    if (q != p)
+              goto FAIL;
 	    /* Truncate the string at the next " */
 	    p = q + 1;
-	    if ((q = strchr(p, '"')) != NULL) *q = '\0';
-	    else return (0);
+	    if ((q = strchr(p, '"')) != NULL)
+              *q = '\0';
+	    else
+              goto FAIL;
+         }
       }
-    }
 
-    h_var->value = strdup(p);
+      if (p == NULL)
+        goto FAIL;
+      h_var->value = strdup(p);
 
-    return (InsertVar(sf, section, h_var));
+      return (InsertVar(sf, section, h_var));
     }
   }
 
   /* Failure cases */
-  if (h_var->key) irrd_free(h_var->key);
+FAIL:
+  if (h_var->key)
+    irrd_free(h_var->key);
   irrd_free(h_var);
 
   return (0);
@@ -318,17 +327,15 @@ if ((fp = fopen (sf->filename, "r")) != NULL) {
 	 if ((new_section = IsSection(buf)) != NULL) {
 	    if (section) free(section);
 	    section = new_section;
-	    }
-	 else {
+	 } else {
 	    if (!ProcessLine(sf, section, buf)) {
 	       /* Ignore blank lines */
 	       if (StrTrim(buf))
 		  trace(INFO, default_trace, "ERROR: Failed to process line [%s]\n", buf);
 	       }
-	    }
-	 continue;
 	 }
-      else {
+	 continue;
+      } else {
          StrTrim(buf);
 	 trace (INFO, default_trace, "ERROR: Overflowed line for statusfile %s [%s]\n", sf->filename, buf);
 	 do {
