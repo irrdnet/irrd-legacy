@@ -1,11 +1,16 @@
+if [ ! -d aconf ]; then
+    mkdir aconf
+fi
 if [ ! -d m4 ]; then
     mkdir m4
 fi
 
+# libtoolize -c -f -i; sleep 1
 echo "Running aclocal"
-aclocal
-echo "Running autoconf"
-autoconf
+aclocal --force -Iaconf; sleep 1
+echo "Running autoheader"
+autoheader -f; sleep 1
 echo "Running automake"
-automake --add-missing
-
+automake -a -c -f; sleep 1
+echo "Running autoconf"
+autoconf -f
