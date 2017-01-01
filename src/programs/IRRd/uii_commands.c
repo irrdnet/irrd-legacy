@@ -99,10 +99,10 @@ void show_database (uii_connection_t *uii) {
     uii_add_bulk_output (uii, "\r\n");
 
     /* mirroring */
-    if (database->mirror_prefix != NULL) {
+    if (database->mirror_host != NULL) {
       nice_time (time_left (database->mirror_timer), buf);
       uii_add_bulk_output (uii, "   Mirroring %s:%d (Next in %s)\r\n", 
-			   prefix_toa (database->mirror_prefix),
+			   database->mirror_host,
 			   database->mirror_port, 
 			   buf);
       if (database->mirror_error_message[0] != '\0') {
@@ -295,7 +295,7 @@ int uii_irr_irrdcacher (uii_connection_t *uii, char *name) {
 	   db->remote_ftp_url, name);
 
   /* we need the *.CURRENTSERIAL file also for mirrored files */
-  if (db->mirror_prefix != NULL) {
+  if (db->mirror_host != NULL) {
     /* need to make the DB name upper case */
     strcpy (cs, name);
     convert_toupper (cs);
@@ -447,7 +447,7 @@ void uii_irr_mirror (uii_connection_t *uii, char *name, uint32_t serial) {
     return;
   }
 
-  if (database->mirror_prefix == NULL) {
+  if (database->mirror_host == NULL) {
     uii_send_data (uii, "Don't know how to mirror %s\r\n", database->name);
     return;
   }

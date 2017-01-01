@@ -19,16 +19,16 @@
  *
  * Arguments:
  * LINKED_LIST *ll_checkdb - Empty linked list.  We add on each
- *   irr_database_t * that matches the mirror_prefix and mirror_port.
+ *   irr_database_t * that matches the mirror_host and mirror_port.
  *   This lets us minimize the number of databases we have to iterate through
  *   for checking answers.
  * char *query - Pointer to a string in which to build the query.
  * int query_len - Length of the query array
- * prefix_t *mirror_prefix - The IP address we are querying.
+ * char *mirror_host - The hostname we are querying.
  * int mirror_port - The TCP port that we're querying.
  *
  */
-static int mirrorstatus_buildquery (LINKED_LIST *ll_checkdb, char *query, int query_len, prefix_t *mirror_prefix, int mirror_port) {
+static int mirrorstatus_buildquery (LINKED_LIST *ll_checkdb, char *query, int query_len, char *mirror_host, int mirror_port) {
   char *cp;
   int space_left;
   irr_database_t *database;
@@ -40,8 +40,8 @@ static int mirrorstatus_buildquery (LINKED_LIST *ll_checkdb, char *query, int qu
   strcpy(query, "!j");
   space_left = query_len - 3;
   LL_IntrIterate (IRR.ll_database, database) {
-    if ((database->mirror_prefix != NULL) &&
-        (prefix_equal(mirror_prefix, database->mirror_prefix)) && 
+    if ((database->mirror_host != NULL) &&
+        (strcmp(mirror_host, database->mirror_host) == 0) && 
         (mirror_port == database->mirror_port)) {
 
       if (strlen(database->name) > (space_left - 1)) {
@@ -59,7 +59,7 @@ static int mirrorstatus_buildquery (LINKED_LIST *ll_checkdb, char *query, int qu
   if (!strcmp(query, "!j")) {
      trace (NORM, default_trace,
             "mirrorstatus: *WARNING* unable to build query - no one mirroring via %s:%d\n",
-	    prefix_toa(mirror_prefix), mirror_port);
+	    mirror_host, mirror_port);
      *query = '\0';
      goto FAIL;
   }
@@ -87,17 +87,18 @@ FAIL:
  * char *query - Pointer to a string in which to build the query.
  * char *answer - Where we are going to store the answer we get back.
  * int answer_len - Length of the answer array
- * prefix_t *mirror_prefix - The IP address we are querying.
+ * char *mirror_host - The hostname we are querying.
  * int mirror_port - The TCP port that we're querying.
  *
  */
-static int mirrorstatus_sendquery_getanswer (char *query, char *answer, int answer_size, prefix_t *mirror_prefix, int mirror_port) {
+static int mirrorstatus_sendquery_getanswer (char *query, char *answer, int answer_size, char *mirror_host, int mirror_port) {
   int ret = 0, n_ret, select_ret, n_read, space_left;
-  int sockfd;
+  int sockfd = -1;
   struct sockaddr_in servaddr;
   char *cp;
   fd_set fd_read;
   struct timeval tv;
+  prefix_t *mirror_prefix;
 
 #ifdef HAVE_LIBPTHREAD
   tv.tv_usec = 0;
@@ -108,7 +109,12 @@ static int mirrorstatus_sendquery_getanswer (char *query, char *answer, int answ
 #endif
 
   trace (TRACE, default_trace, "get_remote_mirrorstatus: Connecting to %s:%d\n",
-	 prefix_toa(mirror_prefix), mirror_port);
+	 mirror_host, mirror_port);
+
+  if ((mirror_prefix = string_toprefix (mirror_host, default_trace)) == NULL) {
+    trace (ERROR, default_trace, "mirrorstatus: could not resolve %s\r\n", mirror_host);
+    goto FAIL;
+  }
 
   sockfd = socket(AF_INET, SOCK_STREAM, 0);
   memset(&servaddr, 0, sizeof(servaddr));
@@ -117,8 +123,8 @@ static int mirrorstatus_sendquery_getanswer (char *query, char *answer, int answ
   n_ret = nonblock_connect (default_trace, mirror_prefix, mirror_port, sockfd);
 
   if (n_ret != 1) {
-    trace (NORM, default_trace, "mirrorstatus: Failed to connect to %s:%d\n",
-	   prefix_toa(mirror_prefix), mirror_port);
+    trace (NORM, default_trace, "mirrorstatus: Failed to connect to %s (%s):%d\n",
+	   mirror_host, prefix_toa(mirror_prefix), mirror_port);
     if (sockfd > -1) close (sockfd);
     goto FAIL;
   }
@@ -129,8 +135,8 @@ static int mirrorstatus_sendquery_getanswer (char *query, char *answer, int answ
   n_ret = write (sockfd, query, strlen(query));
   if (n_ret != strlen(query)) {
     trace (NORM, default_trace,
-	   "mirrorstatus: Failed to write query to %s:%d\nget_remote_mirrorstatus: %s",
-	   prefix_toa(mirror_prefix), mirror_port, query);
+	   "mirrorstatus: Failed to write query to %s (%s):%d\nget_remote_mirrorstatus: %s",
+	   mirror_host, prefix_toa(mirror_prefix), mirror_port, query);
     if (sockfd > -1) close (sockfd);
     goto FAIL;
   }
@@ -155,8 +161,8 @@ static int mirrorstatus_sendquery_getanswer (char *query, char *answer, int answ
     }
     else if (n_read < 0) {
       trace (NORM, default_trace,
-	     "mirrorstatus: Error reading from socket for %s:%d\n",
-	     prefix_toa(mirror_prefix), mirror_port);
+	     "mirrorstatus: Error reading from socket for %s (%s):%d\n",
+	     mirror_host, prefix_toa(mirror_prefix), mirror_port);
       goto FAIL;
     }
     cp += n_read;
@@ -169,22 +175,22 @@ static int mirrorstatus_sendquery_getanswer (char *query, char *answer, int answ
   else if (select_ret == 0) {
     /* Select timed out */
     trace (NORM, default_trace,
-	   "mirrorstatus: Timed out reading file descriptor for %s:%d\n",
-	   prefix_toa(mirror_prefix), mirror_port);
+	   "mirrorstatus: Timed out reading file descriptor for %s (%s):%d\n",
+	   mirror_host, prefix_toa(mirror_prefix), mirror_port);
     goto FAIL;
   }
   else if (space_left == 0) {
     /* Ran out of buffer */
     trace (NORM, default_trace,
-	   "mirrorstatus: Ran out of buffer space while reading from %s:%d\n",
-	   prefix_toa(mirror_prefix), mirror_port);
+	   "mirrorstatus: Ran out of buffer space while reading from %s (%s):%d\n",
+	   mirror_host, prefix_toa(mirror_prefix), mirror_port);
     goto FAIL;
   }
   else {
     /* Unspecified error */
     trace (NORM, default_trace,
-	   "mirrorstatus: Unknown error while reading from %s:%d\n",
-	   prefix_toa(mirror_prefix), mirror_port);
+	   "mirrorstatus: Unknown error while reading from %s (%s):%d\n",
+	   mirror_host, prefix_toa(mirror_prefix), mirror_port);
     goto FAIL;
   }
 
@@ -192,6 +198,7 @@ static int mirrorstatus_sendquery_getanswer (char *query, char *answer, int answ
 
 FAIL:
   if (sockfd >= 0) close (sockfd);
+  irrd_free(mirror_prefix);
 
   return (ret);
 }
@@ -205,7 +212,7 @@ FAIL:
  *
  * Arguments:
  * LINKED_LIST *ll_checkdb - Empty linked list.  We add on each
- *   irr_database_t * that matches the mirror_prefix and mirror_port.
+ *   irr_database_t * that matches the mirror_host and mirror_port.
  *   This lets us minimize the number of databases we have to iterate through
  *   for checking answers.
  * char *answer - Where we are going to store the answer we get back.
@@ -298,11 +305,11 @@ FAIL:
  * database linked list and send queries for all databases that we
  * are mirroring off a given IP address.
  *
- * prefix_t *mirror_prefix - The IP address that we want status for
+ * char *mirror_host - The hostname that we want status for
  * int mirror_port - The TCP port that we are getting the status from.
  *
  */
-int get_remote_mirrorstatus (prefix_t *mirror_prefix, int mirror_port) {
+int get_remote_mirrorstatus (char *mirror_host, int mirror_port) {
   char query[BUFSIZE];
   char answer[GRM_BUFSIZE], *p_dup_answer = NULL, *cp;
   int return_val = 0;
@@ -313,7 +320,7 @@ int get_remote_mirrorstatus (prefix_t *mirror_prefix, int mirror_port) {
   ll_checkdb = LL_Create(0);
 
   if (!mirrorstatus_buildquery (ll_checkdb, query, BUFSIZE, 
-                                mirror_prefix, mirror_port)) {
+                                mirror_host, mirror_port)) {
     LL_Iterate(ll_checkdb, database) {
       database->remote_mirrorstatus = MIRRORSTATUS_FAILED;
       database->remote_oldestjournal = 0;
@@ -323,7 +330,7 @@ int get_remote_mirrorstatus (prefix_t *mirror_prefix, int mirror_port) {
   }
 
   if (!mirrorstatus_sendquery_getanswer(query, answer, GRM_BUFSIZE, 
-                                        mirror_prefix, mirror_port)) {
+                                        mirror_host, mirror_port)) {
     LL_Iterate(ll_checkdb, database) {
       database->remote_mirrorstatus = MIRRORSTATUS_FAILED;
       database->remote_oldestjournal = 0;
@@ -400,7 +407,7 @@ void uii_mirrorstatus_db (uii_connection_t *uii, char *db_name) {
 
   if ((database = find_database (db_name)) != NULL) {
     uii_add_bulk_output (uii, "%s (", db_name);
-    if (database->mirror_prefix == NULL) {
+    if (database->mirror_host == NULL) {
       if ((database->flags & IRR_AUTHORITATIVE) == IRR_AUTHORITATIVE) {
 	status = AUTHORITATIVE;
 	uii_add_bulk_output (uii, "Authoritative)\r\n", db_name);
@@ -431,10 +438,10 @@ void uii_mirrorstatus_db (uii_connection_t *uii, char *db_name) {
     if (status == MIRROR) {
       uii_add_bulk_output (uii, "\r\nRemote Information:\r\n");
       uii_add_bulk_output (uii, "  Mirror host: %s:%d\r\n",
-                           prefix_toa(database->mirror_prefix),
+                           database->mirror_host,
 			   database->mirror_port);
 
-      ret = get_remote_mirrorstatus(database->mirror_prefix, database->mirror_port);
+      ret = get_remote_mirrorstatus(database->mirror_host, database->mirror_port);
       if (ret != 1) {
 	uii_add_bulk_output (uii, "  *WARNING* Error getting status for remote database\r\n");
 	uii_add_bulk_output (uii, "  *WARNING* See logfile for further info.\r\n", db_name);

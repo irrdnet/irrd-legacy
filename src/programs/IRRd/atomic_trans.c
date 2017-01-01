@@ -282,7 +282,7 @@ char *build_transaction_file (irr_database_t *db, FILE *u_fp, char *uname,
    * size for rollback */
   jsize = -1;
   if ((db->flags & IRR_AUTHORITATIVE) ||
-      db->mirror_prefix != NULL) {
+      db->mirror_host != NULL) {
     if (db->journal_fd > 0) {
       fstat (db->journal_fd, &fstats);
       jsize = fstats.st_size;
@@ -590,7 +590,7 @@ int rollback_check (rollback_t *ll) {
 	}
 
 	/* roll back the journal if we are doing IRRd style mirroring */
-	if (((db->flags & IRR_AUTHORITATIVE) || db->mirror_prefix != NULL) &&
+	if (((db->flags & IRR_AUTHORITATIVE) || db->mirror_host != NULL) &&
 	    !journal_rollback (db, fname)) {
 	  trace (ERROR, default_trace, "rollback_check (): journal_rollback "
 		 "error.  Aborting check process.\n");
@@ -670,7 +670,7 @@ int reapply_transaction (rollback_t *ll) {
 	     "error, couldn't re-apply transaction: (%s)\n", p);
     /* update the journal for pre-rpsdit mirror and authoritative DB's */
     else if (((t->db->flags & IRR_AUTHORITATIVE) || 
-	      t->db->mirror_prefix != NULL) &&
+	      t->db->mirror_host != NULL) &&
 	     !update_journal (ufin, t->db, -1)) {
       trace (ERROR, default_trace, "error in updating journal for DB (%s) "
 	     "rolling back transaction\n", t->db->name);

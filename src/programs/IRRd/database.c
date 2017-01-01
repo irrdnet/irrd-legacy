@@ -552,7 +552,7 @@ int irr_check_serial_vs_journal (irr_database_t *database) {
   /* If we are authoritative, or mirror, then check the last number
      of the journal files and verify that our CURRENTSERIAL is <= to it. */
   if (((database->flags & IRR_AUTHORITATIVE) == IRR_AUTHORITATIVE) ||
-      (database->mirror_prefix != NULL)) {
+      (database->mirror_host != NULL)) {
     if (find_last_serial (database->name, JOURNAL_NEW, &last_journal_sn) == 0)
       last_journal_sn = 0;
   }
@@ -624,7 +624,7 @@ int replace_cache_db (irr_database_t *db, uii_connection_t *uii, char *tmp_dir) 
 
   /* if the DB is mirrored then we need to move the *.CURRENTSERIAL file 
    * to the cache area */
-  if (db->mirror_prefix != NULL) {
+  if (db->mirror_host != NULL) {
     strcpy (uc, db->name);
     convert_toupper (uc);
     sprintf (fname, "%s.CURRENTSERIAL", uc);

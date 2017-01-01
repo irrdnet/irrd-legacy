@@ -28,6 +28,7 @@ int request_mirror (irr_database_t *db, uii_connection_t *uii, uint32_t last) {
   struct timeval	tv;
   fd_set		write_fds;
   int			n, i, ret;
+  prefix_t		*mirror_prefix;
 
   if (db->db_fp == NULL) {
     trace (ERROR, default_trace, 
@@ -67,24 +68,31 @@ int request_mirror (irr_database_t *db, uii_connection_t *uii, uint32_t last) {
 
   db->mirror_error_message[0] = '\0';
 
+  if ((mirror_prefix = string_toprefix (db->mirror_host, default_trace)) == NULL) {
+    trace (ERROR, default_trace, "Could not resolve %s\r\n", db->mirror_host);
+    return (0);
+  }
+
   if ((db->mirror_fd = socket (AF_INET, SOCK_STREAM, 0)) < 0) {
     trace (ERROR, default_trace, "Could not get socket: %s!\n",
 	   strerror (errno));
     db->mirror_fd = -1;
+    irrd_free(mirror_prefix);
     return(0);
   }
 
   /* non blocking connect */
-  trace (NORM, default_trace, "(%s) Connecting to Mirror %s:%d\n",
-         db->name, prefix_toa (db->mirror_prefix), db->mirror_port);
-  n = nonblock_connect (default_trace, db->mirror_prefix, 
+  trace (NORM, default_trace, "(%s) Connecting to Mirror %s (%s):%d\n",
+         db->name, db->mirror_host, prefix_toa (mirror_prefix), db->mirror_port);
+  n = nonblock_connect (default_trace, mirror_prefix, 
 			 db->mirror_port, db->mirror_fd);
 
   if (n !=1 ) {
-    trace (ERROR, default_trace, "(%s) Connect to mirror %s:%d failed\n",
-           db->name, prefix_toa (db->mirror_prefix), db->mirror_port);
+    trace (ERROR, default_trace, "(%s) Connect to mirror %s (%s):%d failed\n",
+           db->name, db->mirror_host, prefix_toa (mirror_prefix), db->mirror_port);
     close (db->mirror_fd);
     db->mirror_fd = -1;
+    irrd_free(mirror_prefix);
     return (-1);
   }
   
@@ -106,6 +114,7 @@ int request_mirror (irr_database_t *db, uii_connection_t *uii, uint32_t last) {
            db->name, logfile, strerror (errno));
     close (db->mirror_fd);
     db->mirror_fd = -1;
+    irrd_free(mirror_prefix);
     return(0);
   }
 
@@ -118,21 +127,23 @@ int request_mirror (irr_database_t *db, uii_connection_t *uii, uint32_t last) {
   FD_SET(db->mirror_fd, &write_fds);
   ret = select (FD_SETSIZE, NULL, &write_fds, NULL, &tv);
   if (ret <= 0) {
-    trace (ERROR, default_trace, "(%s) Error writing request (timeout) to %s:%d\n", 
-	   db->name, prefix_toa (db->mirror_prefix), db->mirror_port);
+    trace (ERROR, default_trace, "(%s) Error writing request (timeout) to %s (%s):%d\n", 
+	   db->name, db->mirror_host, prefix_toa (mirror_prefix), db->mirror_port);
     close (db->mirror_fd);
     fclose (db->mirror_disk_fp); /* and delete tmp file??? */
     db->mirror_fd = -1;	   
+    irrd_free(mirror_prefix);
     return 0;
   }
 
   /* write request to mirror server */
   if (write (db->mirror_fd, tmp, strlen (tmp)) != strlen (tmp)) {
-    trace (ERROR, default_trace, "(%s) Error writing request (write failed) to %s:%d\n", 
-	   db->name, prefix_toa (db->mirror_prefix), db->mirror_port);
+    trace (ERROR, default_trace, "(%s) Error writing request (write failed) to %s (%s):%d\n", 
+	   db->name, db->mirror_host, prefix_toa (mirror_prefix), db->mirror_port);
     close (db->mirror_fd);
     fclose (db->mirror_disk_fp); /* and delete tmp file??? */
     db->mirror_fd = -1;	   
+    irrd_free(mirror_prefix);
     return 0;
   }
 
@@ -150,6 +161,7 @@ int request_mirror (irr_database_t *db, uii_connection_t *uii, uint32_t last) {
 
   trace (TRACE, default_trace, "(%s) About to perform a select_add_fd\n", db->name);
   select_add_fd (db->mirror_fd, SELECT_READ, (void_fn_t) mirror_read_data, db);
+  irrd_free(mirror_prefix);
   return (1);
 }
 
@@ -439,7 +451,7 @@ int irr_service_mirror_request (irr_connection_t *irr, char *command) {
     irr_write_nobuffer (irr, buffer);
     return (-1);
   }
-  else if (database->mirror_prefix == NULL &&
+  else if (database->mirror_host == NULL &&
 	   !(database->flags & IRR_AUTHORITATIVE)) {
     sprintf (buffer, "\n\n\n%% ERROR: Database (%s) is a non-mirrored db!\n", database->name);
     irr_write_nobuffer (irr, buffer);
