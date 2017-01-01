@@ -310,16 +310,8 @@ sub importBlob {
     local($ftpsvr,$ftppth,$locfile,$locdir)=@_;
     local($outm,$m);
 
-    $outm=`wget --passive-ftp -P $locdir ftp://$ftpsvr/$ftppth 2>&1`;
-
-# back out if not all of the ftp files were retrieved
-    if ($outm !~ /${locfile}\'\s+saved/) {
-        if ($outm ne '') {
-  	  return "irrdcacher: unsuccessful ftp $locfile reason-($outm)\n";
-        }
-        else {
-          return "irrdcacher: unsuccessful ftp $locfile\n";
-        }
+    if (system("wget --passive-ftp -o $locdir/$locfile.wget-log -P $locdir ftp://$ftpsvr/$ftppth") != 0) {
+        return "irrdcacher: unsuccessful ftp $locfile, see log in $locdir/$locfile.wget-log\n";
     }
 
 # unzip the file if necesary
@@ -418,11 +410,8 @@ sub importDB {
     local($ftpsvr,$ftppth,$locfile,$locdir)=@_;
     local($outm,$m);
 
-    $outm=`wget --passive-ftp -P $locdir ftp://$ftpsvr/$ftppth 2>&1`;
-
-# back out if not all of the ftp files were retrieved
-    if ($outm !~ /${locfile}\.gz\'\s+saved/) {
-	return "irrdcacher: unsuccessful ftp $locfile.gz reason-($outm)\n";
+    if (system("wget --passive-ftp -o $locdir/$locfile.gz.wget-log -P $locdir ftp://$ftpsvr/$ftppth") != 0) {
+        return "irrdcacher: unsuccessful ftp $locfile.gz, see log in $locdir/$locfile.gz.wget-log\n";
     }
 
     if (system("gunzip -fn $locdir/$locfile.gz")!=0) {
