@@ -254,54 +254,38 @@ typedef struct _mrt_thread_t {
 #define ASSERT(x) { if (!(x)) \
 	err_dump ("\nAssert failed line %d in %s", __LINE__, __FILE__); }
 
-#define NETSHORT_SIZE 2		/* size of our NETSHORT in bytes */
-#define NETLONG_SIZE 4		/* size of our NETLONG in bytes */
+#define NETSHORT_SIZE sizeof(u_short) /* size of our NETSHORT in bytes */
+#define NETLONG_SIZE sizeof(u_long) /* size of our NETLONG in bytes */
 #define UTIL_GET_NETSHORT(val, cp) \
 	{ \
-            register u_char *val_p; \
-            val_p = (u_char *) &(val); \
-            *val_p++ = *(cp)++; \
-            *val_p++ = *(cp)++; \
-	    (val) = ntohs(val); \
+	    u_short macro_val; \
+            memmove(&macro_val, cp, NETSHORT_SIZE); \
+            cp += NETSHORT_SIZE; \
+            val = macro_val; \
 	}
 
-/* This version of UTIL_GET_NETLONG uses ntohl for cross-platform
- * compatibility, which is A Good Thing (tm) */
 #define UTIL_GET_NETLONG(val, cp) \
         { \
-            register u_char *val_p; \
-            val_p = (u_char *) &(val); \
-            *val_p++ = *(cp)++; \
-            *val_p++ = *(cp)++; \
-            *val_p++ = *(cp)++; \
-            *val_p++ = *(cp)++; \
-            (val) = ntohl(val); \
+            u_long macro_val; \
+            memmove(&macro_val, cp, NETLONG_SIZE); \
+            cp += NETLONG_SIZE; \
+            val = macro_val; \
         }
 
-/* Network version of UTIL_PUT_SHORT, using htons for cross-platform
- * compatibility */
 #define UTIL_PUT_NETSHORT(val, cp) \
 	{ \
-	    u_short tmp; \
-            register u_char *val_p; \
-	    tmp = htons(val); \
-	    val_p = (u_char *) &tmp; \
-            *(cp)++ = *val_p++; \
-            *(cp)++ = *val_p++; \
+	    u_short macro_val; \
+	    macro_val = val; \
+	    memmove(cp, &macro_val, NETSHORT_SIZE); \
+	    cp += NETSHORT_SIZE; \
 	}
 
-/* Network version of UTIL_PUT_LONG which uses htonl to maintain
- * cross-platform byte-orderings across the network */
 #define UTIL_PUT_NETLONG(val, cp) \
         { \
-            u_long tmp; \
-            register u_char *val_p; \
-            tmp = htonl(val); \
-            val_p = (u_char *) &tmp; \
-            *(cp)++ = *val_p++; \
-            *(cp)++ = *val_p++; \
-            *(cp)++ = *val_p++; \
-            *(cp)++ = *val_p++; \
+	    u_long macro_val; \
+	    macro_val = val; \
+            memmove(cp, &macro_val, NETLONG_SIZE); \
+            cp += NETLONG_SIZE; \
         }
 
 
