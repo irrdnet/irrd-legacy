@@ -84,7 +84,7 @@ trace (int flag, trace_t * tr,...)
 
     if (BIT_TEST (flag, TR_WARN | TR_ERROR | TR_FATAL)) {
         if (syslog_notify)
-	    syslog (LOG_INFO, tmp + strlen (ptime) + 1);
+	    syslog (LOG_INFO, "%s", tmp + strlen (ptime) + 1);
     }
 
     /* nope, we don't log this message */
@@ -151,7 +151,7 @@ trace (int flag, trace_t * tr,...)
      * characters, weird things could happen!
      */
 #ifdef notdef
-    ret = fprintf (tr->logfile->logfd, tmp);
+    ret = fprintf (tr->logfile->logfd, "%s", tmp);
 #else
     /*
      * Okay, now I think it's safer and compatible -- masaki
@@ -271,12 +271,12 @@ static FILE *get_trace_fd (trace_t * tr) {
     }
 
     if (!strcasecmp (tr->logfile->logfile_name, "stdout")) {
-	if (error[0]) fprintf(stdout, error);
+	if (error[0]) fprintf(stdout, "%s", error);
 	return (stdout);
     }
 
     if (!strcasecmp (tr->logfile->logfile_name, "stderr")) {
-	if (error[0]) fprintf(stderr, error);
+	if (error[0]) fprintf(stderr, "%s", error);
 	return (stderr);
     }
 
@@ -291,7 +291,7 @@ static FILE *get_trace_fd (trace_t * tr) {
 	    tr->logfile->bytes_since_open = 0;
 	    tr->logfile->max_filesize = TR_DEFAULT_MAX_FILESIZE;
 
-	    if (error[0]) fprintf(retval, error);
+	    if (error[0]) fprintf(retval, "%s", error);
 	    return (retval);
 	} /*else
 	  fprintf(stderr, "fopen %s:  %s\n", tr->logfile->logfile_name,

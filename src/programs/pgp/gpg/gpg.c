@@ -666,7 +666,7 @@ int pgp_sign (trace_t *tr, char *funcname, char *env, char *passwd,
   }
 
   /* send the passphrase */
-  fprintf (pgpin, passwd);
+  fprintf (pgpin, "%s", passwd);
   fclose (pgpin);
 
   /* get the return code see if the command was executed without error */
