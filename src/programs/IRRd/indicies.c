@@ -22,11 +22,11 @@
 #include "irrd.h"
 
 /* irr_database_store
- * 2 count | [1 type | 1 primary/secondary | 4 offset | 4 len] | ...
+ * 2 count | [1 type | 1 primary/secondary | 8 offset | 8 len] | ...
  */
 
-#define OBJCOUNT_SIZE 2
-#define OBJINFO_SIZE 10 
+#define OBJCOUNT_SIZE (NETSHORT_SIZE)
+#define OBJINFO_SIZE (2 + NETLONG_SIZE + NETLONG_SIZE)
 
 int irr_database_store (irr_database_t *database, char *key, u_char p_or_s,
 			enum IRR_OBJECTS type, u_long offset, u_long len) {
@@ -106,7 +106,7 @@ void irr_hash_destroy (hash_item_t *hash_item) {
 
 /* irr_database_find_matches
  * find matches and extract info from hash table entry
- * 2 count | [1 type | 1 primary/secondary | 4 offset | 4 len] | ...
+ * 2 count | [1 type | 1 primary/secondary | 8 offset | 8 len] | ...
  */
 int irr_database_find_matches (irr_connection_t *irr, char *key, 
 				   u_char p_or_s,
@@ -195,7 +195,7 @@ int find_object_offset_len (irr_database_t *db, char *key,
 }
 
 /* irr_database_remove
- * 2 count | [1 type | 1 primary/secondary | 4 offset | 4 len] | ...
+ * 2 count | [1 type | 1 primary/secondary | 8 offset | 8 len] | ...
  *
  */
 int irr_database_remove (irr_database_t *database, char *key, u_long offset) {
@@ -230,7 +230,7 @@ int irr_database_remove (irr_database_t *database, char *key, u_long offset) {
     while (!found) {
       cp += 2;	/* skip over type and primary/secondary flag */
       UTIL_GET_NETLONG (_offset, cp); 
-      cp += 4;	/* skip length field */
+      cp += NETLONG_SIZE;	/* skip length field */
       count--; 
       if (offset == _offset) found = 1; /* found the entry */
       if (count == 0) break;	/* we have scanned all the entries */
