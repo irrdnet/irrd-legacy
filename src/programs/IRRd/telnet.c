@@ -141,6 +141,7 @@ int irr_accept_connection (int fd) {
   if (setsockopt (sockfd, IPPROTO_TCP, TCP_NODELAY, (char *) &one,
 		  sizeof (one)) < 0) {
     trace (ERROR, default_trace, "setsockoptfailed\n");
+    close (sockfd);
     return (-1);
   }
  
