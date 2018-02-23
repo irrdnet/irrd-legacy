@@ -263,17 +263,17 @@ void init_response_header (trace_t *tr, FILE *fp, char *from, char *to, enum NOT
 
   switch (response_type) {
   case SENDER_RESPONSE:
-    fprintf (fp, SENDER_HEADER);
+    fprintf (fp, "%s", SENDER_HEADER);
     break;
   case FORWARD_RESPONSE:
     if (ci.forward_header_msg != NULL)
-      fprintf (fp, ci.forward_header_msg);
+      fprintf (fp, "%s", ci.forward_header_msg);
     else
-      fprintf (fp, FORWARD_HEADER);
+      fprintf (fp, "%s", FORWARD_HEADER);
     break; 
   case NOTIFY_RESPONSE:
     if (ci.notify_header_msg != NULL)
-      fprintf(fp, ci.notify_header_msg);
+      fprintf(fp, "%s", ci.notify_header_msg);
     else
       fprintf (fp, NOTIFY_HEADER, ti->source);
     break;
@@ -284,7 +284,7 @@ void init_response_header (trace_t *tr, FILE *fp, char *from, char *to, enum NOT
     break;
   }
 
-  fprintf (fp, DIAG_HEADER);
+  fprintf (fp, "%s", DIAG_HEADER);
 
   if (ti->web_origin_str == NULL)
     fprintf (fp, MAIL_HEADERS, from, ti->subject, ti->date, ti->msg_id);
@@ -296,9 +296,9 @@ void init_response_header (trace_t *tr, FILE *fp, char *from, char *to, enum NOT
 void init_response_footer (FILE *fp) {
 
   if (ci.footer_msg != NULL)
-    fprintf (fp, ci.footer_msg);
+    fprintf (fp, "%s", ci.footer_msg);
   else {
-    fprintf (fp, RESPONSE_FOOTER);
+    fprintf (fp, "%s", RESPONSE_FOOTER);
   }
 }
 
@@ -401,7 +401,7 @@ void sender_response (trace_t *tr, FILE *fin, long obj_pos, trans_info_t *ti,
   }
 
   if (irrd_res->svr_res & NULL_SUBMISSION) {
-    fprintf (msg_fp, NULL_SUBMISSION_MSG);
+    fprintf (msg_fp, "%s", NULL_SUBMISSION_MSG);
     trace (NORM, tr, NULL_SUBMISSION_MSG, ti->op, ti->obj_type, ti->obj_key);
     return;
   }
@@ -509,10 +509,10 @@ void sender_response (trace_t *tr, FILE *fin, long obj_pos, trans_info_t *ti,
     fprintf (msg_fp, "\n");
     if (!strcmp (ti->op, REPLACE_OP)) {
 
-      fprintf (msg_fp, EXIST_OBJ_MSG);
+      fprintf (msg_fp, "%s", EXIST_OBJ_MSG);
       dump_old_obj (tr, msg_fp, fin, ti->old_obj_fname, max_obj_line_size);
       if (ci.replace_msg != NULL)
-        fprintf (msg_fp, ci.replace_msg);
+        fprintf (msg_fp, "%s", ci.replace_msg);
     }
     trace (NORM, tr, "%s%s", ERROR_TAG, AUTHFAIL_MSG);
     return;
