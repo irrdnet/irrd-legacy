@@ -175,7 +175,7 @@ void irr_clean_timer (mtimer_t *timer, irr_database_t *db);
 int irr_service_mirror_request (irr_connection_t *irr, char *command);
 int request_mirror (irr_database_t *db, uii_connection_t *uii, uint32_t last);
 int valid_start_line (irr_database_t *database, FILE *fp, uint32_t *serial_num);
-int get_remote_mirrorstatus (prefix_t *mirror_prefix, int mirror_port);
+int get_remote_mirrorstatus (char *mirror_host, int mirror_port);
 
 /* commands.c */
 void irr_process_command (irr_connection_t * irr);

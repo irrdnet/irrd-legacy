@@ -199,10 +199,10 @@ void get_config_irr_database (irr_database_t *database) {
     atts = 1;
   }
 
-  if (database->mirror_prefix != NULL) {
+  if (database->mirror_host != NULL) {
     config_add_output ("irr_database %s mirror_host %s %d\r\n", 
 		       database->name,
-		       prefix_toa (database->mirror_prefix),
+		       database->mirror_host,
 		       database->mirror_port);
     atts =1;
   }
@@ -645,7 +645,7 @@ int config_rpsdist_database (uii_connection_t *uii, char *dbname) {
 
   /* mis-configuration checking */
   if (db != NULL &&
-      db->mirror_prefix != NULL) {
+      db->mirror_host != NULL) {
     config_notice (NORM, uii, "CONFIG Error -- conflicting "
 		   "\"irr_database/rpsdist_database\" configurations "
 		   "for DB %s\r\n", dbname);
@@ -729,7 +729,7 @@ int config_rpsdist_accept_database (uii_connection_t *uii, char *dbname,
 
   /* mis-configuration checking */
   if (db != NULL &&
-      db->mirror_prefix != NULL) {
+      db->mirror_host != NULL) {
     config_notice (NORM, uii, "CONFIG Error -- conflicting "
 		   "\"irr_database/rpsdist_database\" configurations "
 		   "for DB %s\r\n", dbname);
@@ -791,7 +791,7 @@ int config_rpsdist_database_trusted (uii_connection_t *uii, char *dbname,
   if (db != NULL          &&
       (db->rpsdist_trusted ||
        db->rpsdist_auth    ||
-       db->mirror_prefix != NULL)) {
+       db->mirror_host != NULL)) {
     config_notice (NORM, uii, "CONFIG Error -- conflicting "
 		   "\"irr_database/rpsdist_database\" configurations "
 		   "for DB %s\r\n", dbname);
@@ -864,7 +864,7 @@ int config_rpsdist_database_authoritative (uii_connection_t *uii, char *dbname,
   /* mis-configuration checking */
   if (db != NULL          &&
       (db->rpsdist_trusted ||
-       db->mirror_prefix != NULL)) {
+       db->mirror_host != NULL)) {
     config_notice (NORM, uii, "CONFIG Error -- conflicting "
 		   "\"irr_database/rpsdist_database\" configurations "
 		   "for DB %s\r\n", dbname);
@@ -953,7 +953,7 @@ int config_irr_database_authoritative (uii_connection_t *uii, char *name) {
   }
 
   /* can't be authoritative and mirror at the same time! */
-  if (database->mirror_prefix != NULL) {
+  if (database->mirror_host != NULL) {
     config_notice (ERROR, uii, "*ERROR* database %s is configured for mirroring!\r\n",
 		   name);
     irrd_free(name);
@@ -979,6 +979,7 @@ int config_irr_database_authoritative (uii_connection_t *uii, char *name) {
 int config_irr_database_mirror (uii_connection_t *uii, char *name,
 				 char *host, int port) {
   irr_database_t *database = NULL;
+  prefix_t *mirror_prefix;
 
   if ((database = find_database (name)) == NULL)
     config_irr_database (uii, strdup (name));
@@ -998,12 +999,12 @@ int config_irr_database_mirror (uii_connection_t *uii, char *name,
 
   trace (NORM, default_trace, "CONFIG %s mirror\n", name);
 
-  if ((database->mirror_prefix = string_toprefix (host, default_trace)) == NULL) {
-    config_notice (NORM, uii, "CONFIG Error -- could not resolve %s\r\n", host);
-    irrd_free(name);
-    irrd_free(host);
-    return (-1);
-  }
+  if ((mirror_prefix = string_toprefix (host, default_trace)) == NULL)
+    config_notice (NORM, uii, "CONFIG Error -- could not resolve %s, will try again upon mirroring attempt\r\n", host);
+  if (database->mirror_host)
+    irrd_free(database->mirror_host);
+  database->mirror_host = host;
+
   database->mirror_port = port;
   database->mirror_protocol = 1;	/* default mirror protocol is 1 */
 
@@ -1021,7 +1022,7 @@ int config_irr_database_mirror (uii_connection_t *uii, char *name,
   }
 
   irrd_free(name);
-  irrd_free(host);
+  /* no free for host */
   return (1);
 }
 
@@ -1138,6 +1139,8 @@ int config_irr_database_compress_script (uii_connection_t *uii, char *name, char
   trace (NORM, default_trace, "CONFIG %s compress_script %s\n", name, script);
   config_add_module (0, "compress script", get_config_irr_database, database);
 
+  if (database->compress_script)
+    irrd_free(database->compress_script);
   database->compress_script = script;
   irrd_free(name);
   return (1);
@@ -1180,6 +1183,12 @@ int no_config_irr_database (uii_connection_t *uii, char *name) {
   g_hash_table_destroy(db->hash);
   g_hash_table_destroy(db->hash_spec);
   irrd_free(db->name);
+  if (db->mirror_host)
+    irrd_free(db->mirror_host);
+  if (db->remote_ftp_url)
+    irrd_free(db->remote_ftp_url);
+  if (db->compress_script)
+    irrd_free(db->compress_script);
   irr_update_unlock (db);
   pthread_mutex_destroy(&db->mutex_lock);
   pthread_mutex_destroy(&db->mutex_clean_lock);

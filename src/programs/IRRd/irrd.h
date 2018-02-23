@@ -102,7 +102,6 @@ typedef struct _irr_database_t {
   long			time_last_successful_mirror;
   uint32_t		serial_number;	/* serial number for mirroring */
   uint32_t		new_serial_number; /* serial number for mirroring */
-  prefix_t		*mirror_prefix; /* prefix of host to connect for mirroring */
   char			*remote_ftp_url; /* for irrdcacher to fetch database */
   int                   rpsdist_flag;	/* if set, this DB was created with
 					  * a 'rpsdist_database' command */
@@ -154,6 +153,7 @@ typedef struct _irr_database_t {
   time_t		last_update;		/* last email/TCP update */
   time_t		last_mirrored;		/* when we last mirrored successfully! */
   enum REMOTE_MIRROR_STATUS_T  remote_mirrorstatus;
+  char			*mirror_host;		/* host to connect for mirroring */
   int			mirror_port;
   int                   mirror_protocol;        /* mirroring protocol version */
 #define MAX_MIRROR_ERROR_LEN 255

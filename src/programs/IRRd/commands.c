@@ -189,7 +189,7 @@ void irr_process_command (irr_connection_t * irr) {
 	/* update the *.JOURNAL file for authoritative or mirror DB's; 
 	 * rpsdist will manage the journal in the other case */
 	else if (((irr->database->flags & IRR_AUTHORITATIVE) ||
-		 irr->database->mirror_prefix != NULL)            &&
+		 irr->database->mirror_host != NULL)            &&
 		 !update_journal (irr->update_fp, irr->database, n_updates)) {
 	  trace (ERROR, default_trace, "error in updating journal for DB (%s) "
 		 "rolling back transaction\n", irr->database->name);
@@ -1346,7 +1346,7 @@ void irr_journal_add_answer (irr_connection_t *irr) {
 
   /* Is it not authoritative or not a mirror? */
   if (!(((irr->database->flags & IRR_AUTHORITATIVE) == IRR_AUTHORITATIVE) ||
-        (irr->database->mirror_prefix != NULL))) {
+        (irr->database->mirror_host != NULL))) {
     status = READONLY;
   }
   else {
