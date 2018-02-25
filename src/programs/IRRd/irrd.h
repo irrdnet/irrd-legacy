@@ -94,6 +94,7 @@ typedef struct _irr_database_t {
   int			bytes;		/* bytes read so far */
   u_long		max_journal_bytes;  /* number of bytes in journal log */
   u_long		obj_filter;	/* object bit-fields of 1 are filtered out */
+  char			*obj_filter_str; /* string representation of filter as written in config */
 
   /* mirroring stuff */
   int			mirror_fd;	/* the temporary fd for remote mirroring */

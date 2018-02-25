@@ -36,6 +36,7 @@ irr_database_t *new_database (char *name) {
   database->hash_spec = g_hash_table_new_full(g_str_hash, g_str_equal, NULL, (GDestroyNotify)irr_hash_destroy);
 
   database->name = strdup (name);
+  database->obj_filter_str = NULL;
   database->mirror_fd  = -1;
   database->journal_fd = -1;
   database->max_journal_bytes = IRR_MAX_JOURNAL_SIZE;
