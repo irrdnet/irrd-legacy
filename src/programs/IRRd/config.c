@@ -296,6 +296,13 @@ void get_config_irr_database (irr_database_t *database) {
   }
 #endif
 
+  if (database->obj_filter_str != NULL) {
+    config_add_output ("irr_database %s filter %s\r\n",
+		       database->name,
+		       database->obj_filter_str);
+    atts =1;
+  }
+
   if (atts == 0) 
     config_add_output ("irr_database %s\r\n", database->name);
 }
@@ -1183,6 +1190,8 @@ int no_config_irr_database (uii_connection_t *uii, char *name) {
   g_hash_table_destroy(db->hash);
   g_hash_table_destroy(db->hash_spec);
   irrd_free(db->name);
+  if (db->obj_filter_str)
+    irrd_free(db->obj_filter_str);
   if (db->mirror_host)
     irrd_free(db->mirror_host);
   if (db->remote_ftp_url)
@@ -1664,11 +1673,15 @@ int config_irr_database_filter (uii_connection_t *uii, char *name, char *object)
       if (tilda)
 	database->obj_filter = ~database->obj_filter;
       trace (NORM, default_trace, "Config filter %s (%s)\n", database->name, object);
+      if (database->obj_filter_str)
+        free(database->obj_filter_str);
+      database->obj_filter_str = object;
     }
   }
 
   irrd_free(name);
-  irrd_free(object);
+  if (database->obj_filter_str != object)
+    irrd_free(object);
   free (s);
   return ret_val;
 }
