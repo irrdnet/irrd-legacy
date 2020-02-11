@@ -1,9 +1,12 @@
-[![Build Status](https://travis-ci.org/irrdnet/irrd.svg?branch=master)](https://travis-ci.org/irrdnet/irrd)
+About this legacy repository
+============================
 
-This is the source distribution of the Internet Routing Registry Daemon (IRRd).
+This is the source distribution of the legacy Internet Routing Registry Daemon
+(IRRd). **Users of IRRd are strongly recommended to migrate to [IRRd version 4](https://github.com/irrdnet/irrd)!**
 
-IRRd is jointly maintained by Merit Network, Inc. and NTT Communications, Inc.
-employees.
+Legacy IRRd (up to and including version 3) were jointly maintained by Merit
+Network, Inc. and NTT Communications, Inc. employees. The legacy IRR code base
+is no longer maintained.
 
 A user guide is included as part of the distribution as irrd-user.pdf.
 
@@ -35,6 +38,3 @@ sudo apt-get install byacc automake autoconf build-essential gnupg flex libglib2
 ```
 
 Binaries are installed in /usr/local/sbin by default.
-
-Send email to [irrd@rpsl.net](http://lists.rpsl.net/mailman/listinfo/irrd) for
-assistance/bug/comments or use the [Github](https://github.com/irrdnet/irrd/issues) system to file an issue.
